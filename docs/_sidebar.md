@@ -21,7 +21,7 @@
    - Vue
    - 前端安全
      - [对XSS的理解](/md/idea-plugin/XSS的理解.md)
-     - [对CSRF的理解]
+     - [对CSRF的理解](/md/idea-plugin/CSRF的理解.md)
    - 浏览器
    - Node.js
    - TypeScript
