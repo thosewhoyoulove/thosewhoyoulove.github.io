@@ -3,7 +3,7 @@
  * @Author: 曹俊
  * @Date: 2023-03-27 19:24:25
  * @LastEditors: 曹俊
- * @LastEditTime: 2023-03-30 13:22:01
+ * @LastEditTime: 2023-03-30 13:26:39
 -->
 <!--
  * @Description: 
@@ -24,6 +24,7 @@
      - [对CSRF的理解](/md/idea-plugin/CSRF的理解.md)
    - 浏览器
      - [浏览器的缓存机制](/md/idea-plugin/浏览器的缓存机制.md)
+     - [加快首屏加载速度](/md/idea-plugin/加快首屏加载速度.md)
    - Node.js
    - TypeScript
    - Git
