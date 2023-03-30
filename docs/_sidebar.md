@@ -23,6 +23,7 @@
      - [对XSS的理解](/md/idea-plugin/XSS的理解.md)
      - [对CSRF的理解](/md/idea-plugin/CSRF的理解.md)
    - 浏览器
+     - [浏览器的缓存机制](/md/idea-plugin/浏览器的缓存机制.md)
    - Node.js
    - TypeScript
    - Git
