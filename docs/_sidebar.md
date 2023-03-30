@@ -3,7 +3,7 @@
  * @Author: 曹俊
  * @Date: 2023-03-27 19:24:25
  * @LastEditors: 曹俊
- * @LastEditTime: 2023-03-30 13:26:39
+ * @LastEditTime: 2023-03-30 13:28:25
 -->
 <!--
  * @Description: 
@@ -25,6 +25,7 @@
    - 浏览器
      - [浏览器的缓存机制](/md/idea-plugin/浏览器的缓存机制.md)
      - [加快首屏加载速度](/md/idea-plugin/加快首屏加载速度.md)
+     - [浏览器的渲染原理](/md/idea-plugin/浏览器的渲染原理.md)
    - Node.js
    - TypeScript
    - Git
