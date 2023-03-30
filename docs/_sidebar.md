@@ -3,7 +3,7 @@
  * @Author: 曹俊
  * @Date: 2023-03-27 19:24:25
  * @LastEditors: 曹俊
- * @LastEditTime: 2023-03-27 19:59:25
+ * @LastEditTime: 2023-03-30 13:13:35
 -->
 <!--
  * @Description: 
@@ -25,6 +25,8 @@
    - 浏览器
    - Node.js
    - TypeScript
+   - Git
+     - [Git merge 和Git rebase的区别](/md/idea-plugin/Git merge 和Git rebase的区别.md)
    - 其他
      - [前端工程化的理解](/md/idea-plugin/前端工程化.md)
        
