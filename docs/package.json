@@ -1,0 +1,5 @@
+{
+    "scripts": {
+        "generate-sidebar": "node scripts/generateSidebar.js"
+    }
+}
