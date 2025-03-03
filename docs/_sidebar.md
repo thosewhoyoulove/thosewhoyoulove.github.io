@@ -1,7 +1,7 @@
 - Basics
   - CSS
-    - [Css Position](/md/Basics/CSS/Css Position.md)
-    - [CSS 样式兼容性](/md/Basics/CSS/CSS 样式兼容性.md)
+    - [Position](/md/Basics/CSS/Position.md)
+    - [样式兼容性](/md/Basics/CSS/样式兼容性.md)
   - HTML
     - [Web语义化](/md/Basics/HTML/Web语义化.md)
   - JavaScript
@@ -9,24 +9,22 @@
     - [闭包的理解](/md/Basics/JavaScript/闭包的理解.md)
 - ES6
 - Git
-  - [git rebase 和 git merge 的区别是什么](/md/Git/git rebase 和 git merge 的区别是什么.md)
-  - [git stash](/md/Git/git stash.md)
-  - [git 解决冲突](/md/Git/git 解决冲突.md)
+  - [rebase和merge的区别](/md/Git/rebase和merge的区别.md)
+  - [stash](/md/Git/stash.md)
   - [如何撤销最近一次的commit](/md/Git/如何撤销最近一次的commit.md)
+  - [解决冲突](/md/Git/解决冲突.md)
 - Github
-  - [pull request](/md/Github/pull request.md)
-- idea-plugin
-  - [CSRF的理解](/md/idea-plugin/CSRF的理解.md)
-  - [Git中的merge和rebase](/md/idea-plugin/Git中的merge和rebase.md)
-  - [XSS的理解](/md/idea-plugin/XSS的理解.md)
-  - [前端工程化](/md/idea-plugin/前端工程化.md)
-  - [加快首屏加载速度](/md/idea-plugin/加快首屏加载速度.md)
-  - [浏览器的渲染原理](/md/idea-plugin/浏览器的渲染原理.md)
-  - [浏览器的缓存机制](/md/idea-plugin/浏览器的缓存机制.md)
-- [Index](/md/Index.md)
+  - [Pull_Request](/md/Github/Pull_Request.md)
 - Node.js
 - React
 - Vite
 - Vue
 - Web
+  - [CSRF的理解](/md/Web/CSRF的理解.md)
+  - [Git中的merge和rebase](/md/Web/Git中的merge和rebase.md)
+  - [XSS的理解](/md/Web/XSS的理解.md)
+  - [前端工程化](/md/Web/前端工程化.md)
+  - [加快首屏加载速度](/md/Web/加快首屏加载速度.md)
+  - [浏览器的渲染原理](/md/Web/浏览器的渲染原理.md)
+  - [浏览器的缓存机制](/md/Web/浏览器的缓存机制.md)
 - Webpack
