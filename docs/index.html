@@ -31,23 +31,23 @@
                 distractionFreeMode: false,
             };
             window.$docsify = {
-                name: "omen's blog",
-                repo: "https://github.com/thosewhoyoulove",
-                auto2top: true,
-                coverpage: true,
-                loadSidebar: true,
-                maxLevel: 4,
-                subMaxLevel: 2,
+                name: "omen's blog", //网站名称
+                repo: "https://github.com/thosewhoyoulove", //GitHub 仓库链接
+                auto2top: true, //切换页面后自动跳转到页面顶部
+                coverpage: true, //启用封面页
+                loadSidebar: true, //加载侧边栏
+                maxLevel: 3, //最大支持的标题级别
+                subMaxLevel: 1, //侧边栏显示的目录层级
                 search: {
-                    paths: "auto",
-                    placeholder: "🔍 Type to search ",
-                    noData: "😞 No Results! ",
-                    depth: 6,
+                    paths: "auto", //搜索路径
+                    placeholder: "🔍 Type to search ", //搜索框提示
+                    noData: "😞 No Results! ", //没有结果时的提示
+                    depth: 6, //搜索深度
                 },
                 pagination: {
-                    previousText: "PREVIOUS",
-                    nextText: "NEXT",
-                    crossChapter: true,
+                    previousText: "PREVIOUS", //上一页
+                    nextText: "NEXT", //下一页
+                    crossChapter: true, //跨章节
                 },
                 plugins: [
                     function (hook, vm) {
