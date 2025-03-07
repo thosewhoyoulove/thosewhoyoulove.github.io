@@ -8,6 +8,8 @@
     - [This的理解](/md/Basics/JavaScript/This的理解.md)
     - [闭包的理解](/md/Basics/JavaScript/闭包的理解.md)
 - ES6
+  - [Promise](/md/ES6/Promise.md)
+  - [手写Promise](/md/ES6/手写Promise.md)
 - Git
   - [rebase和merge的区别](/md/Git/rebase和merge的区别.md)
   - [stash](/md/Git/stash.md)
@@ -15,6 +17,7 @@
   - [解决冲突](/md/Git/解决冲突.md)
 - Github
   - [Pull_Request](/md/Github/Pull_Request.md)
+- [index](/md/index.md)
 - Node.js
 - React
 - Vite
