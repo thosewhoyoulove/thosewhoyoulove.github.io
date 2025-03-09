@@ -5,12 +5,14 @@ const path = require("path");
 function generateSidebar(dir, basePath = "") {
     let sidebar = "";
     const files = fs.readdirSync(dir);
-
-    files.forEach(file => {
+    const excludeFiles = ["index.md"];
+    const result = files.filter(file => !excludeFiles.includes(file));
+    //如果有空格，在URL中对空格进行编码（使用 %20 替换空格）
+    result.forEach(file => {
         const fullPath = path.join(dir, file);
         const stat = fs.statSync(fullPath);
-        const relativePath = path.relative("md", fullPath).replace(/\\/g, "/");
-
+        const relativePath = path.relative("md", fullPath).replace(/\\/g, "/").replace(/ /g, "%20");
+        console.log(relativePath);
         if (stat.isDirectory()) {
             // 处理目录
             sidebar += `  ${basePath}- ${file}\n`;
