@@ -1,0 +1,53 @@
+<div id="my-sandbox"></div>
+<!DOCTYPE html>
+<html lang="zh">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>懒加载图片示例</title>
+        <style>
+            .container {
+                max-width: 600px;
+                margin: auto;
+            }
+            .placeholder {
+                width: 100%;
+                height: 300px;
+                background-color: #ddd;
+                margin-bottom: 20px;
+            }
+            img {
+                width: 100%;
+                height: auto;
+                display: block;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="placeholder">滚动查看图片加载</div>
+            <img data-src="https://picsum.photos/600/400?random=1" class="lazy-load" alt="随机图片" />
+            <img data-src="https://picsum.photos/600/400?random=2" class="lazy-load" alt="随机图片" />
+            <img data-src="https://picsum.photos/600/400?random=3" class="lazy-load" alt="随机图片" />
+        </div>
+
+        <script>
+            const lazyImages = document.querySelectorAll(".lazy-load");
+
+            const observer = new IntersectionObserver(
+                (entries, observer) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            const img = entry.target;
+                            img.src = img.dataset.src; // 把 data-src 赋值给 src
+                            observer.unobserve(img); // 加载完后取消观察
+                        }
+                    });
+                },
+                { threshold: 0.1 }
+            );
+
+            lazyImages.forEach(img => observer.observe(img));
+        </script>
+    </body>
+</html>
