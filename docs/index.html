@@ -8,6 +8,8 @@
         <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0" />
         <link rel="stylesheet" href="/assets/css/vue.css" />
         <link rel="stylesheet" href="/assets/css/gitalk.css" />
+        <script src="https://unpkg.com/mini-sandbox@0.3.18"></script>
+        <script src="https://unpkg.com/mini-sandbox@0.3.18/dist/docsify-plugin.js"></script>
         <script>
             var _hmt = _hmt || [];
             (function () {
@@ -38,6 +40,7 @@
                 loadSidebar: true, //加载侧边栏
                 maxLevel: 3, //最大支持的标题级别
                 subMaxLevel: 1, //侧边栏显示的目录层级
+                executeScript: true, // 在 markdown 中使用 <script> 标签
                 search: {
                     paths: "auto", //搜索路径
                     placeholder: "🔍 Type to search ", //搜索框提示
