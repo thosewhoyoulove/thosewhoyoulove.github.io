@@ -21,6 +21,10 @@ function generateSidebar(dir, basePath = "") {
             // 处理 markdown 文件
             const title = path.basename(file, ".md");
             sidebar += `  ${basePath}- [${title}](/md/${relativePath})\n`;
+        } else if (path.extname(file) === ".html") {
+            // 处理 html 文件
+            const title = path.basename(file, ".html");
+            sidebar += `  ${basePath}- [${title}](/md/${relativePath})\n`;
         }
     });
 

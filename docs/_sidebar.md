@@ -36,5 +36,7 @@
     - [浏览器的渲染原理](/md/Web/浏览器的渲染原理.md)
     - [浏览器的缓存机制](/md/Web/浏览器的缓存机制.md)
   - WebApi
-    - [IntersectionObserver](/md/WebApi/IntersectionObserver.md)
+    - IntersectionObserver
+      - [demo](/md/WebApi/IntersectionObserver/demo.html)
+      - [IntersectionObserver](/md/WebApi/IntersectionObserver/IntersectionObserver.md)
   - Webpack

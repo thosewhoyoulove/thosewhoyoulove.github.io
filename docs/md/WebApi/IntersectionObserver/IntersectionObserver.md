@@ -32,5 +32,3 @@ observer.observe(target);
 ```
 
 entries 是被观察的元素列表，每个 entry 代表一个元素的可见性信息。threshold: 0.5 表示 当元素 50% 可见时触发回调。
-
-<iframe src="demo.html" width="100%" height="400px"></iframe>
