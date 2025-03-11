@@ -1,5 +1,8 @@
 {
     "scripts": {
         "generate-sidebar": "node scripts/generateSidebar.js"
+    },
+    "dependencies": {
+        "docsify-cli": "^4.4.4"
     }
 }
