@@ -49,6 +49,10 @@
                     nextText: "NEXT", //下一页
                     crossChapter: true, //跨章节
                 },
+                alias: {
+                    "/.*/_sidebar.md": "/_sidebar.md", //解决侧边栏路径404问题
+                },
+
                 plugins: [
                     function (hook, vm) {
                         hook.doneEach(function () {
