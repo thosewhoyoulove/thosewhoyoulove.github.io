@@ -32,3 +32,4 @@ observer.observe(target);
 ```
 
 entries 是被观察的元素列表，每个 entry 代表一个元素的可见性信息。threshold: 0.5 表示 当元素 50% 可见时触发回调。
+下一页是一个示例，当图片进入视口的 1/3 时加载图片。

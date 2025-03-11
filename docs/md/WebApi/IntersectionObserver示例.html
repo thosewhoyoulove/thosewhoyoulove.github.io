@@ -15,6 +15,14 @@
                 background-color: #ddd;
                 margin-bottom: 20px;
             }
+            .container img[data-src] {
+                filter: blur(0.2em);
+            }
+
+            .container img {
+                filter: blur(0em);
+                transition: filter 0.5s;
+            }
             img {
                 width: 100%;
                 height: 300px;
@@ -27,9 +35,9 @@
     <body>
         <div class="container">
             <div class="placeholder" style="height: 800px">向下滚动查看图片加载</div>
-            <img src="https://picsum.photos/600/400?random=1" crossorigin="anonymous" class="lazy-load" alt="随机图片" />
-            <img src="https://picsum.photos/600/400?random=2" crossorigin="anonymous" class="lazy-load" alt="随机图片" />
-            <img src="https://picsum.photos/600/400?random=3" crossorigin="anonymous" class="lazy-load" alt="随机图片" />
+            <img data-src="https://picsum.photos/id/237/600/400" crossorigin="anonymous" class="lazy-load" alt="滑动到图片的1/3处才加载" />
+            <img data-src="https://picsum.photos/id/238/600/400" crossorigin="anonymous" class="lazy-load" alt="滑动到图片的1/3处才加载" />
+            <img data-src="https://picsum.photos/id/239/600/400" crossorigin="anonymous" class="lazy-load" alt="滑动到图片的1/3处才加载" />
         </div>
 
         <script>
@@ -40,12 +48,16 @@
                     entries.forEach(entry => {
                         if (entry.isIntersecting) {
                             const img = entry.target;
+                            console.log(img);
                             img.src = img.dataset.src; // 把 data-src 赋值给 src
+                            img.onload = () => {
+                                img.removeAttribute("data-src");
+                            };
                             observer.unobserve(img); // 加载完后取消观察
                         }
                     });
                 },
-                { threshold: 0.1 }
+                { threshold: 0.33 } //要滑到图片的1/3处才加载
             );
 
             lazyImages.forEach(img => observer.observe(img));
