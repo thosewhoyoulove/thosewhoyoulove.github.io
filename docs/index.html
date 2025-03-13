@@ -24,11 +24,12 @@
         <script>
             var gitalkConfig = {
                 clientID: "Ov23lid3h0ZhQHh5D1uf",
-                clientSecret: "942e04620bcf6d6c52b427a88ebb58adae4b1320",
-                repo: "https://github.com/thosewhoyoulove/gitalk-comment",
+                clientSecret: "942e04620bcf6d6c52b427a88ebb58adae4b1320", //942e04620bcf6d6c52b427a88ebb58adae4b1320
+                repo: "thosewhoyoulove.github.io",
                 owner: "thosewhoyoulove",
                 admin: ["thosewhoyoulove"],
                 distractionFreeMode: false,
+                // proxy: "http://127.0.0.1:3000/github-oauth", // 通过代理服务器获取 access_token
             };
             window.$docsify = {
                 name: "omen's blog", //网站名称
@@ -57,25 +58,35 @@
                     function (hook, vm) {
                         hook.doneEach(function () {
                             var label, domObj, main, divEle, gitalk;
-                            label = md5(decodeURI(vm.route.path.split("/").pop()));
+
+                            label = vm.route.path ? md5(decodeURI(vm.route.path.split("/").pop() || "home")) : "home";
+
                             domObj = Docsify.dom;
                             main = domObj.getNode("#main");
 
-                            Array.apply(null, document.querySelectorAll("div.gitalk-container")).forEach(function (ele) {
-                                ele.remove();
-                            });
+                            // 移除已存在的 Gitalk 容器，防止重复渲染
+                            Array.from(document.querySelectorAll("div.gitalk-container")).forEach(ele => ele.remove());
 
+                            // 创建 Gitalk 容器
                             divEle = domObj.create("div");
                             divEle.id = "gitalk-container-" + label;
                             divEle.className = "gitalk-container";
-                            divEle.style = "width: " + main.clientWidth + "px; margin: 0 auto 20px;";
+                            divEle.style = "margin: 0 auto 20px;";
                             domObj.appendTo(domObj.find(".content"), divEle);
+
+                            // 初始化 Gitalk
                             gitalk = new Gitalk(
                                 Object.assign(gitalkConfig, {
-                                    id: !label ? "home" : label,
+                                    id: label || "home",
                                 })
                             );
-                            gitalk.render("gitalk-container-" + label);
+
+                            // 渲染 Gitalk 并捕获异常
+                            try {
+                                gitalk.render("gitalk-container-" + label);
+                            } catch (error) {
+                                console.error("Gitalk Render Error:", error);
+                            }
                         });
                     },
                 ],
