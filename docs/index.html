@@ -29,6 +29,7 @@
                 owner: "thosewhoyoulove",
                 admin: ["thosewhoyoulove"],
                 distractionFreeMode: false,
+                id: location.pathname, // ✅ 确保每个页面的 id 稳定
                 // proxy: "http://127.0.0.1:3000/github-oauth", // 通过代理服务器获取 access_token
             };
             window.$docsify = {
