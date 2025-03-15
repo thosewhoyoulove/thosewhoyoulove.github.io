@@ -28,7 +28,7 @@
   - React
     - [Hooks](/md/React/Hooks.md)
   - Vite
-    - [Vite为什么快](/md/Vite/Vite为什么快.md)
+    - [为什么Vite快](/md/Vite/为什么Vite快.md)
   - Vue
     - [vue3响应式原理](/md/Vue/vue3响应式原理.md)
   - Web
@@ -37,6 +37,7 @@
     - [XSS的理解](/md/Web/XSS的理解.md)
     - [前端工程化](/md/Web/前端工程化.md)
     - [加快首屏加载速度](/md/Web/加快首屏加载速度.md)
+    - [浏览器的事件循环](/md/Web/浏览器的事件循环.md)
     - [浏览器的渲染原理](/md/Web/浏览器的渲染原理.md)
     - [浏览器的缓存机制](/md/Web/浏览器的缓存机制.md)
   - WebApi
