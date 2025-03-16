@@ -6,11 +6,14 @@
       - [Web语义化](/md/Basics/HTML/Web语义化.md)
     - JavaScript
       - [This的理解](/md/Basics/JavaScript/This的理解.md)
+      - [函数的call,apply和bind方法](/md/Basics/JavaScript/函数的call,apply和bind方法.md)
       - [闭包的理解](/md/Basics/JavaScript/闭包的理解.md)
   - Echarts
     - [Svg Vs Canvas](/md/Echarts/Svg%20Vs%20Canvas.md)
     - [Z-render](/md/Echarts/Z-render.md)
   - Engineering
+    - CI
+      - [CD](/md/Engineering/CI/CD.md)
     - [Monorepo](/md/Engineering/Monorepo.md)
     - [工程化体系](/md/Engineering/工程化体系.md)
   - ES6
@@ -44,3 +47,4 @@
     - [IntersectionObserver](/md/WebApi/IntersectionObserver.md)
     - [IntersectionObserver示例](/md/WebApi/IntersectionObserver示例.html)
   - Webpack
+    - [Plugin](/md/Webpack/Plugin.md)
