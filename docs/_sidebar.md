@@ -12,8 +12,7 @@
     - [Svg Vs Canvas](/md/Echarts/Svg%20Vs%20Canvas.md)
     - [Z-render](/md/Echarts/Z-render.md)
   - Engineering
-    - CI
-      - [CD](/md/Engineering/CI/CD.md)
+    - [CI&CD](/md/Engineering/CI&CD.md)
     - [Monorepo](/md/Engineering/Monorepo.md)
     - [工程化体系](/md/Engineering/工程化体系.md)
   - ES6
@@ -36,13 +35,15 @@
     - [vue3响应式原理](/md/Vue/vue3响应式原理.md)
   - Web
     - [CSRF的理解](/md/Web/CSRF的理解.md)
-    - [Git中的merge和rebase](/md/Web/Git中的merge和rebase.md)
+    - [URL解析流程](/md/Web/URL解析流程.md)
+    - [WebSocket](/md/Web/WebSocket.md)
     - [XSS的理解](/md/Web/XSS的理解.md)
     - [前端工程化](/md/Web/前端工程化.md)
     - [加快首屏加载速度](/md/Web/加快首屏加载速度.md)
     - [浏览器的事件循环](/md/Web/浏览器的事件循环.md)
     - [浏览器的渲染原理](/md/Web/浏览器的渲染原理.md)
     - [浏览器的缓存机制](/md/Web/浏览器的缓存机制.md)
+    - [高阶知识点](/md/Web/高阶知识点.md)
   - WebApi
     - [IntersectionObserver](/md/WebApi/IntersectionObserver.md)
     - [IntersectionObserver示例](/md/WebApi/IntersectionObserver示例.html)
