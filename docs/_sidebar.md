@@ -35,6 +35,7 @@
     - [vue3响应式原理](/md/Vue/vue3响应式原理.md)
   - Web
     - [CSRF的理解](/md/Web/CSRF的理解.md)
+    - [HTTP](/md/Web/HTTP.md)
     - [URL解析流程](/md/Web/URL解析流程.md)
     - [WebSocket](/md/Web/WebSocket.md)
     - [XSS的理解](/md/Web/XSS的理解.md)
