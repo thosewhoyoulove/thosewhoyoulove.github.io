@@ -36,6 +36,7 @@
   - Web
     - [CSRF的理解](/md/Web/CSRF的理解.md)
     - [HTTP](/md/Web/HTTP.md)
+    - [HTTP状态码](/md/Web/HTTP状态码.md)
     - [URL解析流程](/md/Web/URL解析流程.md)
     - [WebSocket](/md/Web/WebSocket.md)
     - [XSS的理解](/md/Web/XSS的理解.md)
@@ -50,3 +51,12 @@
     - [IntersectionObserver示例](/md/WebApi/IntersectionObserver示例.html)
   - Webpack
     - [Plugin](/md/Webpack/Plugin.md)
+  - 面试准备
+    - [JavaScript & TypeScript 基础](/md/面试准备/JavaScript%20&%20TypeScript%20基础.md)
+    - [NodeJs & 全栈开发](/md/面试准备/NodeJs%20&%20全栈开发.md)
+    - [React & Vue](/md/面试准备/React%20&%20Vue.md)
+    - [你的项目经历（重点）](/md/面试准备/你的项目经历（重点）.md)
+    - [前端工程化](/md/面试准备/前端工程化.md)
+    - [前端性能优化](/md/面试准备/前端性能优化.md)
+    - [综合能力 & 团队合作](/md/面试准备/综合能力%20&%20团队合作.md)
+    - [网络与安全](/md/面试准备/网络与安全.md)
