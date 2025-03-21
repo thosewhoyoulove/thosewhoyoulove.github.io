@@ -32,6 +32,7 @@
     - [Hooks](/md/React/Hooks.md)
   - Vite
     - [为什么Vite快](/md/Vite/为什么Vite快.md)
+    - [依赖预构建](/md/Vite/依赖预构建.md)
     - [常见配置](/md/Vite/常见配置.md)
   - Vue
     - [vue3响应式原理](/md/Vue/vue3响应式原理.md)
