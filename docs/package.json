@@ -1,6 +1,6 @@
 {
     "scripts": {
-        "dev": "docsify serve docs",
+        "dev": "docsify serve .",
         "generate-sidebar": "node scripts/generateSidebar.js"
     },
     "dependencies": {
