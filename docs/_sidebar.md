@@ -1,3 +1,5 @@
+  - Algorithms
+    - [trie](/md/Algorithms/trie.md)
   - Basics
     - CSS
       - [Flexbox 和 Grid](/md/Basics/CSS/Flexbox%20和%20Grid.md)
@@ -11,6 +13,7 @@
     - JavaScript
       - [This的理解](/md/Basics/JavaScript/This的理解.md)
       - [函数的call,apply和bind方法](/md/Basics/JavaScript/函数的call,apply和bind方法.md)
+      - [数据类型](/md/Basics/JavaScript/数据类型.md)
       - [编程范式](/md/Basics/JavaScript/编程范式.md)
       - [闭包的理解](/md/Basics/JavaScript/闭包的理解.md)
   - Echarts
@@ -45,6 +48,7 @@
     - [HTTP](/md/Web/HTTP.md)
     - [HTTPS](/md/Web/HTTPS.md)
     - [HTTP状态码](/md/Web/HTTP状态码.md)
+    - [OPTIONS预检请求](/md/Web/OPTIONS预检请求.md)
     - [TCP三次握手](/md/Web/TCP三次握手.md)
     - [TCP四次挥手](/md/Web/TCP四次挥手.md)
     - [URL解析流程](/md/Web/URL解析流程.md)
