@@ -13,3 +13,17 @@ function findRepeatedSequences(str) {
 // 测试
 console.log(findRepeatedSequences("aaaasssfjkjkbbbdddjkjssssjccccaaaasss"));
 // 输出：["aaaa"]
+// promise.all异常处理
+
+// 版本号比较排序
+// 数组中第k个最大元素
+// 二叉树中的所有路径
+// 二叉树中和为某一值的路径
+// node中promisify实现
+// fetch兼容超时重传
+// 观察者模式（高频）
+// String indexOf实现
+// 扁平化
+// 柯里化
+//深度优先（DFS）
+// 广度优先（BFS）
