@@ -1,100 +1,107 @@
+# Webpack 插件
 
-# 插件(Plugin)
+本质上，webpack 的插件是一个带有apply函数的对象。当 webpack 创建好 compiler 对象后，会执行注册插件的 apply 函数，同时将 compiler 对象作为参数传入。
 
-插件 是 webpack 的 支柱 功能。Webpack 自身也是构建于你在 webpack 配置中用到的 相同的插件系统 之上！
-插件目的在于解决 loader 无法实现的其他事。Webpack 提供很多开箱即用的 插件。
+在 apply 函数中，开发者可以通过 compiler 对象监听多个钩子函数的执行，不同的钩子函数对应 webpack 编译的不同阶段。当 webpack 进行到一定阶段后，会调用这些监听函数，同时将 compilation 对象传入。开发者可以使用 compilation 对象获取和改变 webpack 的各种信息，从而影响构建过程。
 
-## 剖析
+示例：
 
-webpack 插件是一个具有 apply 方法的 JavaScript 对象。apply 方法会被 webpack compiler 调用，并且在 整个 编译生命周期都可以访问 compiler 对象。
-
-ConsoleLogOnBuildWebpackPlugin.js
-
-```javascript
-const pluginName = 'ConsoleLogOnBuildWebpackPlugin';
-
-class ConsoleLogOnBuildWebpackPlugin {
+```js
+class MyPlugin {
   apply(compiler) {
-    compiler.hooks.run.tap(pluginName, (compilation) => {
-      console.log('webpack 构建正在启动！');
+    // 注册同步钩子
+    compiler.hooks.compile.tap('MyPlugin', (params) => {
+      console.log('正在编译...');
+    });
+
+    // 注册异步钩子（回调方式）
+    compiler.hooks.emit.tapAsync('MyPlugin', (compilation, callback) => {
+      console.log('资源即将输出...');
+      callback(); // 必须调用，否则构建卡住
+    });
+
+    // 注册异步钩子（Promise 方式）
+    compiler.hooks.done.tapPromise('MyPlugin', (stats) => {
+      return new Promise((resolve) => {
+        console.log('构建完成 ✅');
+        resolve();
+      });
+    });
+  }
+}
+```
+
+## Webpack 中常用的一些钩子（部分）
+
+| 生命周期阶段 | 钩子名 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| 初始化前 | beforeRun | AsyncSeriesHook | 构建前准备 |
+| 开始编译 | compile | SyncHook | 开始创建 compilation |
+| 编译过程 | thisCompilation / compilation | SyncHook | 初始化模块构建 |
+| 构建模块 | buildModule / succeedModule | SyncHook | 模块编译中 |
+| 输出前 | emit | AsyncSeriesHook | 生成文件并输出前 |
+| 输出后 | afterEmit | AsyncSeriesHook | 输出完文件后 |
+| 构建完成 | done | AsyncSeriesHook | 所有流程结束 |
+
+钩子类型说明（由 Tapable 提供）（部分）
+
+webpack 插件可以按照它所注册的事件分成不同的类型。每一个事件钩子都预先定义为同步、异步、瀑布或并行钩子，钩子在内部用 call/callAsync 方法调用。支持的钩子清单或可被绑定的钩子清单，通常在 this.hooks 属性指定。
+
+| 类型 | 方法 | 说明 |
+| --- | --- | --- |
+| SyncHook | .tap(name, fn) | 同步串行执行 |
+| SyncBailHook | .tap(name, fn) | 有返回值则中断 |
+| AsyncSeriesHook | .tapAsync(name, fn) / .tapPromise(name, fn) | 异步串行执行 |
+| AsyncParallelHook | .tapAsync(name, fn) / .tapPromise(name, fn) | 异步并行执行 |
+
+## 自定义 Plugin：AutoOpenBrowserPlugin
+
+### 1. 安装 open 库
+
+```bash
+npm install open
+```
+
+### 2. 自定义 Plugin
+
+```js
+// AutoOpenBrowserPlugin.js
+const open = require('open'); // 需要安装 open 库
+
+class AutoOpenBrowserPlugin {
+  constructor(options = {}) {
+    this.url = options.url || 'http://localhost:8080';
+  }
+
+  apply(compiler) {
+    compiler.hooks.done.tapPromise('AutoOpenBrowserPlugin', async () => {
+      console.log(`🚀 构建完成，打开浏览器：${this.url}`);
+      await open(this.url);
     });
   }
 }
 
-module.exports = ConsoleLogOnBuildWebpackPlugin;
+module.exports = AutoOpenBrowserPlugin;
 ```
 
-compiler hook 的 tap 方法的第一个参数，应该是驼峰式命名的插件名称。建议为此使用一个常量，以便它可以在所有 hook 中重复使用。
+### 3. 使用 Plugin
 
-## 用法
-
-由于插件可以携带参数/选项，你必须在 webpack 配置中，向 plugins 属性传入一个 new 实例。
-
-取决于你的 webpack 用法，对应有多种使用插件的方式。
-
-### 配置方式
-
-webpack.config.js
-
-```javascript
-const HtmlWebpackPlugin = require('html-webpack-plugin');
-const webpack = require('webpack'); // 访问内置的插件
-const path = require('path');
+```js
+const AutoOpenBrowserPlugin = require('./AutoOpenBrowserPlugin');
 
 module.exports = {
-  entry: './path/to/my/entry/file.js',
-  output: {
-    filename: 'my-first-webpack.bundle.js',
-    path: path.resolve(__dirname, 'dist'),
-  },
-  module: {
-    rules: [
-      {
-        test: /\.(js|jsx)$/,
-        use: 'babel-loader',
-      },
-    ],
-  },
+  // ...其他配置
   plugins: [
-    new webpack.ProgressPlugin(),
-    new HtmlWebpackPlugin({ template: './src/index.html' }),
-  ],
-};
+    new AutoOpenBrowserPlugin({
+      url: 'http://localhost:3000' // 你开发服务器的地址
+    })
+  ]
+}
 ```
 
-ProgressPlugin 用于自定义编译过程中的进度报告，HtmlWebpackPlugin 将生成一个 HTML 文件，并在其中使用 script 引入一个名为 my-first-webpack.bundle.js 的 JS 文件。
+## 4. 效果
 
-### Node API 方式
+执行 webpack 构建完后，它会自动打开浏览器访问你设定的 URL，适用于：
 
-在使用 Node API 时，还可以通过配置中的 plugins 属性传入插件。
-
-some-node-script.js
-
-```javascript
-const webpack = require('webpack'); // 访问 webpack 运行时(runtime)
-const configuration = require('./webpack.config.js');
-
-let compiler = webpack(configuration);
-
-new webpack.ProgressPlugin().apply(compiler);
-
-compiler.run(function (err, stats) {
-  // ...
-});
-```
-
-## 常用的 Webpack 钩子
-
-- entryOption: 在 Webpack 处理完 entry 配置后触发。
-- compile: 在编译开始之前触发。
-- compilation: 每次编译创建时触发。
-- emit: 在生成资源并输出到目录之前触发。
-- afterEmit: 在生成资源并输出到目录之后触发。
-- done: 在编译完成后触发。
-
-## 常用的 Webpack 插件
-
-- HtmlWebpackPlugin: 生成 HTML 文件。
-- MiniCssExtractPlugin: 提取 CSS 文件。
-- UglifyJsPlugin: 压缩 JS 文件。
-- OptimizeCSSAssetsPlugin: 压缩 CSS 文件。
+- Webpack 构建后的开发预览
+- 自定义本地服务器地址（非 localhost:8080）

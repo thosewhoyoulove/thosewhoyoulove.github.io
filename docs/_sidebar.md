@@ -1,3 +1,5 @@
+  - Algorithms
+    - [trie](/md/Algorithms/trie.md)
   - Basics
     - CSS
       - [Flexbox 和 Grid](/md/Basics/CSS/Flexbox%20和%20Grid.md)
@@ -11,6 +13,7 @@
     - JavaScript
       - [This的理解](/md/Basics/JavaScript/This的理解.md)
       - [函数的call,apply和bind方法](/md/Basics/JavaScript/函数的call,apply和bind方法.md)
+      - [数据类型](/md/Basics/JavaScript/数据类型.md)
       - [编程范式](/md/Basics/JavaScript/编程范式.md)
       - [闭包的理解](/md/Basics/JavaScript/闭包的理解.md)
   - Echarts
