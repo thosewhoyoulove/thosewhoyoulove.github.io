@@ -42,6 +42,8 @@
     - [依赖预构建](/md/Vite/依赖预构建.md)
     - [常见配置](/md/Vite/常见配置.md)
   - Vue
+    - [nextTick](/md/Vue/nextTick.md)
+    - [vue2和3的区别](/md/Vue/vue2和3的区别.md)
     - [vue3响应式原理](/md/Vue/vue3响应式原理.md)
   - Web
     - [CSRF的理解](/md/Web/CSRF的理解.md)
