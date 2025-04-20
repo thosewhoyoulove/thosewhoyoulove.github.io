@@ -1,13 +1,13 @@
 // 用js实现一个函数，找出字符串中长度大于等于4且连续重复出现两次及以上的字符
 
 function findRepeatedSequences(str) {
-  let matches = str.match(/(\w)\1{3,}/g) || []; // 匹配长度 ≥4 的连续重复字符
-  let countMap = new Map();
+    let matches = str.match(/(\w)\1{3,}/g) || []; // 匹配长度 ≥4 的连续重复字符
+    let countMap = new Map();
 
-  matches.forEach(match => {
-    countMap.set(match, (countMap.get(match) || 0) + 1);
-  });
-  return [...countMap.entries()].filter(([key, value]) => value >= 2).map(([key]) => key);
+    matches.forEach(match => {
+        countMap.set(match, (countMap.get(match) || 0) + 1);
+    });
+    return [...countMap.entries()].filter(([key, value]) => value >= 2).map(([key]) => key);
 }
 
 // 测试
@@ -27,48 +27,48 @@ console.log(findRepeatedSequences("aaaasssfjkjkbbbdddjkjssssjccccaaaasss"));
  * @return {number}
  */
 function compareVersions(version1, version2) {
-  const v1 = version1.split(".");
-  const v2 = version2.split(".");
-  const maxLength = Math.max(v1.length, v2.length);
-  for (let i = 0; i < maxLength; i++) {
-    const num1 = parseInt(v1[i] || "0");
-    const num2 = parseInt(v2[i] || "0");
-    if (num1 < num2) return -1;
-    else if (num1 > num2) return 1;
-  }
-  return 0;
+    const v1 = version1.split(".");
+    const v2 = version2.split(".");
+    const maxLength = Math.max(v1.length, v2.length);
+    for (let i = 0; i < maxLength; i++) {
+        const num1 = parseInt(v1[i] || "0");
+        const num2 = parseInt(v2[i] || "0");
+        if (num1 < num2) return -1;
+        else if (num1 > num2) return 1;
+    }
+    return 0;
 }
 //冒泡排序（时间复杂度O(n^2)，空间复杂度O(1)）
 const bubbleSort = arr => {
-  const len = arr.length;
-  for (let i = 0; i < len - 1; i++) {
-    // 外层循环控制遍历次数,只需要遍历n-1次
-    // 当 i = len - 1 时，j < len - 1 - i → j < 0，内层循环 不会执行，所以那一轮是空转的。
-    for (let j = 0; j < len - 1 - i; j++) {
-      // 内层循环控制比较次数
-      if (arr[j] > arr[j + 1]) {
-        [arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];
-      }
+    const len = arr.length;
+    for (let i = 0; i < len - 1; i++) {
+        // 外层循环控制遍历次数,只需要遍历n-1次
+        // 当 i = len - 1 时，j < len - 1 - i → j < 0，内层循环 不会执行，所以那一轮是空转的。
+        for (let j = 0; j < len - 1 - i; j++) {
+            // 内层循环控制比较次数
+            if (arr[j] > arr[j + 1]) {
+                [arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];
+            }
+        }
     }
-  }
-  return arr;
+    return arr;
 };
 //选择排序（时间复杂度O(n^2)，空间复杂度O(1)）
 const selectionSort = arr => {
-  const len = arr.length;
-  for (let i = 0; i < len - 1; i++) {
-    let minIndex = i;
-    for (let j = minIndex + 1; j < len; j++) {
-      if (arr[minIndex] > arr[j]) {
-        minIndex = j;
-      }
+    const len = arr.length;
+    for (let i = 0; i < len - 1; i++) {
+        let minIndex = i;
+        for (let j = minIndex + 1; j < len; j++) {
+            if (arr[minIndex] > arr[j]) {
+                minIndex = j;
+            }
+        }
+        // 如果找到了更小的，就交换,没变就不用交换
+        if (minIndex !== i) {
+            [arr[i], arr[minIndex]] = [arr[minIndex], arr[i]];
+        }
     }
-    // 如果找到了更小的，就交换,没变就不用交换
-    if (minIndex !== i) {
-      [arr[i], arr[minIndex]] = [arr[minIndex], arr[i]];
-    }
-  }
-  return arr;
+    return arr;
 };
 // 数组中第k个最大元素
 // 给定整数数组 nums 和整数 k，请返回数组中第 k 个最大的元素。
@@ -80,7 +80,7 @@ const selectionSort = arr => {
  * @return {number}
  */
 var findKthLargest = function (nums, k) {
-  return nums.sort((a, b) => b - a)[k - 1];
+    return nums.sort((a, b) => b - a)[k - 1];
 };
 // 🔁 遍历类题目（重点）：
 // 前序 / 中序 / 后序 遍历（递归 & 非递归）
@@ -88,18 +88,18 @@ var findKthLargest = function (nums, k) {
 // LeetCode 144（前序）
 
 function preorderTraversal(root) {
-  const res = [];
-  const stack = [];
-  while (root || stack.length) {
-    while (root) {
-      res.push(root.val);
-      stack.push(root);
-      root = root.left;
+    const res = [];
+    const stack = [];
+    while (root || stack.length) {
+        while (root) {
+            res.push(root.val);
+            stack.push(root);
+            root = root.left;
+        }
+        root = stack.pop();
+        root = root.right;
     }
-    root = stack.pop();
-    root = root.right;
-  }
-  return res;
+    return res;
 }
 // LeetCode 94（中序）
 
@@ -135,3 +135,27 @@ var binaryTreePaths = function (root) {};
 // 柯里化
 //深度优先（DFS）
 // 广度优先（BFS）
+Array.prototype.myMap = function (callback, thisArg) {
+    console.log(thisArg, "thisArg");
+    if (typeof callback !== "function") {
+        throw new Error("callback must be a function");
+    }
+    const res = [];
+    for (let i = 0; i < this.length; i++) {
+        res.push(callback.call(thisArg, this[i], i, this));
+    }
+    return res;
+};
+const arr = [1, 2, 3, 4, 5];
+console.log(arr.myMap(item => item * 2));
+Array.prototype.mySlice = function (start, end = this.length) {
+    const res = [];
+    if (start < 0) start = this.length + start;
+    if (end < 0) end = this.length + end;
+    if (end > this.length) end = this.length;
+    for (let i = start; i < end; i++) {
+        res.push(this[i]);
+    }
+    return res;
+};
+console.log(arr.mySlice(-3, -1));
