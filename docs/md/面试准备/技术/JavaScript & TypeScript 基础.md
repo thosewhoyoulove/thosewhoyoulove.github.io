@@ -192,7 +192,7 @@ const updateUser = () => {
 
 ## 5.事件循环（Event Loop）的执行机制是什么？你能描述一下微任务（Microtask）和宏任务（Macrotask）的执行顺序吗？
 
-详情请看 [浏览器的事件循环](/md/Web/浏览器的事件循环.md)
+详情请看 [浏览器的事件循环](/md/浏览器/浏览器的事件循环.md)
 
 ## 6.TypeScript 里 interface 和 type 有什么区别？什么时候适合用 type，什么时候适合用 interface？
 

@@ -12,9 +12,11 @@
 
 ## 如何使用
 
-- **保存修改**：使用 `git stash` 命令将当前修改保存到栈中。
-- **查看存储的修改**：使用 `git stash list` 查看所有存储的修改。
-- **恢复修改**：使用 `git stash apply` 或 `git stash pop` 恢复最近的修改。
+- **保存修改**：`git stash` 或 `git stash push -m "说明"`，默认包含已跟踪文件的变更。
+- **包含未跟踪文件**：`git stash -u`（`--include-untracked`），避免新文件被落下。
+- **查看列表**：`git stash list`。
+- **恢复**：`git stash apply stash@{n}` 保留栈记录；`git stash pop` 相当于 apply 后再 drop 最新一条。
+- **丢弃某条**：`git stash drop stash@{n}`；清空 `git stash clear`（慎用）。
 
 ## 注意事项
 

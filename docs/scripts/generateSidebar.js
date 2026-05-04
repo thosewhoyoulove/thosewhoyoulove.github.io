@@ -1,66 +1,113 @@
 const fs = require("fs");
 const path = require("path");
 
+/** 侧边栏目录顺序（未列出的文件夹按中文拼音排在后面） */
+const DIR_ORDER = {
+    "": ["基础", "网络", "浏览器", "安全", "工程化", "框架", "Node.js", "可视化", "算法", "Git", "面试准备"],
+    面试准备: ["技术", "项目与架构", "综合"],
+    工程化: ["体系与实践", "Vite", "Webpack"],
+    基础: ["HTML", "CSS", "JavaScript", "ES6"],
+    框架: ["Vue", "React"],
+};
+
 /**
- * 生成侧边栏内容
- * @param {string} dir - 当前目录路径
- * @param {string} basePath - 基本路径，用于缩进
- * @returns {string} - 生成的侧边栏字符串
+ * @param {string[]} names
+ * @param {string} relFromMd 相对 md 根的路径，根目录为 ""
+ * @param {(name: string) => fs.Stats} getStat
  */
-function generateSidebar(dir, basePath = "") {
+function sortEntries(names, relFromMd, getStat) {
+    const dirs = names.filter((n) => getStat(n).isDirectory());
+    const files = names.filter((n) => !getStat(n).isDirectory());
+    const order = DIR_ORDER[relFromMd] || null;
+
+    const sortByOrderThenZh = (items, ord) =>
+        [...items].sort((a, b) => {
+            if (!ord) {
+                return a.localeCompare(b, "zh-CN");
+            }
+            const ia = ord.indexOf(a);
+            const ib = ord.indexOf(b);
+            if (ia === -1 && ib === -1) {
+                return a.localeCompare(b, "zh-CN");
+            }
+            if (ia === -1) {
+                return 1;
+            }
+            if (ib === -1) {
+                return -1;
+            }
+            return ia - ib;
+        });
+
+    let sortedDirs = sortByOrderThenZh(dirs, order);
+    if (relFromMd === "浏览器") {
+        sortedDirs = sortedDirs.filter((d) => d !== "Web-API");
+        if (dirs.includes("Web-API")) {
+            sortedDirs.push("Web-API");
+        }
+    }
+    const sortedFiles = sortByOrderThenZh(files, null);
+    // 浏览器下一篇篇笔记在前、Web-API 子目录在后，避免 API 专题挤在最上面
+    if (relFromMd === "浏览器") {
+        return [...sortedFiles, ...sortedDirs];
+    }
+    return [...sortedDirs, ...sortedFiles];
+}
+
+/**
+ * @param {string} dir 当前目录绝对路径
+ * @param {string} basePath 侧边栏缩进前缀
+ * @param {string} relFromMd 当前目录相对 md 根（POSIX）
+ * @param {string} mdDir md 根绝对路径
+ */
+function generateSidebar(dir, basePath, relFromMd, mdDir) {
     let sidebar = "";
     let files;
     try {
-        files = fs.readdirSync(dir); // 读取目录内容
+        files = fs.readdirSync(dir);
     } catch (err) {
         console.error(`无法读取目录 ${dir}: ${err.message}`);
-        return sidebar; // 如果无法读取目录，则返回空字符串
+        return sidebar;
     }
 
-    const excludeFiles = ["index.md"]; // 排除的文件列表
-    const result = files.filter(file => !excludeFiles.includes(file)); // 过滤掉不需要的文件
+    const excludeFiles = ["index.md"];
+    const result = files.filter((file) => !excludeFiles.includes(file));
 
-    // 如果有空格，在URL中对空格进行编码（使用 %20 替换空格）
-    result.forEach(file => {
+    const getStat = (name) => fs.statSync(path.join(dir, name));
+    const sorted = sortEntries(result, relFromMd, getStat);
+
+    sorted.forEach((file) => {
         const fullPath = path.join(dir, file);
         let stat;
         try {
-            stat = fs.statSync(fullPath); // 获取文件或目录的状态
+            stat = fs.statSync(fullPath);
         } catch (err) {
             console.error(`无法获取文件状态 ${fullPath}: ${err.message}`);
-            return; // 如果获取状态失败，跳过该文件
+            return;
         }
 
-        // 获取相对路径并做 URL 编码处理
         const relativePath = path
-            .relative("md", fullPath)
-            .replace(/\\/g, "/") // 将路径中的反斜杠转换为斜杠
-            .replace(/ /g, "%20"); // 将空格替换为 URL 编码
+            .relative(mdDir, fullPath)
+            .replace(/\\/g, "/")
+            .replace(/ /g, "%20");
 
         if (stat.isDirectory()) {
-            // 处理目录
             sidebar += `  ${basePath}- ${file}\n`;
-            // 递归处理子目录
-            sidebar += generateSidebar(fullPath, basePath + "  ");
+            const nextRel = relFromMd ? `${relFromMd}/${file}` : file;
+            sidebar += generateSidebar(fullPath, basePath + "  ", nextRel, mdDir);
         } else if (path.extname(file) === ".md" || path.extname(file) === ".html") {
-            // 处理 markdown 文件或 html 文件
-            const title = path.basename(file, path.extname(file)); // 去除扩展名获取文件名
+            const title = path.basename(file, path.extname(file));
             sidebar += `  ${basePath}- [${title}](/md/${relativePath})\n`;
         }
-        // 可以在这里继续添加对其他文件类型的处理逻辑
     });
 
     return sidebar;
 }
-// 主函数
+
 function main() {
     const mdDir = path.join(__dirname, "../md");
     const sidebarPath = path.join(__dirname, "../_sidebar.md");
-
-    // 生成目录内容
-    const sidebarContent = generateSidebar(mdDir);
-
-    // 写入文件
+    const sidebarContent = generateSidebar(mdDir, "", "", mdDir);
     fs.writeFileSync(sidebarPath, sidebarContent, "utf-8");
     console.log(sidebarPath);
     console.log("侧边栏配置已更新！");
