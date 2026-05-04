@@ -1,82 +1,77 @@
-# Vue2 和 Vue3 的区别
+# Vue 2 与 Vue 3 的核心差异
 
-## 1. 响应式原理
+侧重**原理与行为差异**，工程向细节见 [Vue 高频考点精讲](/md/框架/Vue/Vue%20高频考点精讲.md)，响应式展开见 [Vue 3 响应式原理](/md/框架/Vue/vue3响应式原理.md)。
 
-### Vue 2 的响应式原理(基于 Object.defineProperty )
+---
 
-核心原理：
-Vue2 的响应式是通过 object.defineProperty()实现的，它只能劫持对象的已有属性，无法检测新加属性或数组的索引变动。
+## 1. 响应式：从 `defineProperty` 到 `Proxy`
 
-实现流程简述:
+| 维度 | Vue 2 | Vue 3 |
+| --- | --- | --- |
+| API | `Object.defineProperty` 劫持**已有**属性的 `get/set` | `Proxy` 拦截 `get/set/deleteProperty/ownKeys` 等 |
+| 新增 / 删除属性 | 需 `Vue.set` / `Vue.delete` | 原生支持 |
+| 数组 | 下标、长度需 **改写数组方法** 等方式间接监听 | 与对象一致，由 Proxy 处理 |
+| 性能与实现 | 初始化递归遍历 `data`；无法追踪部分动态用法 | **懒代理**（访问深层再包装）；逻辑集中在 `@vue/reactivity` |
 
-#### 1.初始化数据时，Vue 会遍历 data 中的每个属性，对其使用 object.defineProperty 设置 getter 和setter
+**迁移含义**：Vue 3 少了很多「必须用 `$set`」的运维记忆；但 **Proxy 无法代理的特例**（部分内置对象、被 `freeze` 等）仍需知道边界。
 
-#### 2.getter 作用
+---
 
-在模板中访问数据时触发，用于收集依赖(即把“谁在用这个数据"记录下来，比如 Watcher)。
+## 2. 应用与全局 API
 
-#### 3. setter 作用
+- Vue 2：`new Vue()` 单一根实例；`Vue.use` / `Vue.mixin` 全局副作用多。  
+- Vue 3：**`createApp`**，插件、指令、组件挂在 app 实例上，**多应用实例**互不污染。  
+- 事件总线：`$on` / `$off` / `$once` **移除**，建议用明确的 store / mitt 等。
 
-在修改数据时触发，用于通知依赖(更新视图等)。
+---
 
-#### 不足
+## 3. 组合式 API 与类型
 
-- 新增/删除属性无法被监听(需要用 vue.set/vue.delete)
-- 数组变动(比如通过 splice )需要特殊处理，Vue 重写了一些数组方法(比如 push，pop，splice等)来触发更新。
+- Vue 3 引入 **Composition API**（`setup`、`ref`、`reactive`…），逻辑可按**功能**聚合，TS 推断优于 mixin。  
+- Options API 仍可用；大型项目常见「新模块 composition、老模块渐进迁」。
 
-### Vue 3 的响应式原理(基于 Proxy)
+---
 
-核心原理：
-Vue3 使用 Proxy 来实现响应式系统，可以直接代理整个对象，并且支持动态属性的添加和删除。
+## 4. 模板与内置能力
 
-实现流程简述:
+- **Fragment**：可多根节点。  
+- **Teleport**：子树挂到外层 DOM（弹窗常用）。  
+- **Suspense**：异步组件 / 异步 `setup` 的占位（需正确配置）。  
+- **v-model**：组件上可多绑定，`modelValue` / `update:modelValue` 替代默认的 `value` / `input`（迁移时注意命名）。
 
-#### 1.使用 Proxy 包装整个对象，通过拦截器 get，set，deleteProperty 等来实现响应式
+---
 
-#### 2.get 中进行依赖收集(用 effect 注册依赖)
+## 5. diff 与编译期优化（简述）
 
-#### 3.set 中触发依赖更新
+**Vue 2**：双端 diff + `key`；比对基本在**同级子节点**。  
 
-#### 4.所有依赖的追踪和触发通过一个核心模块: @vue/reactivity 来处理
+**Vue 3**：保留双端思路；对有 `key` 的子节点列表用 **最长递增子序列（LIS）** 近似**最少移动**，减少 DOM `insertBefore` 次数。  
 
-#### 特点与优势
+**编译期**（Vue 3 明显更强）：
 
-- 可以监听对象的新增/删除属性，
-- 可以监听数组的索引和长度变化。
-- 不再需要像 vue.set()这种 hack 方法,
-- 性能更好，内存占用更低，结构更清晰。
+- **静态提升（hoist）**：不变节点少重建。  
+- **patchFlag**：运行时只比对**动态**片段。  
+- **事件缓存 `cacheHandlers`** 等：减轻无谓子更新。
 
-## 2.diff算法
+二者关系：**编译信息**喂给 **runtime patch**，所以「快」不只来自 diff 算法，还来自**更少的比对工作量**。
 
-### QVue 2 的 Diff 算法(基于双端对比 + key 优化)
+---
 
-核心特点:
+## 6. 状态与生态
 
-#### 1.采用双端比较算法(head-to-head和tail-to-tail)
+- 新组合：**Pinia**（推荐）替代 Vuex 在新项目中的地位。  
+- **Tree-shaking**：Vue 3 按模块引入，未用功能可打出更小包（视构建配置）。
 
-同时从新旧节点的头部和尾部进行比较，遇到相同的就复用，不同的就移动或创建。
+---
 
-#### 2.基于 key 的优化重用
+## 7. 小结表（背诵版）
 
-·若节点存在 key ，可以提高 diff 精度，准确判断节点是否复用。
+| 项 | Vue 2 | Vue 3 |
+| --- | --- | --- |
+| 响应式 | `defineProperty` + 数组补丁 | `Proxy` + `@vue/reactivity` |
+| 启动 | `new Vue` | `createApp` |
+| 逻辑复用 | mixin / HOC | Composition（+ 可选 Options） |
+| 模板 | 单根（2.x 限制） | Fragment / Teleport / Suspense |
+| 典型性能手段 | 靠运行时 | 编译标记 + runtime diff 优化 |
 
-#### 3.主要对比的是兄弟节点级别
-
-Vue 2 不进行跨层级比较，仅对比同一父节点下的子节点，
-
-### Vue 3 的 Diff 算法(基于双端 + 最长递增子序列 LIS)
-
-Vue 3 的 diff 算法在 Vue2 的基础上进一步优化了移动操作的性能，主要体现在:
-
-#### 1.新特性:最长递增子序列(LIS)
-
-在 Vue 3 中，为了减少 DOM 移动操作，它会在有 key 的 diff 中找出最长递增子序列，表示”这些节点位置不变，其它才需要移动”。
-
-#### 2.Diff 优化点
-
-- 静态提升:
-  Vue 3 会把静态不变的部分抽离，只染一次(性能极好)
-- PatchFlag 标记差异:
-  编译阶段会在 VNode 上打标记，告诉 runtime 哪部分需要精确 diff，避免不必要比较。
-- 使用最长递增子序列优化移动次数:
-  只移动必要的元素，提升性能。
+若要准备迁移题：补充 **@vue/compat**、依赖库兼容性、E2E 回归，见 [高频考点精讲 §20](/md/框架/Vue/Vue%20高频考点精讲.md)（`@vue/compat` 一节）。

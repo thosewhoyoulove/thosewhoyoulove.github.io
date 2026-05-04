@@ -1,167 +1,123 @@
 # Vue 3 响应式原理
 
-Vue 3 的响应式系统是基于 **Proxy** API 实现的。Vue 2 中使用的是 **Object.defineProperty** 来实现响应式，而 Vue 3 使用 **Proxy** 来进行更高效、灵活的响应式处理。下面详细解释 Vue 3 响应式的原理。
+Vue 3 将响应式抽成独立包 **`@vue/reactivity`**（`reactive`、`ref`、`computed`、`effect` 等）。组件渲染本质是注册一个 **副作用（effect）**：读数据时 **track**，写数据时 **trigger**，调度后重跑 effect，从而更新视图。
 
-## 1. 响应式系统的基本概念
+与 Vue 2 对比见 [Vue 2 与 Vue 3 的区别](/md/框架/Vue/vue2和3的区别.md)；解包、 `watch`/`nextTick` 的时序见 [Vue 高频考点精讲](/md/框架/Vue/Vue%20高频考点精讲.md)。
 
-Vue 的响应式系统允许开发者在数据发生变化时，自动更新界面。Vue 会通过 **数据代理** 和 **依赖收集** 来实现这一功能。Vue 3 使用 **Proxy** 来拦截对对象属性的操作，然后触发相应的副作用（如重新渲染组件）。
+---
 
-### 主要功能
+## 1. 为何用 Proxy 而不是 `defineProperty`
 
-- **数据代理**：Vue 会将数据对象的属性代理到 Vue 实例中，通过代理实现对数据的访问和修改。
-- **依赖收集**：当某个属性的值被访问时，Vue 会记录这个属性与当前组件的依赖关系，确保数据变化时能够触发视图更新。
-- **变更通知**：当数据发生变化时，Vue 会通知相关依赖进行更新。
+- **属性增删、`ownKeys`**：`defineProperty` 只能对已存在属性描述符；Vue 2 需 `$set` / 改数组方法绕路；Proxy 可统一拦截。  
+- **数组**：下标、长度变化在 Vue 2 要特殊处理；Vue 3 与普通对象同一套拦截。  
+- **惰性**：`reactive` 往往**访问到哪一层代理到哪一层**，不必初始化时整树递归（大对象更友好）。
 
-## 2. Proxy 的基本用法
+**限制**：`Proxy` 不能代理部分内置对象或已被 `Object.freeze` 等极端情况；若遇到，文档会建议 `shallowRef` / `markRaw` 等（见高频考点）。
 
-Vue 3 使用 **Proxy** 对象来代理原始数据对象。Proxy 是 ES6 引入的一种新技术，它允许开发者定义自定义行为来拦截对对象的各种操作，如访问、修改、删除等。
+---
 
-### Proxy 的基本语法
+## 2. 最小模型：`track` 与 `trigger`
 
-```javascript
-const handler = {
-  get(target, prop, receiver) {
-    // 拦截获取属性操作
-    console.log(`访问属性 ${prop}`);
-    return prop in target ? target[prop] : undefined;
-  },
-  set(target, prop, value, receiver) {
-    // 拦截设置属性操作
-    console.log(`设置属性 ${prop} 为 ${value}`);
-    target[prop] = value;
-    return true;
-  }
-};
+简化理解（非逐行源码）：
 
-const target = {
-  message: 'Hello'
-};
+1. **当前活跃 effect**（例如正在跑的组件渲染函数）在全局栈里有一份。  
+2. **读**响应式对象某 key → `get`  trap → **track(target, key)**：把当前 effect 记到该数据的「订阅者集合」。  
+3. **写**某 key → `set` trap → **trigger(target, key)**：取出订阅者，**调度**执行（合并同一轮多次写入）。
 
-const proxy = new Proxy(target, handler);
-console.log(proxy.message);  // 输出 "访问属性 message" 和 "Hello"
-proxy.message = 'Hello, Vue3';  // 输出 "设置属性 message 为 Hello, Vue3"
+调度层会做 **去重与批处理**，同一 tick 内多次修改往往只触发**一轮**视图更新（与 [高频考点精讲 §4 nextTick](/md/框架/Vue/Vue%20高频考点精讲.md) 讲的批更新同一语境）。
+
+---
+
+## 3. `reactive`：仅对象，`ref`：任意值
+
+**`reactive(raw)`**  
+返回 `Proxy`；适用于对象 / 数组 / `Map` / `Set` 等支持的类型。嵌套对象在访问路径上**按需**转为响应式。
+
+**`ref(initialValue)`**  
+内部用一个对象包一层 `.value`：原始类型只能这样包；对象类型则 `.value` 内部再挂 `reactive`。模板里顶层 `ref` **自动解包**；`script` 里用 `.value`。
+
+```js
+import { reactive, ref } from 'vue'
+
+const state = reactive({ count: 0 })
+state.count++ // 触发更新
+
+const n = ref(0)
+n.value++     // 触发更新
 ```
 
-在 Vue 3 中，handler 中的 get 和 set 方法被用来拦截对对象属性的访问和修改。Vue 3 使用 Proxy 实现了对数据的代理，从而能够在数据变化时通知视图更新。
+---
 
-## 3. Vue 3 响应式原理
+## 4. `effect` 与依赖收集（与组件的关系）
 
-### 3.1 创建响应式对象
+运行时内部用 **`effect(fn, options?)`** 包装组件渲染、 `watch` 回调等）。`fn` 执行期间读到的响应式字段会被 **track**；字段变化后 **`fn` 被重新调度**。
 
-Vue 3 提供了 reactive 函数来创建响应式对象。reactive 函数使用 Proxy 来拦截对对象的访问和修改，并在适当的时候触发视图更新。
+- **`computed`**：内部是带缓存的 effect，仅依赖变时重算。  
+- **`watch(source, cb)`**：`source` 变化触发 `cb`，带 `flush` 控制相对 DOM 的先后（见高频考点 §3、§4）。
 
-```javascript
-import { reactive } from 'vue';
+若脱离框架单测 `@vue/reactivity`，典型写法：
 
-const state = reactive({
-  count: 0
-});
+```js
+import { reactive, effect } from '@vue/reactivity'
 
-console.log(state.count);  // 访问响应式对象，触发 get
-state.count = 1;           // 修改响应式对象，触发 set
+const state = reactive({ count: 0 })
 
-```
-
-### 3.2 数据劫持与依赖收集
-
-- **数据劫持**：通过 Proxy 拦截对数据对象的访问和修改，Vue 能够监控数据变化。
-- **依赖收集**：当组件访问某个响应式数据时，Vue 会记录这个组件与该数据的依赖关系。每当该数据发生变化时，相关的组件会被通知并重新渲染。
-
-依赖收集的过程：
-
-1. 当组件渲染时，它会访问响应式数据。
-2. 在 get 拦截器中，Vue 会收集当前正在渲染的组件（通常是一个副作用函数）与该数据的依赖关系。
-3. 当数据发生变化时，Vue 会通过依赖关系通知相应的组件进行重新渲染。
-
-```javascript
-依赖收集的过程：
-import { reactive, effect } from 'vue';
-
-const state = reactive({
-  count: 0
-});
-
-// effect 会在组件渲染时自动收集依赖
 effect(() => {
-  console.log(state.count);  // 会触发 getter，自动收集依赖
-});
+  console.log('count =', state.count)
+})
 
-state.count = 1;  // 会触发 setter，更新 count
-
+state.count = 1 // effect 再跑一次
 ```
 
-### 3.3 getter 和 setter 的作用
+---
 
-- **getter**：每当访问响应式对象的属性时，get 拦截器被触发。在 get 中，Vue 会收集依赖，将当前访问的组件（副作用函数）添加到依赖队列中。
-- **setter**：每当修改响应式对象的属性时，set 拦截器被触发。在 set 中，Vue 会触发通知机制，告知相关的依赖（即组件）更新。
+## 5. 深度响应式与性能出口
 
-### 3.4 深度响应式
+- 默认 **深度**：嵌套对象访问路径会被代理（除非使用 **shallow** 系 API）。  
+- **大对象 / 第三方实例**：不需要响应式可用 **`markRaw`** 或 **`shallowRef`**，避免无用代理和破坏类内部（如 ECharts）。
 
-Vue 3 的 reactive 还支持深度响应式。即使是嵌套的对象或数组，Vue 也会为其每个属性或元素创建代理，实现深度响应式。
+---
 
-```javascript
-const state = reactive({
-  user: {
-    name: 'Alice',
-    age: 25
-  }
-});
+## 6. `toRef` / `toRefs` / `readonly`
 
-console.log(state.user.name);  // 访问嵌套对象，触发 get
-state.user.name = 'Bob';       // 修改嵌套对象，触发 set
+- 解构 `reactive` 丢响应式 → **`toRefs(state)`** 返回同名 ref 对象。  
+- **`toRef(state, 'key')`**：单字段桥接。  
+- **`readonly(proxy)`**：禁止 `set`，仍可读并追踪（用于 `provide` 等「别改我」场景）。
+
+---
+
+## 7. `computed`
+
+- **惰性 + 缓存**：依赖不变不重复求值；内部仍是基于 effect 的依赖图。  
+- 应写**纯**派生；副作用放 `watch` / `watchEffect`。
+
+```js
+import { reactive, computed } from 'vue'
+const s = reactive({ n: 1 })
+const doubled = computed(() => s.n * 2)
+console.log(doubled.value)
+s.n = 2
+console.log(doubled.value)
 ```
 
-在这个例子中，user 对象内部的属性也会变成响应式的，Vue 会为 user 对象内部的每个属性创建代理，确保每个属性的访问和修改都会被拦截。
+---
 
-### 3.5 依赖更新与视图刷新
+## 8. 与视图更新的衔接（口述题）
 
-当响应式数据发生变化时，Vue 会通过通知机制将数据变化通知给依赖该数据的组件。组件会根据新的数据重新渲染视图。
+**数据变更** → `trigger` → 调度 **`scheduler`**（组件更新入队、合并）→ **渲染 effect** 重跑 → **render** 产出新 VNode → **patch** DOM。
 
-### 3.6 ref 和 reactive 的区别
+编译期的 **patchFlag** 等会缩小 patch 范围（详见 [Vue 2 与 Vue 3 的区别 §5](/md/框架/Vue/vue2和3的区别.md)）。
 
-- reactive：适用于对象类型的数据，能为对象及其嵌套的属性提供深度响应式。
-- ref：适用于原始数据类型（如字符串、数字、布尔值等），它会将数据包装成一个对象，并通过 .value 来访问和修改值。
+---
 
-```javascript
-  import { ref, reactive } from 'vue';
+## 9. 小结
 
-const count = ref(0);  // 基本数据类型使用 ref
-const state = reactive({
-  count: 0
-});  // 对象使用 reactive
+| 概念 | 作用 |
+| --- | --- |
+| `Proxy` | 拦截读写，统一响应式语义 |
+| `track` / `trigger` | 订阅与发布 |
+| `effect` | 把「读数据」和「之后要重跑的逻辑」绑在一起 |
+| `ref` / `reactive` | 两种入口，模板/组合式 API 协同 |
+| 批处理 / 调度 | 少刷 DOM、合并更新，与 `nextTick` 同一套时间维度 |
 
-console.log(count.value);  // 获取 ref 的值
-count.value = 1;  // 设置 ref 的值
-
-```
-
-### 3.7 computed 与响应式系统
-
-Vue 3 还提供了 computed（计算属性）功能，计算属性基于响应式数据并且只有在其依赖的数据变化时才会重新计算。它本质上是依赖收集的一个特殊形式，适用于性能优化。
-
-```javascript
-import { reactive, computed } from 'vue';
-
-const state = reactive({
-  count: 0
-});
-
-const doubleCount = computed(() => state.count * 2);
-
-console.log(doubleCount.value);  // 自动根据 count 变化计算值
-state.count = 2;
-console.log(doubleCount.value);  // 更新后的值
-
-```
-
-## 4. 总结
-
-Vue 3 的响应式原理基于 Proxy API，通过代理原始数据并拦截对数据的操作来实现响应式。它采用了 依赖收集 的策略，将组件与数据的依赖关系进行绑定，当数据发生变化时，通知依赖组件重新渲染。相对于 Vue 2，Vue 3 的响应式系统更加灵活和高效，特别是在性能和内存优化方面有显著提升。
-
-### 核心特性
-
-- Proxy 作为数据代理，提供更强大的功能；
-- 依赖收集 确保数据变化时只更新需要的部分；
-- 深度响应式 使得嵌套对象也能响应式；
-- ref 与 reactive 适配不同类型的数据；
-- computed 用于优化计算属性的更新。
+掌握以上即可支撑大部分中高级面试中的「响应式」追问；再深到**位运算 patchFlag、数组降级策略**等，可对照 Vue core 源码按需向下钻。
