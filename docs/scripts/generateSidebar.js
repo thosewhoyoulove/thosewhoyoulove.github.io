@@ -10,6 +10,12 @@ const DIR_ORDER = {
     框架: ["Vue", "React"],
 };
 
+/** 同一目录下 .md 的展示顺序（未列出则按中文拼音排在后） */
+const FILE_ORDER = {
+    "框架/Vue": ["Vue 高频考点精讲.md", "vue2和3的区别.md", "vue3响应式原理.md"],
+    "框架/React": ["React 高频考点精讲.md", "Hooks.md"],
+};
+
 /**
  * @param {string[]} names
  * @param {string} relFromMd 相对 md 根的路径，根目录为 ""
@@ -46,7 +52,8 @@ function sortEntries(names, relFromMd, getStat) {
             sortedDirs.push("Web-API");
         }
     }
-    const sortedFiles = sortByOrderThenZh(files, null);
+    const fileOrder = FILE_ORDER[relFromMd] || null;
+    const sortedFiles = sortByOrderThenZh(files, fileOrder);
     // 浏览器下一篇篇笔记在前、Web-API 子目录在后，避免 API 专题挤在最上面
     if (relFromMd === "浏览器") {
         return [...sortedFiles, ...sortedDirs];

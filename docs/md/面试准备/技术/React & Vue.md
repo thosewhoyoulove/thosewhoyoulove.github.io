@@ -1,6 +1,6 @@
 # React & Vue（面试提纲）
 
-用于面试前的提纲；**Vue 考点精讲（偏机制与踩坑）**见 [Vue 高频考点精讲](/md/框架/Vue/Vue%20高频考点精讲.md)。React / Vue 细节可回看：[Hooks](/md/框架/React/Hooks.md)、[Vue3 响应式原理](/md/框架/Vue/vue3响应式原理.md)、[Vue2 与 Vue3 的区别](/md/框架/Vue/vue2和3的区别.md)；`nextTick` 与 DOM 更新时序见 [Vue 高频考点精讲 §4](/md/框架/Vue/Vue%20高频考点精讲.md)。
+用于面试前的提纲。**Vue** 见 [Vue 高频考点精讲](/md/框架/Vue/Vue%20高频考点精讲.md)（含 `nextTick` §4）。**React** 见 [React 高频考点精讲](/md/框架/React/React%20高频考点精讲.md)、[Hooks 专篇](/md/框架/React/Hooks.md)。Vue 原理文：[Vue3 响应式原理](/md/框架/Vue/vue3响应式原理.md)、[Vue2 与 Vue3 的区别](/md/框架/Vue/vue2和3的区别.md)。
 
 - 你在项目中用到了 React Hooks，能讲一下 `useEffect` 的执行机制吗？
 - React 组件的更新机制是怎样的？为什么 React 会使用虚拟 DOM？

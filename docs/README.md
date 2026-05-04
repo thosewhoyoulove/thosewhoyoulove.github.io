@@ -17,7 +17,7 @@
 | [浏览器](/md/浏览器/浏览器的渲染原理.md) | 渲染、事件循环、缓存、Worker、性能 |
 | [安全](/md/安全/XSS的理解.md) | XSS、CSRF |
 | [工程化](/md/工程化/体系与实践/工程化体系.md) | 体系、CI/CD、Monorepo、Vite、Webpack |
-| [框架](/md/框架/Vue/vue3响应式原理.md) | Vue、React |
+| [框架 · Vue](/md/框架/Vue/vue3响应式原理.md) / [React 考点](/md/框架/React/React%20高频考点精讲.md) | Vue、React |
 | [面试准备](/md/面试准备/技术/JavaScript%20&%20TypeScript%20基础.md) | 技术与项目问答提纲 |
 
 ## 联系与交流
