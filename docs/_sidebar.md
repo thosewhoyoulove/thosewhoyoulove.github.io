@@ -58,6 +58,7 @@
       - [Vue 高频考点精讲](/md/框架/Vue/Vue%20高频考点精讲.md)
       - [vue2和3的区别](/md/框架/Vue/vue2和3的区别.md)
       - [vue3响应式原理](/md/框架/Vue/vue3响应式原理.md)
+      - [Vue Diff算法](/md/框架/Vue/Vue%20Diff算法.md)
     - React
       - [React 高频考点精讲](/md/框架/React/React%20高频考点精讲.md)
       - [Hooks](/md/框架/React/Hooks.md)
