@@ -8,6 +8,15 @@
         <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0" />
         <link rel="stylesheet" href="/assets/css/vue.css" />
         <link rel="stylesheet" href="/assets/css/gitalk.css" />
+        <style>
+            /* 当前激活菜单项高亮 */
+            .sidebar-nav li a.active-link {
+                color: #42b983 !important;
+                font-weight: 600 !important;
+                border-right: 3px solid #42b983;
+                padding-right: 8px;
+            }
+        </style>
         <script>
             var _hmt = _hmt || [];
             (function () {
@@ -56,6 +65,24 @@
                 },
 
                 plugins: [
+                    // 侧边栏高亮（URL decode 归一化匹配，解决中文空格编码不一致问题）
+                    function (hook, vm) {
+                        hook.doneEach(function () {
+                            var sidebar = document.querySelector('.sidebar-nav');
+                            if (!sidebar) return;
+
+                            var currentPath = decodeURIComponent(location.hash.replace('#/', '/'));
+
+                            var allLinks = sidebar.querySelectorAll('a');
+                            allLinks.forEach(function (a) {
+                                a.classList.remove('active-link');
+                                var href = decodeURIComponent(a.getAttribute('href') || '').replace('#/', '/');
+                                if (href === currentPath) {
+                                    a.classList.add('active-link');
+                                }
+                            });
+                        });
+                    },
                     function (hook, vm) {
                         hook.doneEach(function () {
                             var label, domObj, main, divEle, gitalk;
