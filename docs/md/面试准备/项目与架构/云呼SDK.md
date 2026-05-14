@@ -130,11 +130,42 @@ window.tungeeRTCPeerConnection || window.RTCPeerConnection
 2. **状态抢占**：一个 tab 的操作会影响另一个 tab 的通话状态。
 3. **切 tab 丢状态**：通话时用户切换 tab，新 tab 看不到当前通话的状态。
 
-### 解决方案
+### 核心矛盾：跨子域 + SharedWorker 同源限制
 
-用 **SharedWorker** 作为所有 tab 共享的单例，所有真正的电话操作都在 Worker 里执行，各个 tab 只是发消息过去。
+我们的 SDK 需要嵌入到多个不同子域的业务系统里（CRM 在 `crm.tungee.com`，销售系统在 `sales.tungee.com`），但通话实例必须全局唯一，所有标签页状态要同步。
 
-**Safari 降级**：SharedWorker 在 Safari 不支持，所以我们在 `createBus` 里做了降级——检测到没有 SharedWorker 就动态加载一个兼容版本，用内存事件模拟同样的行为。
+**核心矛盾是**：SharedWorker 要求**同源**才能连接，但宿主页面是**不同子域**的。
+
+### 解决方案：同源 iframe 中转桥
+
+每个宿主页面里会创建一个**隐藏 iframe**，`src` 指向 SDK 自己的域（`engage.tungee.com`）。这个 iframe 和 SharedWorker **同源**，所以能正常连接。
+
+**通信链路**：
+
+```
+宿主页面 --postMessage--> iframe --同源--> SharedWorker
+         <--postMessage--        <--同源--
+```
+
+- `postMessage` 天然支持跨域
+- SharedWorker 保证同源通信
+- iframe 就是中间的「翻译层」
+
+### 为什么不用 BroadcastChannel？
+
+BroadcastChannel 也要求同源，而且它**只能广播消息**，没有独立执行上下文。我们的 SharedWorker 里面跑着完整的通话逻辑——SIP 连接、状态机、批量外呼队列，这些需要一个**长期存活的独立线程**来承载，BroadcastChannel 做不到。
+
+### 安全：origin 白名单校验
+
+iframe 内部对 `postMessage` 的 origin 做了白名单校验，只接受我们自己域名的消息。
+
+**追问：postMessage 用 `*` 不安全吧？**
+
+发送端用 `*` 是因为 SharedWorker 回传时不确定父页面的具体域名。安全性靠**接收端的 `validateOrigin`** 保证——iframe 只处理白名单域名发来的消息，即使有人伪造 postMessage，origin 对不上也会被丢弃。
+
+### 降级方案
+
+如果浏览器不支持 SharedWorker，会退化为同页面内的事件总线，牺牲跨标签页同步能力，但保证单页面功能可用。
 
 ### 消息总线（BusAbstract）
 
@@ -177,11 +208,15 @@ Worker 侧维护了：
 
 ### 2. 钉钉容器兼容
 
-钉钉有自己的 webview 环境，有几个问题要解决：
+钉钉有自己的 webview 环境，遇到的主要问题：
 
-- **域名不标准**：不是 `tungee.com`，而是 `dingtalkcloud.com` 或 `-dd.tungee.cn` 这类，所以 API 请求的 origin 要单独解析。
+- **SharedWorker 不支持**：做了降级方案，退化为单页面模式。
+- **域名体系不同**：钉钉应用跑在 `dingtalkcloud.com` 下，API 地址、`postMessage` 白名单都要特殊处理。
+- **浏览器能力受限**：比如 `window.open` 行为不一致，所以在钉钉里做了功能裁剪，隐藏了一些不适用的入口。
 - **SharedWorker 初始化数据可能为空**：普通环境我们是拿到数据才渲染，但钉钉里必须**强制渲染**，不然会白屏。
 - **JSAPI 调用**：某些功能要调钉钉的 JSAPI（比如部门人员选择），需要判断 `dd.env.platform` 来走不同的逻辑。
+
+整体思路就是通过**环境检测做条件分支**，尽量保证核心通话功能可用。
 
 ### 3. 乾坤微前端兼容
 
