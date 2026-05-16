@@ -5,9 +5,9 @@
  * @LastEditors: 曹俊
  * @LastEditTime: 2023-03-27 19:31:27
 -->
-# omen's blog
+# omen's interview notes
 
-> 前端学习与面试笔记 · 基础 / 网络 / 浏览器 / 工程化 / 框架
+> 前端面试知识库 · 高频基础 / 框架原理 / 工程化 / 项目表达
 
 [GitHub](<https://github.com/thosewhoyoulove>)
 [开始阅读](README.md)

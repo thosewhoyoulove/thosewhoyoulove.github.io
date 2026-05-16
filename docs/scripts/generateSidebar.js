@@ -1,123 +1,132 @@
 const fs = require("fs");
 const path = require("path");
 
-/** 侧边栏目录顺序（未列出的文件夹按中文拼音排在后面） */
-const DIR_ORDER = {
-    "": ["基础", "网络", "浏览器", "安全", "工程化", "框架", "Node.js", "可视化", "算法", "Git", "面试准备"],
-    面试准备: ["技术", "项目与架构", "综合"],
-    工程化: ["体系与实践", "Vite", "Webpack"],
-    基础: ["HTML", "CSS", "JavaScript", "ES6"],
-    框架: ["Vue", "React"],
-};
-
-/** 同一目录下 .md 的展示顺序（未列出则按中文拼音排在后） */
-const FILE_ORDER = {
-    "框架/Vue": ["Vue 高频考点精讲.md", "vue2和3的区别.md", "vue3响应式原理.md"],
-    "框架/React": ["React 高频考点精讲.md", "Hooks.md"],
-};
-
 /**
- * @param {string[]} names
- * @param {string} relFromMd 相对 md 根的路径，根目录为 ""
- * @param {(name: string) => fs.Stats} getStat
+ * 面试导向侧边栏。
+ *
+ * 文章仍保留在原目录，侧边栏按面试复习场景重新编排，避免为一次导航优化大规模移动文件。
  */
-function sortEntries(names, relFromMd, getStat) {
-    const dirs = names.filter((n) => getStat(n).isDirectory());
-    const files = names.filter((n) => !getStat(n).isDirectory());
-    const order = DIR_ORDER[relFromMd] || null;
+const SIDEBAR = [
+    {
+        title: "面试总览",
+        children: [
+            ["面试总览", "/md/面试准备/面试总览.md"],
+            ["复习路线", "/md/面试准备/复习路线.md"],
+            ["高频追问清单", "/md/面试准备/高频追问清单.md"],
+            ["项目表达模板", "/md/面试准备/项目表达模板.md"],
+        ],
+    },
+    {
+        title: "JavaScript 与浏览器",
+        children: [
+            ["数据类型", "/md/基础/JavaScript/数据类型.md"],
+            ["This 的理解", "/md/基础/JavaScript/This的理解.md"],
+            ["闭包的理解", "/md/基础/JavaScript/闭包的理解.md"],
+            ["函数 call / apply / bind", "/md/基础/JavaScript/函数的call,apply和bind方法.md"],
+            ["Promise", "/md/基础/ES6/Promise.md"],
+            ["手写 Promise", "/md/基础/ES6/手写Promise.md"],
+            ["浏览器事件循环", "/md/浏览器/浏览器的事件循环.md"],
+            ["浏览器渲染原理", "/md/浏览器/浏览器的渲染原理.md"],
+            ["浏览器缓存机制", "/md/浏览器/浏览器的缓存机制.md"],
+            ["首屏优化", "/md/浏览器/加快首屏加载速度.md"],
+            ["Web Worker", "/md/浏览器/Web%20Worker.md"],
+            ["IntersectionObserver", "/md/浏览器/Web-API/IntersectionObserver.md"],
+        ],
+    },
+    {
+        title: "网络与安全",
+        children: [
+            ["面试速记：网络与安全", "/md/面试准备/技术/网络与安全.md"],
+            ["HTTP", "/md/网络/HTTP.md"],
+            ["HTTP 状态码", "/md/网络/HTTP状态码.md"],
+            ["HTTPS", "/md/网络/HTTPS.md"],
+            ["TCP 三次握手", "/md/网络/TCP三次握手.md"],
+            ["TCP 四次挥手", "/md/网络/TCP四次挥手.md"],
+            ["OPTIONS 预检请求", "/md/网络/OPTIONS预检请求.md"],
+            ["WebSocket", "/md/网络/WebSocket.md"],
+            ["XSS", "/md/安全/XSS的理解.md"],
+            ["CSRF", "/md/安全/CSRF的理解.md"],
+        ],
+    },
+    {
+        title: "框架：Vue / React",
+        children: [
+            ["面试速记：React & Vue", "/md/面试准备/技术/React%20&%20Vue.md"],
+            ["Vue 高频考点", "/md/框架/Vue/Vue%20高频考点精讲.md"],
+            ["Vue 2 和 Vue 3 区别", "/md/框架/Vue/vue2和3的区别.md"],
+            ["Vue 3 响应式原理", "/md/框架/Vue/vue3响应式原理.md"],
+            ["Vue Diff 算法", "/md/框架/Vue/Vue%20Diff算法.md"],
+            ["React 高频考点", "/md/框架/React/React%20高频考点精讲.md"],
+            ["React Hooks", "/md/框架/React/Hooks.md"],
+            ["Vue vs React", "/md/框架/Vue%20vs%20React.md"],
+            ["前端框架原理对比", "/md/框架/前端框架原理对比.md"],
+        ],
+    },
+    {
+        title: "工程化与性能",
+        children: [
+            ["面试速记：前端工程化", "/md/面试准备/技术/前端工程化.md"],
+            ["面试速记：性能优化", "/md/面试准备/技术/前端性能优化.md"],
+            ["工程化体系", "/md/工程化/体系与实践/工程化体系.md"],
+            ["前端工程化", "/md/工程化/体系与实践/前端工程化.md"],
+            ["CI/CD", "/md/工程化/体系与实践/CI&CD.md"],
+            ["Monorepo", "/md/工程化/体系与实践/Monorepo.md"],
+            ["Vite 为什么快", "/md/工程化/Vite/为什么Vite快.md"],
+            ["Vite 依赖预构建", "/md/工程化/Vite/依赖预构建.md"],
+            ["Webpack 构建流程", "/md/工程化/Webpack/构建流程.md"],
+            ["Webpack 常见优化", "/md/工程化/Webpack/常见优化手段.md"],
+            ["首屏优化与代码分包", "/md/面试准备/技术/首屏优化以及代码分包.md"],
+        ],
+    },
+    {
+        title: "项目与架构",
+        children: [
+            ["项目经历表达", "/md/面试准备/项目与架构/你的项目经历（重点）.md"],
+            ["架构升级方案", "/md/面试准备/项目与架构/项目架构的整体升级方案.md"],
+            ["高级筛选系统", "/md/面试准备/项目与架构/高级筛选系统.md"],
+            ["智慧大屏数据可视化", "/md/面试准备/项目与架构/智慧大屏数据可视化.md"],
+            ["WebRTC 会议室项目", "/md/面试准备/项目与架构/WebRTC%20会议室项目.md"],
+            ["云呼 SDK", "/md/面试准备/项目与架构/云呼SDK.md"],
+            ["Node.js 与全栈", "/md/面试准备/技术/NodeJs%20&%20全栈开发.md"],
+            ["可视化：SVG vs Canvas", "/md/可视化/Svg%20Vs%20Canvas.md"],
+            ["可视化：ZRender", "/md/可视化/Z-render.md"],
+        ],
+    },
+    {
+        title: "协作与加分项",
+        children: [
+            ["团队协作与主导能力", "/md/面试准备/综合/团队协作与主导能力.md"],
+            ["综合能力与团队合作", "/md/面试准备/综合/综合能力%20&%20团队合作.md"],
+            ["Git 解决冲突", "/md/Git/解决冲突.md"],
+            ["Git Rebase 和 Merge", "/md/Git/rebase和merge的区别.md"],
+            ["Pull Request", "/md/Git/Pull%20Request.md"],
+            ["算法：Trie", "/md/算法/trie.md"],
+            ["新技术", "/md/面试准备/技术/新技术.md"],
+        ],
+    },
+];
 
-    const sortByOrderThenZh = (items, ord) =>
-        [...items].sort((a, b) => {
-            if (!ord) {
-                return a.localeCompare(b, "zh-CN");
-            }
-            const ia = ord.indexOf(a);
-            const ib = ord.indexOf(b);
-            if (ia === -1 && ib === -1) {
-                return a.localeCompare(b, "zh-CN");
-            }
-            if (ia === -1) {
-                return 1;
-            }
-            if (ib === -1) {
-                return -1;
-            }
-            return ia - ib;
-        });
-
-    let sortedDirs = sortByOrderThenZh(dirs, order);
-    if (relFromMd === "浏览器") {
-        sortedDirs = sortedDirs.filter((d) => d !== "Web-API");
-        if (dirs.includes("Web-API")) {
-            sortedDirs.push("Web-API");
-        }
+function renderItem(item, depth) {
+    const indent = "  ".repeat(depth);
+    if (typeof item === "string") {
+        return `${indent}- ${item}\n`;
     }
-    const fileOrder = FILE_ORDER[relFromMd] || null;
-    const sortedFiles = sortByOrderThenZh(files, fileOrder);
-    // 浏览器下一篇篇笔记在前、Web-API 子目录在后，避免 API 专题挤在最上面
-    if (relFromMd === "浏览器") {
-        return [...sortedFiles, ...sortedDirs];
+    if (Array.isArray(item)) {
+        return `${indent}- [${item[0]}](${item[1]})\n`;
     }
-    return [...sortedDirs, ...sortedFiles];
-}
-
-/**
- * @param {string} dir 当前目录绝对路径
- * @param {string} basePath 侧边栏缩进前缀
- * @param {string} relFromMd 当前目录相对 md 根（POSIX）
- * @param {string} mdDir md 根绝对路径
- */
-function generateSidebar(dir, basePath, relFromMd, mdDir) {
-    let sidebar = "";
-    let files;
-    try {
-        files = fs.readdirSync(dir);
-    } catch (err) {
-        console.error(`无法读取目录 ${dir}: ${err.message}`);
-        return sidebar;
-    }
-
-    const excludeFiles = ["index.md"];
-    const result = files.filter((file) => !excludeFiles.includes(file));
-
-    const getStat = (name) => fs.statSync(path.join(dir, name));
-    const sorted = sortEntries(result, relFromMd, getStat);
-
-    sorted.forEach((file) => {
-        const fullPath = path.join(dir, file);
-        let stat;
-        try {
-            stat = fs.statSync(fullPath);
-        } catch (err) {
-            console.error(`无法获取文件状态 ${fullPath}: ${err.message}`);
-            return;
-        }
-
-        const relativePath = path
-            .relative(mdDir, fullPath)
-            .replace(/\\/g, "/")
-            .replace(/ /g, "%20");
-
-        if (stat.isDirectory()) {
-            sidebar += `  ${basePath}- ${file}\n`;
-            const nextRel = relFromMd ? `${relFromMd}/${file}` : file;
-            sidebar += generateSidebar(fullPath, basePath + "  ", nextRel, mdDir);
-        } else if (path.extname(file) === ".md" || path.extname(file) === ".html") {
-            const title = path.basename(file, path.extname(file));
-            sidebar += `  ${basePath}- [${title}](/md/${relativePath})\n`;
-        }
+    let output = `${indent}- ${item.title}\n`;
+    item.children.forEach((child) => {
+        output += renderItem(child, depth + 1);
     });
-
-    return sidebar;
+    return output;
 }
 
 function main() {
-    const mdDir = path.join(__dirname, "../md");
     const sidebarPath = path.join(__dirname, "../_sidebar.md");
-    const sidebarContent = generateSidebar(mdDir, "", "", mdDir);
+    const sidebarContent = SIDEBAR.map((item) => renderItem(item, 1)).join("");
     fs.writeFileSync(sidebarPath, sidebarContent, "utf-8");
     console.log(sidebarPath);
-    console.log("侧边栏配置已更新！");
+    console.log("面试导向侧边栏已更新！");
 }
 
 main();
