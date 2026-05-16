@@ -1,5 +1,13 @@
 # Vue 高频面试题
 
+## 面试定位
+
+这篇用于 Vue 面试快速复习，覆盖响应式、组件通信、生命周期、路由、状态管理、编译优化、性能和迁移。深挖题可以跳到对应专题文。
+
+## 核心原理
+
+Vue 的核心可以概括为：响应式系统负责追踪数据依赖，组件渲染 effect 负责把状态映射成 VNode，patch 算法负责把新旧 VNode 的差异更新到真实 DOM，编译器通过 patchFlag、静态提升和 Block Tree 减少运行时工作量。
+
 深度原理见 [Vue3 响应式原理](/md/框架/Vue/vue3响应式原理.md)、[Vue Diff 算法](/md/框架/Vue/Vue%20Diff算法.md)、[Vue2 与 Vue3 的区别](/md/框架/Vue/vue2和3的区别.md)。
 
 ---
@@ -492,3 +500,19 @@ onMounted(() => {
 ```
 
 **其他场景**：大数组只整体替换不修改内部元素时，`shallowRef` 省掉整树代理成本。
+
+## 面试回答
+
+可以这样答：
+
+> Vue 面试我会先抓主线：Vue 通过响应式系统追踪状态依赖，状态变化后触发组件渲染 effect，生成新的 VNode，再通过 patch 更新真实 DOM。Vue 3 的响应式基于 Proxy，依赖关系用 WeakMap 到 Map 再到 Set 保存；组件更新会进入调度队列，同一 tick 的多次状态变化会合并。模板编译阶段会做静态提升、patchFlag、Block Tree，减少运行时 diff。业务层面，组件通信优先 props/emit，跨层级用 provide/inject，全局状态用 Pinia；性能上要注意 key、keep-alive 清理、computed/watch 使用边界和大对象 shallow/markRaw。
+
+## 高频追问
+
+### Vue 面试最容易被追问哪些点？
+
+响应式原理、`ref/reactive` 区别、`computed/watch` 区别、`nextTick`、组件通信、`key`、Vue 2 和 Vue 3 差异、Vue 3 编译优化。
+
+### Vue 性能优化怎么回答？
+
+先减少不必要更新，比如合理拆组件、稳定 props、正确使用 computed；再减少渲染成本，比如虚拟列表、懒加载、keep-alive；最后结合编译优化、缓存和构建拆包说明整体方案。

@@ -1,312 +1,186 @@
 # JavaScript & TypeScript 基础
 
-## 1.你在项目中如何应用 ES6+ 特性？可以举个例子吗？
+## 面试定位
 
-- 解构赋值
-- 箭头函数
-- 模板字符串
-- Promise & async/await
-- 扩展运算符 (...)
+JavaScript 和 TypeScript 基础是前端面试的第一层筛选。它主要判断你是否理解语言机制，而不是只会使用框架。
 
-## 2.var、let 和 const 的区别是什么？它们的作用域和提升（Hoisting）机制有什么不同？
+这类问题通常会从变量、类型、作用域、闭包、事件循环、Promise 进入，再延伸到 TypeScript 的类型系统、泛型和项目实践。
 
-- var 是全局作用域，let 和 const 是块级作用域
-- var 有变量提升，let 和 const 没有变量提升
-- var 可以重复声明和重新赋值，let 和 const 不能重复声明和重新赋值
+## 核心原理
 
-## 3.深拷贝和浅拷贝的区别？
+JavaScript 是动态类型语言，运行时才真正确定很多值的类型和行为。TypeScript 在 JavaScript 之上增加静态类型检查，把一部分错误提前到开发阶段暴露。
 
-### 3.1 浅拷贝 VS 深拷贝
+两者的关系可以这样理解：
 
-| 类型 | 定义 | 影响 |
-| --- | --- | --- |
-| 浅拷贝 | 只拷贝对象的第一层，如果对象的属性是引用类型（如数组、对象），拷贝的只是引用，而不是实际数据。 | 修改拷贝后的对象，可能影响原对象。 |
-| 深拷贝 | 递归拷贝对象的所有层级，生成一个完全独立的新对象。 | 修改拷贝后的对象不会影响原对象。 |
+```text
+JavaScript 负责运行时行为。
+TypeScript 负责开发阶段的类型约束。
+```
 
-### 3.2 浅拷贝示例
+所以面试回答要区分：哪些是 JS 运行时机制，哪些是 TS 编译期能力。
 
-浅拷贝方法：
+## var、let、const
 
-- Object.assign()
-- 展开运算符 { ...obj }
-- Array.prototype.slice() / Array.prototype.concat()
+`var` 是函数作用域，存在变量提升，可以重复声明。
+
+`let` 和 `const` 是块级作用域，存在暂时性死区，不能在声明前访问，也不能重复声明。
+
+`const` 限制的是变量绑定不能重新赋值，不代表对象内部属性不能修改。
 
 ```js
-const obj1 = { a: 1, b: { c: 2 } };
-const obj2 = { ...obj1 }; // 浅拷贝
-obj2.b.c = 100;
-
-console.log(obj1.b.c); // 100（原对象也被修改了！）
-
+const user = { name: "Tom" };
+user.name = "Jerry";
 ```
 
-在 obj2 = { ...obj1 } 之后，obj1.b 和 obj2.b 仍然指向同一个对象，因此修改 obj2.b.c 也影响了 obj1.b.c。
+这里是允许的，因为对象引用没有变。
 
-### 3.3 深拷贝示例
+## 数据类型
 
-深拷贝方法：
+JavaScript 数据类型分为基础类型和引用类型。
 
-- JSON 方法（简单对象适用）: JSON.parse(JSON.stringify(obj))
-- Lodash 的 cloneDeep()（推荐）
-- 手写递归深拷贝函数
-- structuredClone()（原生支持）
+基础类型包括：`string`、`number`、`boolean`、`null`、`undefined`、`symbol`、`bigint`。
 
-#### 3.3.1 JSON 深拷贝
+引用类型包括：对象、数组、函数、Date、Map、Set 等。
+
+基础类型通常按值访问，引用类型变量保存的是对象引用。两个对象即使内容一样，只要引用不同，也不相等。
 
 ```js
-const obj1 = { a: 1, b: { c: 2 } };
-const obj2 = JSON.parse(JSON.stringify(obj1));
-
-obj2.b.c = 100;
-console.log(obj1.b.c); // 2（原对象未被修改）
-
+{} === {}; // false
 ```
 
-缺点：
+## 深拷贝和浅拷贝
 
-- 不能拷贝 函数、undefined、Symbol、循环引用 等特殊值。
-- Date 对象会变成字符串，Map/Set 会丢失。
-
-#### 3.3.2 Lodash 的 cloneDeep()
-
-推荐在 Vue/React 项目中使用：
+浅拷贝只复制第一层。如果属性值是对象，复制的是引用。
 
 ```js
-import _ from 'lodash';
-
-const obj1 = { a: 1, b: { c: 2 } };
-const obj2 = _.cloneDeep(obj1);
-
-obj2.b.c = 100;
-console.log(obj1.b.c); // 2（原对象未被修改）
-
+const a = { user: { name: "Tom" } };
+const b = { ...a };
+b.user.name = "Jerry";
+console.log(a.user.name); // Jerry
 ```
 
-✅ 优点：支持函数、Date、Set、Map、Symbol，不会丢失数据。
+深拷贝会递归复制内部对象，使新旧对象互不影响。
 
-#### 3.3.3 手写递归深拷贝
+常见方式：
 
-```js
-function deepClone(obj) {
-  if (typeof obj !== 'object' || obj === null) return obj;
-  const result = Array.isArray(obj) ? [] : {};
-  for (const key in obj) {
-    result[key] = deepClone(obj[key]);
-  }
-  return result;
-}
-```
+- `structuredClone`：现代环境原生支持，不支持函数。
+- `JSON.parse(JSON.stringify(obj))`：简单对象可用，但会丢失函数、undefined、Symbol、Date、Map、Set。
+- `lodash.cloneDeep`：项目中更稳妥。
+- 手写递归：面试常考，但要注意循环引用、特殊对象。
 
-✅ 优点：支持函数、Date、Set、Map、Symbol，不会丢失数据。
+在 React 里，状态更新要保持不可变，不能直接改原对象。在 Vue 里，也要注意响应式对象和原始对象之间的关系，必要时使用 `toRaw` 再拷贝。
 
-#### 3.3.4 structuredClone()（原生方法，推荐）
+## 闭包
 
-在现代浏览器和 Node.js 17+ 版本中可用：
+闭包是函数可以访问其词法作用域中的变量，即使外层函数已经执行结束。
 
-```js
-const obj1 = { a: 1, b: { c: 2 }, d: new Date() };
-const obj2 = structuredClone(obj1);
+闭包的价值是保留私有状态，比如防抖、节流、缓存、模块私有变量。
 
-obj2.b.c = 100;
-console.log(obj1.b.c); // 2（原对象未被修改）
+风险是如果闭包长期持有大对象引用，可能导致这些对象无法被垃圾回收。
 
-```
+面试里不要只说“函数套函数”，要说清楚闭包保存的是词法作用域引用。
 
-✅优点： 支持 Date、Map、Set，比 JSON.stringify 更强大。
+## this
 
-⚠️缺点：不支持函数和 Symbol。
+`this` 的值由调用方式决定，不由函数定义位置决定。
 
-### 4.在 Vue/React 项目中你遇到过对象拷贝的问题吗？你是怎么解决的？
+常见规则：
 
-#### 4.1 Vue 中响应式对象的拷贝问题
+- 默认调用：非严格模式指向全局对象，严格模式是 `undefined`。
+- 隐式调用：谁调用，`this` 指向谁。
+- 显式绑定：`call`、`apply`、`bind` 指定。
+- new 调用：指向新创建的实例。
+- 箭头函数：没有自己的 `this`，从外层词法作用域继承。
 
-在 Vue 2/3 中，Vue 使用 Proxy（Vue 3） 和 Object.defineProperty（Vue 2） 实现响应式。如果使用 浅拷贝，响应式数据可能丢失。
+## Promise 和事件循环
 
-❌ 错误示例
+Promise 有三种状态：
 
-```js
-const state = reactive({ user: { name: "Alice", age: 25 } });
-const newUser = { ...state.user }; // 浅拷贝
-newUser.age = 30;
+- pending。
+- fulfilled。
+- rejected。
 
-console.log(state.user.age); // 30（原数据被修改了）
+状态一旦从 pending 变成 fulfilled 或 rejected，就不能再改变。
 
-```
+事件循环里，同步代码先执行。一次宏任务执行结束后，会清空当前所有微任务，再进入下一轮宏任务。
 
-✅ 正确做法
+常见微任务：
 
-```js
-import { reactive, toRaw } from "vue";
-import { cloneDeep } from "lodash";
+- Promise then/catch/finally。
+- queueMicrotask。
+- MutationObserver。
 
-const state = reactive({ user: { name: "Alice", age: 25 } });
+常见宏任务：
 
-const newUser = cloneDeep(toRaw(state.user)); // 深拷贝
-newUser.age = 30;
+- setTimeout。
+- setInterval。
+- I/O。
+- UI 事件。
 
-console.log(state.user.age); // 25（原数据未被修改）
+## TypeScript 基础
 
-```
+TypeScript 的核心价值是静态类型检查和更清晰的接口约束。
 
-#### 4.2 React 中状态管理的拷贝问题
+常见高频点：
 
-在 React 中，状态不可变（Immutability）是核心原则。如果直接修改 state，可能导致组件不会重新渲染。
+- `any` 是放弃类型检查。
+- `unknown` 是安全的未知类型，使用前必须收窄。
+- `never` 表示不可能出现的值，适合穷尽检查。
+- 泛型保留输入和输出之间的类型关系。
+- 类型守卫用于把宽泛类型收窄成具体类型。
+- 工具类型可以基于已有类型生成新类型。
 
-❌ 错误示例
+项目里 TypeScript 最适合用于接口响应、组件 props、业务状态、工具函数、第三方库类型补充。
 
-```js
-const [user, setUser] = useState({ name: "Alice", age: 25 });
+## 面试回答
 
-const updateUser = () => {
-    user.age = 30; // ❌ 直接修改 state（错误）
-    setUser(user);
-};
+JavaScript 基础我会从运行时机制回答，TypeScript 我会从开发期类型约束回答。
 
-```
+JavaScript 里比较核心的是作用域、闭包、this、Promise 和事件循环。比如 `let` 和 `const` 是块级作用域，有暂时性死区；闭包本质是函数保留对词法作用域的引用；`this` 由调用方式决定；Promise 的回调属于微任务，会在当前宏任务结束后执行。
 
-React 不会检测到 user 的变化，因为 user 变量的引用没有变。
+TypeScript 则是在 JavaScript 之上增加静态类型系统。它不会改变运行时行为，但可以在开发阶段发现类型错误。实际项目里，我会用它约束接口返回、组件 props、业务状态和工具函数。对于外部不可信数据，我更倾向于先用 `unknown`，再通过类型守卫或运行时校验收窄，而不是直接用 `any`。
 
-✅ 正确做法
-使用 浅拷贝 + 深拷贝（取决于需求）：
+所以这部分基础不是孤立知识点，它们会影响框架状态更新、异步处理、组件设计和项目类型安全。
 
-```js
-const updateUser = () => {
-    setUser(prevUser => ({ ...prevUser, age: 30 })); // ✅ 浅拷贝
-};
-```
+## 高频追问
 
-对于深层对象，推荐使用 lodash.cloneDeep()：
+### var、let、const 最大区别是什么？
 
-```js
-const updateUser = () => {
-    setUser(prevUser => {
-        const newUser = cloneDeep(prevUser);
-        newUser.profile.age = 30;
-        return newUser;
-    });
-};
+作用域和提升机制不同。
 
-```
+`var` 是函数作用域，有变量提升，可以重复声明。`let` 和 `const` 是块级作用域，有暂时性死区，不能重复声明。`const` 不能重新赋值变量绑定，但对象内部属性仍然可以修改。
 
-✅ 优点： 组件会重新渲染，因为 state 的引用变了。
+### 深拷贝一定好吗？
 
-## 5.事件循环（Event Loop）的执行机制是什么？你能描述一下微任务（Microtask）和宏任务（Macrotask）的执行顺序吗？
+不一定。
 
-详情请看 [浏览器的事件循环](/md/浏览器/浏览器的事件循环.md)
+深拷贝成本更高，而且可能破坏响应式引用或类实例结构。项目里要先判断是否真的需要深拷贝，很多 React 状态更新只需要浅拷贝受影响层级。
 
-## 6.TypeScript 里 interface 和 type 有什么区别？什么时候适合用 type，什么时候适合用 interface？
+### Promise.then 为什么比 setTimeout 先执行？
 
-### 6.1 interface 和 type 的主要区别
+因为 Promise.then 是微任务，setTimeout 是宏任务。
 
-| 对比点 | interface | type |
-| --- | --- | --- |
-| 是否可扩展 | ✅ 可继承 (extends) 和合并 | ✅ 不可合并，但可以交叉（&） |
-| 用于对象类型 | ✅ 推荐 | ✅ 适用，但不如 interface 直观 |
+当前同步代码执行完后，会先清空微任务队列，再进入下一轮宏任务。
 
-- 用于基本类型 ❌ 不能定义基本类型 ✅ 适用于 string、number、联合类型等
-- 是否支持映射 ✅ 支持 readonly / 可选属性 ✅ 也支持
-- 能否用于类 ✅ 可用于 implements ❌ 不能 implements
+### TypeScript 和 JavaScript 的关系是什么？
 
-### 6.2 interface 适用于对象和类
+TypeScript 是 JavaScript 的超集，增加了类型系统和编译期检查。
 
-✅ interface 适合定义对象的结构
+最终运行的仍然是 JavaScript，类型在编译后会被擦除，所以 TypeScript 不能替代运行时校验。
 
-```ts
-interface Person {
-  name: string;
-  age: number;
-}
+### any 和 unknown 有什么区别？
 
-const user: Person = {
-  name: "Alice",
-  age: 25,
-};
-```
+`any` 是放弃类型检查，`unknown` 是安全的未知类型。
 
-✅ interface 可以继承
+`unknown` 使用前必须先判断类型，更适合接口返回、外部输入、第三方数据这类不确定来源。
 
-```ts
-interface Employee extends Person {
-  position: string;
-}
-```
+## 相关链接
 
-✅ interface 可以用于类
-
-```ts
-class Developer implements Employee {
-  name: string;
-  age: number;
-  position: string;
-
-  constructor(name: string, age: number, position: string) {
-    this.name = name;
-    this.age = age;
-    this.position = position;
-  }
-}
-
-```
-
-✅ interface 可以自动合并
-
-```ts
-interface User {
-  name: string;
-}
-
-interface User {
-  age: number;
-}
-
-const user: User = { name: "Alice", age: 25 }; // ✅ 自动合并
-
-```
-
-### 6.3 type 适用于基本类型和联合类型
-
-✅ type 适合定义基本类型
-
-```ts
-type Name = string;
-
-const name: Name = "Alice";
-```
-
-✅ type 适合定义联合类型
-
-```ts
-type Status = "pending" | "fulfilled" | "rejected";
-
-const status: Status = "pending"; // ✅ 合法
-
-```
-
-✅ type 可以交叉
-
-```ts
-type Admin = { role: "admin" };
-
-type User = { name: string };
-
-type AdminUser = Admin & User;
-
-const adminUser: AdminUser = { role: "admin", name: "Alice" };
-
-```
-
-### 6.4 什么时候适合用 type，什么时候适合用 interface
-
-| 场景 | 推荐使用 | 原因 |
-| --- | --- | --- |
-| 定义对象 | interface ✅ | 可继承，可合并，支持类 |
-| 定义基本类型 | type ✅ | 适用于 `string`、`number`、`boolean` 等基本类型 |
-| 复杂联合类型 | type ✅ | type 支持联合和交叉类型 |
-| 类的结构 | interface ✅ | 可 implements，支持继承 |
-| 只读对象 | interface ✅ | readonly 更直观 |
-
-### 6.5 总结
-
-- 优先使用 interface 定义对象，因为它支持继承、自动合并。
-- 使用 type 处理基本类型、联合类型、交叉类型。
-- 如果需要 extends 和 implements，优先选择 interface。
+- [数据类型](/md/基础/JavaScript/数据类型.md)
+- [This 的理解](/md/基础/JavaScript/This的理解.md)
+- [闭包的理解](/md/基础/JavaScript/闭包的理解.md)
+- [Promise](/md/基础/ES6/Promise.md)
+- [浏览器事件循环](/md/浏览器/浏览器的事件循环.md)
+- [TypeScript 基础类型](/md/TypeScript/基础类型.md)
+- [TypeScript 泛型](/md/TypeScript/泛型.md)
+- [类型守卫与类型收窄](/md/TypeScript/类型守卫与类型收窄.md)

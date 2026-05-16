@@ -1,104 +1,129 @@
 # WebSocket
 
-WebSocket 是一种在单个 TCP 连接上进行全双工通信的协议。它允许浏览器和服务器之间进行双向通信，并且可以随时发送和接收消息。
+## 面试定位
 
-## 特点
+WebSocket 常用于实时通信项目深挖。面试官通常会问：它和 HTTP 轮询区别、如何建立连接、为什么状态码是 101、如何做心跳、断线重连和鉴权。
 
-- 全双工通信：客户端和服务器可以随时互相发送消息，而不需要客户端主动请求。
-- 低延迟：相比轮询，WebSocket 省去了 HTTP 请求头的开销，数据传输更快。
-- 长连接：连接建立后可一直保持，不需要频繁创建新连接。
-- 基于 TCP：WebSocket 运行在 TCP 之上，默认使用端口 80（HTTP）或 443（HTTPS），因此通常不会被防火墙拦截。
+## 核心原理
 
-## WebSocket 工作流程
+WebSocket 是一种基于 TCP 的全双工通信协议。连接建立后，客户端和服务端都可以主动发送消息，不需要像 HTTP 那样必须由客户端发起请求。
 
-### 1. 握手阶段（HTTP Upgrade）
+适合低延迟、服务端主动推送的场景：
 
-- 客户端发送 Upgrade: websocket 请求，要求升级到 WebSocket 连接。
+- 即时聊天。
+- 实时行情。
+- 协同编辑。
+- 在线游戏。
+- WebRTC 信令。
+- 设备状态推送。
 
-- 服务器同意升级，并返回 101 Switching Protocols 状态码，连接建立。
+## 建立连接
 
-### 2. 数据传输阶段
+WebSocket 通过 HTTP Upgrade 完成握手。
 
-- 连接建立后，双方可以**随时**发送消息，而无需等待对方的请求。
+客户端请求：
 
-- 消息格式为二进制或文本，可以是任意长度。
-
-- 消息类型包括文本、二进制数据、ping/pong 心跳消息等。
-
-### 3. 关闭连接
-
-- 任何一方都可以主动关闭连接，或在发生异常时自动断开。
-
-- 关闭连接时，双方会发送关闭帧，并等待对方确认。
-
-- 关闭连接后，连接状态变为 closed。
-
-## WebSocket 示例代码
-
-### 前端（javascript）
-
-```javascript
-// 创建 WebSocket 连接
-const socket = new WebSocket("ws://localhost:8080");
-
-// 监听连接成功
-socket.onopen = function () {
-    console.log("WebSocket 连接已建立");
-    socket.send("你好，服务器！");
-};
-
-// 监听服务器消息
-socket.onmessage = function (event) {
-    console.log("收到消息：" + event.data);
-};
-
-// 监听错误
-socket.onerror = function (error) {
-    console.log("WebSocket 发生错误", error);
-};
-
-// 监听关闭事件
-socket.onclose = function () {
-    console.log("WebSocket 连接已关闭");
-};
-
+```http
+GET /socket HTTP/1.1
+Host: example.com
+Upgrade: websocket
+Connection: Upgrade
+Sec-WebSocket-Key: xxx
+Sec-WebSocket-Version: 13
 ```
 
-### 后端（nodejs+ws）
+服务端同意升级：
 
-```javascript
-const WebSocket = require("ws");
-
-const wss = new WebSocket.Server({ port: 8080 });
-
-wss.on("connection", function connection(ws) {
-    console.log("客户端已连接");
-
-    ws.on("message", function incoming(message) {
-        console.log("收到消息:", message);
-        ws.send("服务器收到：" + message);
-    });
-
-    ws.on("close", function () {
-        console.log("客户端断开连接");
-    });
-});
-
+```http
+HTTP/1.1 101 Switching Protocols
+Upgrade: websocket
+Connection: Upgrade
+Sec-WebSocket-Accept: xxx
 ```
 
-## WebSocket 与 HTTP 轮询的对比
+状态码 `101` 表示协议切换成功。之后连接不再按普通 HTTP 请求响应模式通信，而是使用 WebSocket 帧传输数据。
 
-| 特性 | WebSocket | HTTP 轮询 |
-| ---- | --------- | --------- |
-| 连接方式 | 一次握手，持久化 | 每次请求新建连接 |
-| 通信模式 | 双向 | 客户端主动请求，服务器响应 |
-| 延迟 | 低 | 高（受请求间隔影响） |
-| 适用场景 | 实时应用，如聊天、游戏、股票行情 | 适用于不太频繁的更新，如新闻轮询 |
+## 基本使用
 
-## WebSocket 适用场景
+```javascript
+const socket = new WebSocket("wss://example.com/socket");
 
-- 即时聊天（如 QQ、微信网页版）
-- 在线游戏（如多人对战游戏）
-- 股票行情（实时更新股市数据）
-- 协同编辑（如 Google Docs 共享编辑）
-- 物联网（IoT）（设备与服务器的实时数据同步）
+socket.onopen = () => {
+    socket.send(JSON.stringify({ type: "join", roomId: "1" }));
+};
+
+socket.onmessage = (event) => {
+    const message = JSON.parse(event.data);
+    console.log(message);
+};
+
+socket.onerror = (error) => {
+    console.error(error);
+};
+
+socket.onclose = () => {
+    console.log("closed");
+};
+```
+
+线上建议使用 `wss://`，它相当于 WebSocket over TLS。
+
+## 和 HTTP 轮询对比
+
+| 维度 | WebSocket | HTTP 轮询 |
+| --- | --- | --- |
+| 通信模式 | 双向主动发送 | 客户端定时请求 |
+| 延迟 | 低 | 受轮询间隔影响 |
+| 连接 | 长连接 | 多次请求 |
+| 服务端推送 | 原生支持 | 需要等待下一次轮询 |
+| 复杂度 | 需要维护连接状态 | 实现简单 |
+
+轮询适合低频更新，WebSocket 适合高频实时通信。
+
+## 心跳和重连
+
+长连接可能因为网络切换、代理超时、服务重启而断开，所以需要心跳和重连。
+
+常见策略：
+
+- 定时发送 ping 或业务心跳包。
+- 超时未收到 pong，主动关闭连接。
+- 断开后指数退避重连。
+- 页面不可见时降低心跳频率。
+- 服务端也要清理无效连接。
+
+## 鉴权
+
+常见方式：
+
+- URL query 携带短期 token。
+- 首条消息发送鉴权信息。
+- 握手时通过 Cookie 鉴权。
+
+注意不要长期暴露敏感 token。跨域和 Cookie 场景也要考虑安全策略。
+
+## 面试回答
+
+可以这样答：
+
+> WebSocket 是基于 TCP 的全双工通信协议，适合聊天、行情、协同编辑这类服务端需要主动推送的实时场景。它通过 HTTP Upgrade 建立连接，客户端带 `Upgrade: websocket`，服务端返回 101 表示协议切换成功。连接建立后，双方通过 WebSocket 帧传输数据，不再是普通 HTTP 的一问一答。相比轮询，WebSocket 延迟更低、请求头开销更小，但需要维护长连接、心跳、断线重连、鉴权和服务端连接资源。
+
+## 高频追问
+
+### WebSocket 和 HTTP 是什么关系？
+
+WebSocket 握手阶段借助 HTTP Upgrade，建立后使用 WebSocket 协议通信。它不是 HTTP 请求响应模型。
+
+### 为什么需要心跳？
+
+网络中断、代理超时或服务异常时，连接可能半开。心跳用于检测连接是否仍然可用，并及时重连或清理资源。
+
+### WebSocket 能替代 HTTP 吗？
+
+不能。普通 CRUD、缓存、无状态接口仍适合 HTTP。WebSocket 更适合实时双向通信。
+
+## 相关链接
+
+- [HTTP](/md/网络/HTTP.md)
+- [HTTPS](/md/网络/HTTPS.md)
+- [WebRTC 会议室项目](/md/面试准备/项目与架构/WebRTC%20会议室项目.md)

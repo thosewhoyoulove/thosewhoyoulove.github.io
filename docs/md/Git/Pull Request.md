@@ -1,106 +1,68 @@
-# GitHub Pull Request (PR) 详解
+# Pull Request
 
-## 什么是 Pull Request？
+## 面试定位
 
-Pull Request（简称 PR）是 GitHub 上用于协作开发的重要功能，它允许开发者告诉项目维护者："我对你的代码做了一些改进，请查看并考虑合并到项目中"。
+PR 题考察团队协作和代码质量意识。回答重点是：PR 不只是合代码，而是评审、自动化检查、沟通和风险控制流程。
 
-## PR 的工作流程
+## 核心原理
 
-1. **Fork 项目**
-   - 在 GitHub 上 fork 目标仓库到自己的账号下
-   - 这会在你的账号下创建一个原仓库的副本
+Pull Request 是把一个分支的改动请求合入目标分支的协作机制。
 
-2. **创建分支**
+一个成熟 PR 流程通常包括：
 
-   ```bash
-   git checkout -b feature/new-feature
-   ```
+1. 创建功能分支。
+2. 提交小而清晰的 commit。
+3. 推送分支并创建 PR。
+4. 填写变更说明、测试说明、关联需求或 issue。
+5. CI 自动跑 lint、测试、构建。
+6. Code Review。
+7. 处理评论和冲突。
+8. 合并并删除分支。
 
-3. **提交改动**
+## 好 PR 的标准
 
-   ```bash
-   git add .
-   git commit -m "添加新功能"
-   git push origin feature/new-feature
-   ```
+- 一个 PR 只做一件事。
+- 标题清晰，描述完整。
+- 说明为什么改、改了什么、怎么验证。
+- 变更范围可控。
+- 有必要的截图、录屏或测试结果。
+- 不混入格式化、重构和业务无关改动。
 
-4. **创建 Pull Request**
-   - 在 GitHub 界面点击 "New Pull Request"
-   - 选择源分支和目标分支
-   - 填写 PR 描述
+## PR 描述模板
 
-## PR 的最佳实践
+```markdown
+## 背景
 
-### 1. PR 标题和描述
+## 改动内容
 
-- 标题要简洁明了
-- 描述中要详细说明改动内容
-- 最好包含以下信息：
-  - 改动的目的
-  - 解决的问题
-  - 测试情况
-  - 相关的 issue 链接
+## 验证方式
 
-### 2. 代码审查（Code Review）
+## 风险点
 
-- 审查者会查看代码并提出建议
-- 可能需要多次修改和讨论
-- 遵循项目的代码规范
-
-### 3. 常见状态
-
-- **Open**：PR 已创建，等待审查
-- **Closed**：PR 被关闭（可能是合并或拒绝）
-- **Merged**：PR 已被合并到目标分支
-
-## 示例 PR 流程
-
-```bash
-
-1. 克隆仓库
-git clone <https://github.com/your-username/project.git>
-2. 创建新分支
-git checkout -b feature/awesome-feature
-3. 修改代码并提交
-git add .
-git commit -m "Add awesome feature"
-4. 推送到远程
-git push origin feature/awesome-feature
+## 关联链接
 ```
 
-## PR 的注意事项
+## 面试回答
 
-1. **保持 PR 的精简**
-   - 一个 PR 最好只做一件事
-   - 避免过大的改动
+可以这样答：
 
-2. **及时更新**
-   - 经常从主仓库同步最新代码
+> PR 是团队协作里保证代码质量的关键流程。我会从功能分支开发，保持 PR 小而聚焦，提交前本地跑 lint、测试和构建。创建 PR 时会写清楚背景、改动内容、验证方式和风险点，并关联需求或 issue。CI 会自动跑检查，Reviewer 关注逻辑正确性、边界、可维护性和测试。收到评论后及时修改和回复。如果目标分支有更新，我会按团队规范 merge 或 rebase 同步，解决冲突后再次验证。PR 的目标不是形式化审批，而是让变更可理解、可追踪、可回滚。
 
-   ```bash
-   git remote add upstream https://github.com/original-repo/project.git
-   git fetch upstream
-   git rebase upstream/main
-   ```
+## 高频追问
 
-3. **冲突解决**
-   - 如果出现冲突，需要在本地解决后再更新 PR
-   - 保持与主分支的同步以减少冲突
+### PR 太大有什么问题？
 
-## PR 的优势
+Review 成本高，问题难发现，回滚风险大。最好拆成多个小 PR。
 
-1. **代码质量保证**
-   - 通过 Code Review 提高代码质量
-   - 确保代码符合项目规范
+### Code Review 主要看什么？
 
-2. **团队协作**
-   - 便于团队成员之间的交流
-   - 方便项目维护者管理贡献
+看需求是否满足、边界是否完整、是否有潜在 bug、是否破坏已有行为、命名和结构是否可维护、测试是否充分。
 
-3. **追踪记录**
-   - 所有的改动都有记录
-   - 便于回溯和讨论
+### PR 合并策略怎么选？
 
-## 总结
+看团队规范。Squash 保持主干简洁；merge commit 保留完整分支历史；rebase merge 保持线性历史。
 
-Pull Request 是 GitHub 上进行协作开发的重要工具，它提供了一个规范的流程来贡献代码、审查代码并最终合并到项目中。良好的 PR 习惯能够提高团队协作效率，确保代码质量。
+## 相关链接
+
+- [解决冲突](/md/Git/解决冲突.md)
+- [rebase 和 merge 的区别](/md/Git/rebase和merge的区别.md)

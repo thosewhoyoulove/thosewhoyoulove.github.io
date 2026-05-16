@@ -1,5 +1,13 @@
 # React Hooks 面试题
 
+## 面试定位
+
+Hooks 是 React 面试核心。回答重点是 Hook 调用顺序、状态快照、闭包陷阱、effect 清理、ref 和 state 区别、memo 化边界、并发特性。
+
+## 核心原理
+
+React Hooks 依赖“稳定调用顺序”保存状态。每个函数组件对应一条 Hook 链表，React 在每次 render 时按调用顺序依次读取 Hook 状态。因此 Hook 必须写在组件或自定义 Hook 顶层，不能写在条件、循环或普通函数里。
+
 ---
 
 ## 问题：为什么 Hook 不能写在 if 里面？
@@ -364,3 +372,23 @@ const deferredQuery = useDeferredValue(query)
 ```
 
 **区别**：useTransition 是你主动控制"哪个 setState 是低优先级"；useDeferredValue 是你拿到一个值但告诉 React"这个值的消费可以延后"。
+
+## 面试回答
+
+可以这样答：
+
+> Hooks 的核心是调用顺序。React 内部按顺序保存每个 Hook 的状态，所以 Hook 不能写在 if、循环或普通函数里，否则不同 render 的调用顺序变化会导致状态错位。`useState` 更新会触发重新渲染，但当前 render 中拿到的是状态快照，所以会有闭包陷阱；依赖旧值更新时要用函数式 setState。`useEffect` 用来处理副作用，依赖变化前会先执行上一次清理函数，组件卸载时也会清理。`useRef` 保存可变值但不触发渲染，适合 DOM 引用、定时器 id、最新值缓存。`useMemo/useCallback` 是性能工具，只有在昂贵计算、稳定引用或配合 memo 子组件时才值得用。React 18 的 `useTransition/useDeferredValue` 用来标记非紧急更新，避免阻塞用户输入。
+
+## 高频追问
+
+### Hook 为什么不能条件调用？
+
+因为 React 靠调用顺序匹配 Hook 和状态。条件调用会让某次 render 少调用一个 Hook，后面的状态全部错位。
+
+### 什么是 stale closure？
+
+每次 render 都会创建新的闭包，effect 或定时器可能捕获旧 render 的 state。解决方式包括函数式更新、补全依赖、用 ref 保存最新值。
+
+### useMemo 和 useCallback 是否应该到处用？
+
+不应该。它们本身也有依赖比较和缓存成本。没有性能问题或没有稳定引用需求时，过度使用会让代码更复杂。

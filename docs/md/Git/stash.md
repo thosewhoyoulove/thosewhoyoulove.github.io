@@ -1,24 +1,80 @@
-# git stash 的作用是什么？在什么场景下使用？
+# git stash
 
-`git stash` 是一个 Git 命令，用于临时保存当前工作目录和暂存区的修改，以便在之后恢复。它的主要作用是让开发者在不提交当前更改的情况下，切换到其他分支或进行其他操作。
+## 面试定位
 
-## 使用场景
+`git stash` 常用于考察日常协作熟练度。重点是：临时保存未提交修改、切分支处理紧急任务、恢复时区分 apply 和 pop。
 
-1. **切换分支**：当你在一个分支上工作，但需要切换到另一个分支进行紧急修复时，可以使用 `git stash` 保存当前的修改。
+## 核心原理
 
-2. **清理工作区**：在进行代码审查或测试之前，可能需要清理工作区的修改，`git stash` 可以帮助你临时保存这些修改。
+`git stash` 会把当前工作区和暂存区的修改临时保存到一个栈里，让工作区恢复干净。
 
-3. **处理合并冲突**：在合并分支时，如果遇到冲突，可以先使用 `git stash` 保存当前的修改，解决冲突后再恢复这些修改。
+它适合“不想提交半成品，但需要切换上下文”的场景。
 
-## 如何使用
+## 常用命令
 
-- **保存修改**：`git stash` 或 `git stash push -m "说明"`，默认包含已跟踪文件的变更。
-- **包含未跟踪文件**：`git stash -u`（`--include-untracked`），避免新文件被落下。
-- **查看列表**：`git stash list`。
-- **恢复**：`git stash apply stash@{n}` 保留栈记录；`git stash pop` 相当于 apply 后再 drop 最新一条。
-- **丢弃某条**：`git stash drop stash@{n}`；清空 `git stash clear`（慎用）。
+保存修改：
 
-## 注意事项
+```bash
+git stash push -m "work in progress"
+```
 
-- `git stash` 只会保存未提交的修改，已提交的修改不会受到影响。
-- 使用 `git stash pop` 会在恢复修改后将其从栈中删除，而 `git stash apply` 则会保留在栈中。
+包含未跟踪文件：
+
+```bash
+git stash -u
+```
+
+查看列表：
+
+```bash
+git stash list
+```
+
+恢复但保留 stash 记录：
+
+```bash
+git stash apply stash@{0}
+```
+
+恢复并删除 stash 记录：
+
+```bash
+git stash pop
+```
+
+删除某条：
+
+```bash
+git stash drop stash@{0}
+```
+
+## apply 和 pop 区别
+
+- `apply`：恢复修改，但 stash 记录还在。
+- `pop`：恢复修改，并删除这条 stash。
+
+如果担心恢复时冲突，优先用 `apply`，确认没问题后再 `drop`。
+
+## 面试回答
+
+可以这样答：
+
+> `git stash` 用来临时保存未提交的工作区和暂存区修改，让工作区变干净，方便切分支或拉取代码。常见场景是手头功能没做完，但需要紧急修 bug。我会用 `git stash push -m "说明"` 保存，如果有未跟踪文件加 `-u`。恢复时 `git stash apply` 会保留 stash 记录，`git stash pop` 会恢复后删除记录。如果担心冲突，我会先 apply，确认没问题再 drop。
+
+## 高频追问
+
+### stash 会保存 untracked 文件吗？
+
+默认不会。需要用 `git stash -u` 或 `--include-untracked`。
+
+### stash pop 冲突怎么办？
+
+手动解决冲突并 `git add`。如果 pop 没完全成功，Git 通常会保留 stash 记录，避免丢失。
+
+### stash 适合长期保存工作吗？
+
+不适合。长期工作应该提交到临时分支，stash 更适合短期上下文切换。
+
+## 相关链接
+
+- [解决冲突](/md/Git/解决冲突.md)

@@ -1,36 +1,72 @@
-# git rebase 和 git merge 的区别是什么？
+# git rebase 和 git merge 的区别
 
-`git rebase` 和 `git merge` 是 Git 中用于整合不同分支的两种方法，它们的主要区别在于如何处理提交历史。
+## 面试定位
 
-## 1. 提交历史
+这题考察 Git 协作经验。回答重点是：merge 保留分叉历史，rebase 重写提交历史；共享分支不要随意 rebase。
 
-- **git merge**：
-  - 合并两个分支时，会创建一个新的合并提交（merge commit），保留两个分支的提交历史。
-  - 提交历史呈现为一个分支图，显示出分支的合并情况。
+## 核心原理
 
-- **git rebase**：
-  - 将一个分支的提交应用到另一个分支的基础上，重写提交历史。
-  - 提交历史呈现为线性，消除了分支的合并情况，使得历史更简洁。
+`git merge` 和 `git rebase` 都用于整合分支，但处理提交历史的方式不同。
 
-## 2. 使用场景
+## merge
 
-- **git merge**：
-  - 适合在团队协作中使用，保留完整的历史记录，便于追踪每个分支的开发过程。
-  - 适合处理大型项目，尤其是当多个开发者同时工作时。
+`merge` 会把两个分支合并，并通常生成一个 merge commit。
 
-- **git rebase**：
-  - 适合在个人开发中使用，保持提交历史的整洁。
-  - 在准备将功能分支合并到主分支之前，可以使用 rebase 来确保功能分支是最新的。
+```bash
+git checkout feature
+git merge main
+```
 
-## 3. 冲突处理
+特点：
 
-- **git merge**：
-  - 如果在合并过程中出现冲突，需要手动解决冲突并完成合并。
+- 保留真实分支历史。
+- 不重写已有 commit。
+- 适合共享分支和团队协作。
+- 历史可能出现较多分叉和 merge commit。
 
-- **git rebase**：
-  - 在 rebase 过程中，如果出现冲突，也需要手动解决冲突，但解决后可以继续应用后续的提交。
+## rebase
 
-## 总结
+`rebase` 会把当前分支的提交“搬到”目标分支最新提交之后，相当于重新应用一遍提交。
 
-- `git merge` 保留了完整的历史记录，适合团队协作。
-- `git rebase` 使历史更简洁，适合个人开发和准备合并时使用。
+```bash
+git checkout feature
+git rebase main
+```
+
+特点：
+
+- 历史更线性。
+- 会重写 commit hash。
+- 适合整理个人功能分支。
+- 不应随意对已推送且被他人基于开发的分支 rebase。
+
+## 怎么选择
+
+- 想保留真实协作历史：用 merge。
+- 想让个人 feature 分支基于最新 main，并保持线性：用 rebase。
+- 主干合并策略看团队规范，例如 squash merge、rebase merge、merge commit。
+
+## 面试回答
+
+可以这样答：
+
+> `merge` 和 `rebase` 都能整合分支。`merge` 会保留两个分支的历史，并生成一个合并提交，不会改写已有提交，适合团队共享分支。`rebase` 会把当前分支的提交重新应用到目标分支之后，历史更线性，但会重写 commit hash，所以适合整理自己的本地 feature 分支，不适合对已经共享给别人的分支随意 rebase。实际协作里，我会按团队规范选择，个人分支同步主干可以 rebase，合并到公共分支时更谨慎。
+
+## 高频追问
+
+### 为什么公共分支不要随便 rebase？
+
+因为 rebase 会重写提交历史，其他人基于旧提交开发时会产生重复提交、冲突和历史混乱。
+
+### rebase 冲突怎么处理？
+
+解决冲突后执行 `git add`，再 `git rebase --continue`。如果不想继续，执行 `git rebase --abort`。
+
+### squash merge 是什么？
+
+把一个 PR 里的多个提交压成一个提交合入目标分支，适合保持主干历史简洁。
+
+## 相关链接
+
+- [解决冲突](/md/Git/解决冲突.md)
+- [Pull Request](/md/Git/Pull%20Request.md)

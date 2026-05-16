@@ -1,135 +1,143 @@
-# Web Worker介绍
+# Web Worker
 
-## 1. 什么是 Web Worker？
+## 面试定位
 
-Web Worker 是一种在浏览器中运行 JavaScript 的"后台线程"。
+Web Worker 常用于性能优化和项目深挖。面试官通常会问：它解决什么问题、为什么不能操作 DOM、主线程和 Worker 怎么通信、适合哪些场景、有什么代价。
 
-浏览器默认只有一个线程，也就是主线程，它负责：
+## 核心原理
 
-- 渲染页面
-- 执行 JS 脚本
-- 响应用户交互（点击、滚动等）
+浏览器主线程负责执行 JavaScript、响应用户交互和渲染页面。如果把大量计算放在主线程，就会导致点击无响应、滚动卡顿、动画掉帧。
 
-这就意味着，如果你在主线程里做一些计算量大的任务（比如处理 10 万条数据），就会出现：
+Web Worker 可以在主线程之外运行 JavaScript，把耗时计算移出主线程。
 
-- 页面卡顿
-- 滚动不流畅
-- 动画掉帧
-- 浏览器无响应甚至崩溃
+它的通信模型是消息传递：
 
-所以，**Web Worker 出现了**，它的作用是：
+- 主线程通过 `postMessage` 把数据发给 Worker。
+- Worker 通过 `onmessage` 接收消息。
+- Worker 处理完成后再用 `postMessage` 把结果发回主线程。
 
-在主线程之外开一个线程来处理耗时任务。
+Worker 和主线程不共享普通对象内存，传递数据时通常会发生结构化克隆。对于大二进制数据，可以用 Transferable 转移所有权，减少拷贝成本。
 
-## 2. Web Worker 的核心机制
+## 基本使用
 
-Web Worker 是“消息传递模型”：
+Worker 文件：
 
-- 你把任务和数据通过 postMessage() 发给 Worker；
-- Worker 处理完后，再用 postMessage() 把结果发回主线程；
-- 双方通过 onmessage 接收对方消息。
+```javascript
+// worker.js
+self.onmessage = function (event) {
+    const list = event.data;
+    const result = list.map((item) => item * 2);
 
-它是异步的，不会阻塞 UI 渲染。
-
-## 3.  基础用法示例
-
-1️⃣ 创建 Worker 文件：myWorker.js
-
-```js
-// myWorker.js
-
-onmessage = function (e) {
-  console.log('主线程发来的数据：', e.data);
-  
-  // 模拟耗时任务，比如处理10万条数据
-  const result = e.data.map(num => num * 2);
-
-  postMessage(result); // 返回结果给主线程
+    self.postMessage(result);
 };
 ```
 
-2️⃣ 主线程代码（Vue / 原生都行）
+主线程：
 
-```js
-const worker = new Worker('myWorker.js'); // 加载 Worker
+```javascript
+const worker = new Worker("/worker.js");
 
-const largeData = Array.from({ length: 100000 }, (_, i) => i);
+worker.postMessage([1, 2, 3]);
 
-worker.postMessage(largeData); // 发送数据
+worker.onmessage = function (event) {
+    console.log(event.data); // [2, 4, 6]
+};
 
-worker.onmessage = (event) => {
-  console.log('Worker 返回的结果：', event.data);
+worker.onerror = function (error) {
+    console.error(error);
 };
 ```
 
-## 4.在 Vue 项目中使用 Web Worker（推荐方式）
+不用时要终止 Worker，避免资源浪费。
 
-使用模块化的方式导入 Worker（推荐 Vite / Vue3）
-
-1️⃣ 创建 Worker 文件：myWorker.js
-
-```js
-// src/workers/worker.js
-self.onmessage = function (e) {
-  const result = e.data.map(x => x * 2);
-  self.postMessage(result);
-};
+```javascript
+worker.terminate();
 ```
 
-2️⃣ Vue 中使用（支持模块方式）
+## 在 Vite 中使用
 
-```js
-const worker = new Worker(new URL('@/workers/worker.js', import.meta.url), { type: 'module' });
-
-worker.postMessage([1, 2, 3, 4, 5]);
-
-worker.onmessage = (e) => {
-  console.log('处理后的数据：', e.data); // 输出 [2, 4, 6, 8, 10]
-};
+```javascript
+const worker = new Worker(new URL("./worker.js", import.meta.url), {
+    type: "module",
+});
 ```
 
-## 5. Web Worker 可以做什么？
+这种方式更适合工程化项目，构建工具能正确处理路径和打包。
 
-| 用途 | 说明 |
-| --- | --- |
-| 大数据预处理 | 数据聚合、降采样、格式转换等 |
-| 实时流数据处理 | WebSocket 接收后数据过滤 / 合并 |
-| 图表数据准备 | 在后台计算图表所需格式 |
-| 加密/解密 | 如 AES、RSA、哈希计算 |
-| 模拟计算 | 物理模拟、复杂动画的坐标计算 |
-| 压缩/解压 | 大文件传输前的处理 |
+## 适合场景
 
-## 6. Web Worker 不可以做什么？
+适合放进 Worker 的任务：
 
-- 不能访问 DOM，不能操作页面元素
-- 不能访问 window、document 等浏览器对象
-- 不支持 alert、confirm 等弹窗
-- 不能跨域加载文件（必须同源）
+- 大量数据过滤、排序、聚合。
+- 图表数据预处理和降采样。
+- 文件解析、压缩、解压。
+- 加密、哈希计算。
+- WebSocket 大量消息预处理。
+- 复杂计算，例如路径规划、图像处理。
 
-## 7. 多个 Worker / 多线程？
+不适合的任务：
 
-可以开多个 Worker 实例（比如处理不同数据片段），但注意：
+- 简单表单校验。
+- 频繁 DOM 操作。
+- 很小的计算任务。
+- 依赖大量主线程上下文的逻辑。
 
-- 每个 Worker 是独立线程，占用内存；
-- 开太多会适得其反（浏览器线程调度压力大）；
-- 一般建议不要超过 CPU 核心数。
+Worker 有创建成本、通信成本和内存成本，不是所有任务都适合丢进去。
 
-## 8. 使用 Web Worker 的最佳时机
+## 限制
 
-| 场景 | 是否适合 |
-| --- | --- |
-| 页面卡顿，数据量很大 | ✅ 很适合，用来处理数据 |
-| 图表加载慢 | ✅ 把数据处理放进 Worker |
-| UI 动画需要高帧率 | ✅ 防止掉帧，计算任务移出主线程 |
-| 简单表单处理 | ❌ 不适合，没必要开线程 |
-| DOM 操作频繁 | ❌ Worker 无法直接操作 DOM |
+Worker 不能直接访问：
 
-## 9. 工具和库推荐
+- `window`
+- `document`
+- DOM 节点
+- 部分浏览器 API
 
-- 🧵 [comlink](<https://github.com/GoogleChrome/comlink>)：让 Worker 像函数一样用，超方便！
-- 📦 [workerize-loader](<https://github.com/developit/workerize-loader>)：Webpack 下更简单地管理 Worker。
-- 🎯 Vite 直接支持 new URL(..., import.meta.url)，无须 loader。
+原因是 DOM 主要由主线程管理。如果 Worker 可以直接操作 DOM，就会带来复杂的线程同步和竞态问题。
 
-## 10. 总结
+Worker 可以使用：
 
-Web Worker 是前端性能优化的利器，把耗时任务甩给它，你的页面就能“飞”起来！🚀
+- `fetch`
+- `setTimeout`
+- `setInterval`
+- `WebSocket`
+- `IndexedDB`
+
+具体能力和浏览器支持有关。
+
+## Transferable
+
+传大数据时，普通 `postMessage` 可能复制数据，成本较高。`ArrayBuffer` 可以作为 Transferable 转移所有权。
+
+```javascript
+const buffer = new ArrayBuffer(1024);
+worker.postMessage(buffer, [buffer]);
+```
+
+转移后，主线程里的 `buffer` 会不可用，所有权交给 Worker。这适合大文件、二进制数据处理。
+
+## 面试回答
+
+可以这样答：
+
+> Web Worker 用来把耗时 JavaScript 计算放到主线程之外执行，避免阻塞页面渲染和用户交互。它和主线程通过 `postMessage` / `onmessage` 通信，数据通常通过结构化克隆传递，大二进制数据可以用 Transferable 转移所有权来减少拷贝。Worker 不能直接操作 DOM，因为 DOM 由主线程管理，跨线程直接修改会带来同步和竞态问题。实际项目里我会把大数据处理、图表数据预处理、文件解析、加密计算这类 CPU 密集任务放到 Worker，但不会把很小的任务放进去，因为 Worker 有创建、通信和内存成本。
+
+## 高频追问
+
+### Worker 能提升所有性能问题吗？
+
+不能。它主要解决主线程 CPU 计算过重的问题。如果瓶颈是网络慢、接口慢、DOM 太复杂，Worker 不一定有效。
+
+### Worker 和主线程共享变量吗？
+
+普通对象不共享，通信靠消息传递。`SharedArrayBuffer` 可以共享内存，但有安全限制和更复杂的同步问题，普通业务较少使用。
+
+### Worker 为什么不能操作 DOM？
+
+为了避免多线程同时修改 DOM 导致竞态和同步成本。DOM 操作集中在主线程，Worker 只负责计算，再把结果发回主线程更新 UI。
+
+## 相关链接
+
+- [加快首屏加载速度](/md/浏览器/加快首屏加载速度.md)
+- [浏览器的事件循环](/md/浏览器/浏览器的事件循环.md)
+- [智慧大屏数据可视化](/md/面试准备/项目与架构/智慧大屏数据可视化.md)

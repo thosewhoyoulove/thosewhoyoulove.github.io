@@ -1,65 +1,122 @@
 # OPTIONS 预检请求
 
-POST 请求前发送的 OPTIONS 请求实际上是 HTTP 的一种特性，称为“预检请求”（Preflight request）。这主要发生在跨域请求（CORS, Cross-Origin Resource Sharing）的场景中，尤其是当请求涉及一些可能不太安全的方法（如 PUT、DELETE 或 POST）或使用了一些自定义的 HTTP 头部时。
+## 面试定位
 
-预检请求的目的是检查服务器是否允许来自不同源（域、协议或端口）的请求进行某些操作。这样做可以确保客户端在发送实际请求之前，先得到服务器的明确许可。
+OPTIONS 预检请求是 CORS 高频追问题。面试官通常会问：为什么有些 POST 前会多一个 OPTIONS、什么请求会触发预检、服务端需要返回哪些头、如何减少预检请求。
 
-以下是 OPTIONS 预检请求的主要特点和原因：
+## 核心原理
 
-- **安全性**：HTTP 协议中的某些方法（如 GET、HEAD、POST）被认为是“安全”的，因为它们不会导致服务器上资源的状态发生变化。但是，其他方法（如 PUT、DELETE 等）可能会导致资源的创建、修改或删除。因此，在发送这些“非安全”请求之前，浏览器会先发送一个 OPTIONS 请求来询问服务器是否允许这样的操作。
+预检请求是浏览器在跨域请求前发出的安全检查。它使用 `OPTIONS` 方法，先问服务端：当前来源、方法和请求头是否被允许。
 
-- **自定义头部**：如果请求中包含了某些自定义的 HTTP 头部，浏览器也会发送 OPTIONS 请求来询问服务器是否接受这些头部。
+只有服务端明确允许后，浏览器才会发送真正的业务请求。
 
-- **CORS配置**：服务器在响应 OPTIONS 请求时，可以通过 Access-Control-Allow-Methods、Access-Control-Allow-Headers 等头部来告诉浏览器它允许哪些方法和头部。如果服务器的响应中包含了这些头部，并且允许了客户端想要执行的操作，那么浏览器才会继续发送实际的 POST 请求。
+注意：预检请求是浏览器的 CORS 行为，不是 JavaScript 手动发的，也不是所有 POST 都会触发。
 
-总之，OPTIONS 预检请求是浏览器和服务器之间的一种协商机制，用于确保跨域请求的安全性和合规性。当浏览器认为有必要进行这种检查时，它就会在发送实际请求之前先发送一个 OPTIONS 请求。
+## 什么请求会触发预检
 
-## 预检请求的流程
+跨域请求如果不是“简单请求”，通常会触发预检。
 
-1. 浏览器在发送实际的 POST 请求之前，会先发送一个 OPTIONS 请求。
-2. 服务器收到 OPTIONS 请求后，会检查请求的来源、方法和头部，并返回一个包含允许操作的响应。
-3. 如果服务器允许请求，浏览器会继续发送实际的 POST 请求。
+简单请求需要同时满足：
 
-## 预检请求的头部
+- 方法是 `GET`、`HEAD`、`POST` 之一。
+- 请求头只包含 CORS 允许的简单头。
+- `Content-Type` 只能是：
+  - `application/x-www-form-urlencoded`
+  - `multipart/form-data`
+  - `text/plain`
 
-OPTIONS 请求的头部通常包括以下内容：
+会触发预检的常见情况：
 
-- Origin：请求的来源，即请求的域名。
-- Access-Control-Request-Method：请求的方法。
-- Access-Control-Request-Headers：请求的头部。
+- 使用 `PUT`、`DELETE`、`PATCH`。
+- `Content-Type: application/json`。
+- 携带自定义请求头，比如 `Authorization`、`X-Token`。
+- 跨域请求携带某些非简单头。
 
-## 预检请求的响应头部
-
-OPTIONS 请求的响应头部通常包括以下内容：
-
-- Access-Control-Allow-Methods：允许的方法。
-- Access-Control-Allow-Headers：允许的头部。
-- Access-Control-Allow-Origin：允许的来源。
-- Access-Control-Allow-Credentials：是否允许携带凭证。
-- Access-Control-Max-Age：预检请求的有效期。
-
-### 预检请求的示例
+## 预检请求示例
 
 ```http
-OPTIONS /api/resource HTTP/1.1  
-Origin: https://example.com
+OPTIONS /api/user HTTP/1.1
+Origin: https://www.example.com
 Access-Control-Request-Method: POST
-Access-Control-Request-Headers: Content-Type
+Access-Control-Request-Headers: content-type, authorization
 ```
 
-### 预检请求的响应示例
+含义：
+
+- `Origin`：实际请求来自哪个源。
+- `Access-Control-Request-Method`：实际请求要使用的方法。
+- `Access-Control-Request-Headers`：实际请求要携带的非简单头。
+
+## 服务端响应示例
 
 ```http
 HTTP/1.1 204 No Content
-Access-Control-Allow-Methods: POST, GET, OPTIONS
-Access-Control-Allow-Headers: Content-Type
-Access-Control-Allow-Origin: https://example.com
+Access-Control-Allow-Origin: https://www.example.com
+Access-Control-Allow-Methods: GET, POST, OPTIONS
+Access-Control-Allow-Headers: content-type, authorization
 Access-Control-Allow-Credentials: true
 Access-Control-Max-Age: 86400
 ```
 
-## 预检请求的注意事项
+关键响应头：
 
-- 预检请求的响应头部的 Access-Control-Allow-Methods 和 Access-Control-Allow-Headers 必须包含实际请求中使用的所有方法和头部。
-- 预检请求的响应头部的 Access-Control-Allow-Origin 必须包含实际请求中使用的所有来源。
-- 预检请求的响应头部的 Access-Control-Allow-Credentials 必须包含实际请求中使用的所有凭证。
+- `Access-Control-Allow-Origin`：允许的来源。
+- `Access-Control-Allow-Methods`：允许的方法。
+- `Access-Control-Allow-Headers`：允许的请求头。
+- `Access-Control-Allow-Credentials`：是否允许携带 Cookie。
+- `Access-Control-Max-Age`：预检结果缓存时间。
+
+## 携带 Cookie 的注意点
+
+如果跨域请求要携带 Cookie：
+
+前端需要：
+
+```javascript
+fetch(url, {
+    credentials: "include",
+});
+```
+
+服务端需要：
+
+```http
+Access-Control-Allow-Credentials: true
+Access-Control-Allow-Origin: https://www.example.com
+```
+
+此时 `Access-Control-Allow-Origin` 不能是 `*`，必须是明确的 origin。
+
+## 如何减少预检
+
+- 合理设置 `Access-Control-Max-Age`，缓存预检结果。
+- 避免不必要的自定义请求头。
+- 如果能接受语义，使用简单请求允许的 `Content-Type`。
+- 合并接口时谨慎评估，不要为了减少预检破坏接口设计。
+
+不要为了绕过预检牺牲安全性。预检是浏览器保护用户的一部分。
+
+## 面试回答
+
+可以这样答：
+
+> OPTIONS 预检请求是 CORS 机制的一部分。浏览器发现跨域请求不是简单请求时，会先发 OPTIONS，携带 Origin、实际请求方法和实际请求头，询问服务端是否允许。服务端通过 `Access-Control-Allow-Origin`、`Access-Control-Allow-Methods`、`Access-Control-Allow-Headers` 等响应头告诉浏览器是否放行。如果需要携带 Cookie，还要设置 `Access-Control-Allow-Credentials: true`，并且 Allow-Origin 不能是 `*`。常见触发场景有 `Content-Type: application/json`、Authorization 头、PUT/DELETE 请求等。
+
+## 高频追问
+
+### 为什么 `application/json` 会触发预检？
+
+因为它不属于 CORS 简单请求允许的三种 `Content-Type`，浏览器会先预检确认服务端允许。
+
+### OPTIONS 请求失败，真正请求会发出去吗？
+
+不会。预检失败时，浏览器会拦截后续实际请求。
+
+### 预检请求能不能被缓存？
+
+可以。服务端通过 `Access-Control-Max-Age` 指定预检结果缓存时间，减少重复预检。
+
+## 相关链接
+
+- [HTTP](/md/网络/HTTP.md)
+- [网络与安全](/md/面试准备/技术/网络与安全.md)

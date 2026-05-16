@@ -1,127 +1,137 @@
-# 字典树（Trie，也叫前缀树）是一种树形结构，常用于高效地处理和存储 字符串集合，特别适合
+# Trie 前缀树
 
-- 快速查找某个字符串是否存在
-- 查找是否有某个前缀开头的单词
-- 实现自动补全、拼写检查等功能
+## 面试定位
 
-## 🧠 简单理解
+Trie 是字符串算法里比较常见的数据结构题。面试重点是：它适合前缀查询，时间复杂度和字符串长度有关，常用于搜索联想、敏感词、词典匹配。
 
-你可以把 字典树 想象成一棵“按字母一层一层展开”的树：
+## 核心原理
 
-- 每个节点表示一个字符
+Trie，也叫前缀树，是一棵按字符逐层展开的树。
 
-- 从根节点到某个节点的路径组成一个字符串前缀
+- 每条边或节点表示一个字符。
+- 从根节点到某个节点的路径表示一个前缀。
+- 完整单词的结尾节点会有结束标记。
 
-- 完整的单词会在结尾节点上做个标记：✅ “这是一个完整的单词”
+插入 `cat`、`car`、`dog` 后：
 
-## 🌳 举个例子：插入字符串 ["cat", "car", "dog"]
-
-插入过程：
-
-```css
-根
+```text
+root
 ├── c
 │   └── a
-│       ├── t ✅
-│       └── r ✅
+│       ├── t *
+│       └── r *
 └── d
     └── o
-        └── g ✅
+        └── g *
 ```
 
-- 三个词都会被拆开字母一层一层插进去
+`*` 表示一个完整单词结束。
 
-- 公共前缀 "ca" 只存一份，节省空间
+## 复杂度
 
-- ✅ 表示该路径组成的是一个完整单词
+设字符串长度为 k：
 
-## ✅ 字典树的特点
+- 插入：O(k)
+- 查找完整单词：O(k)
+- 查找前缀：O(k)
 
-特性 | 说明
---- | ---
-查找效率高 | 查找时间复杂度是 O(k)，k 是字符串长度，不受字符串数量影响
-支持前缀查询 | 可以快速判断是否有以某个前缀开头的单词
-节省空间 | 共用前缀，避免重复存储
+它不直接依赖词库里有多少个单词，而是依赖输入字符串长度。
 
-## 💻 常用方法
+空间复杂度取决于字符分叉数量。公共前缀越多，空间复用越明显；如果字符串几乎没有公共前缀，空间占用会更大。
 
-- insert(word) 插入单词
+## 实现
 
-- search(word) 查找单词是否存在
-
-- startsWith(prefix) 判断是否存在某个前缀
-
-## ✨ 应用场景
-
-- 搜索提示 / 自动补全（如输入"he" -> 自动提示"hello", "hey"）
-
-- 拼写检查（是否拼错单词）
-
-- 文本压缩、词频统计、敏感词过滤等
-
-## 📚 字典树的实现
-
-```js
+```javascript
 class TrieNode {
-  constructor() {
-    this.children = {};   // 子节点映射：键是字符，值是 TrieNode
-    this.isEnd = false;   // 标记是否是单词结尾
-  }
+    constructor() {
+        this.children = new Map();
+        this.isEnd = false;
+    }
 }
 
 class Trie {
-  constructor() {
-    this.root = new TrieNode();
-  }
-
-  // 插入单词
-  insert(word) {
-    let node = this.root;
-    for (const char of word) {
-      if (!node.children[char]) {
-        node.children[char] = new TrieNode(); // 创建新节点
-      }
-      node = node.children[char];
+    constructor() {
+        this.root = new TrieNode();
     }
-    node.isEnd = true; // 单词结束标记
-  }
 
-  // 查找完整单词
-  search(word) {
-    let node = this._searchNode(word);
-    return node !== null && node.isEnd === true;
-  }
+    insert(word) {
+        let node = this.root;
 
-  // 查找是否有这个前缀
-  startsWith(prefix) {
-    return this._searchNode(prefix) !== null;
-  }
+        for (const char of word) {
+            if (!node.children.has(char)) {
+                node.children.set(char, new TrieNode());
+            }
+            node = node.children.get(char);
+        }
 
-  // 私有方法：走完整个单词/前缀路径
-  _searchNode(word) {
-    let node = this.root;
-    for (const char of word) {
-      if (!node.children[char]) return null;
-      node = node.children[char];
+        node.isEnd = true;
     }
-    return node;
-  }
+
+    search(word) {
+        const node = this.findNode(word);
+        return !!node && node.isEnd;
+    }
+
+    startsWith(prefix) {
+        return !!this.findNode(prefix);
+    }
+
+    findNode(str) {
+        let node = this.root;
+
+        for (const char of str) {
+            if (!node.children.has(char)) {
+                return null;
+            }
+            node = node.children.get(char);
+        }
+
+        return node;
+    }
 }
-
 ```
 
-## ✅ 使用示例
+使用：
 
-```js
+```javascript
 const trie = new Trie();
 trie.insert("cat");
 trie.insert("car");
-trie.insert("dog");
 
-console.log(trie.search("cat"));      // true
-console.log(trie.search("cab"));      // false
-console.log(trie.startsWith("ca"));   // true
-console.log(trie.startsWith("do"));   // true
-console.log(trie.startsWith("du"));   // false
-
+console.log(trie.search("cat")); // true
+console.log(trie.search("ca")); // false
+console.log(trie.startsWith("ca")); // true
 ```
+
+## 应用场景
+
+- 搜索框自动补全。
+- 拼写检查。
+- 词典查询。
+- 敏感词过滤。
+- 路由匹配。
+- IP 或路径前缀匹配。
+
+## 面试回答
+
+可以这样答：
+
+> Trie 是一种用于字符串集合的树形结构，核心优势是高效前缀查询。每个节点表示一个字符，从根到某个节点的路径表示一个前缀，单词结尾节点用 `isEnd` 标记。插入、查询完整单词、查询前缀的时间复杂度都是 O(k)，k 是字符串长度，和词库总数量没有直接关系。它适合搜索联想、敏感词过滤、词典匹配等场景。缺点是空间占用可能较高，尤其是公共前缀少时。
+
+## 高频追问
+
+### Trie 和 HashMap 查字符串有什么区别？
+
+HashMap 查完整字符串很快，但不擅长前缀查询。Trie 能快速判断某个前缀是否存在，并找到该前缀下的所有词。
+
+### Trie 空间怎么优化？
+
+可以用 Map 动态存子节点，或压缩前缀树、Radix Tree，把只有一个分支的链路压缩成字符串片段。
+
+### 敏感词过滤为什么适合 Trie？
+
+可以从文本每个位置开始沿 Trie 匹配，遇到结束标记说明命中敏感词。多个词共享前缀时能减少重复比较。
+
+## 相关链接
+
+- [JavaScript 数据类型](/md/基础/JavaScript/数据类型.md)

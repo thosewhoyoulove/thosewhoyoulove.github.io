@@ -1,5 +1,11 @@
 # Vue 3 响应式原理
 
+## 面试定位
+
+Vue 3 响应式是 Vue 面试最核心的原理题。回答时要讲清 `Proxy`、依赖收集、派发更新、`effect`、`ref`、`computed`、调度队列，以及为什么 Vue 3 相比 Vue 2 更好。
+
+## 核心原理
+
 响应式在 Vue 3 中被拆成独立包 **`@vue/reactivity`**，可脱离渲染器单独使用。核心就三件事：
 
 1. **`Proxy`** 拦截读写；
@@ -278,3 +284,23 @@ data 变
 | 出口 | `markRaw` / `toRaw` / `shallowRef` | 第三方实例、只读数据 |
 
 再往下可以啃 [`packages/reactivity/src`](https://github.com/vuejs/core/tree/main/packages/reactivity/src) 的 `baseHandlers.ts`、`effect.ts`、`reactiveEffect.ts`——代码量不大，读完对上面每一条都能自己画图说明。
+
+## 面试回答
+
+可以这样答：
+
+> Vue 3 响应式核心是 `Proxy + effect + track/trigger`。`reactive` 返回一个 Proxy，读属性时通过 `get` 拦截并执行 `track(target, key)` 收集当前活跃 effect；写属性时通过 `set/deleteProperty` 拦截并执行 `trigger(target, key)`，找到依赖这个属性的 effect 重新调度。依赖关系用 `WeakMap<target, Map<key, Set<effect>>>` 保存。组件渲染本身就是一个 effect，所以模板里读到的响应式数据变了，就会触发组件更新。`ref` 是为了解决原始值不能被 Proxy 代理的问题，用 `.value` 的 getter/setter 做依赖收集和触发。`computed` 本质是带缓存和 dirty 标记的惰性 effect。Vue 3 还通过 scheduler 把多次变更合并到同一个微任务里，避免重复渲染。
+
+## 高频追问
+
+### Vue 3 为什么用 Proxy 替代 defineProperty？
+
+`Proxy` 可以拦截新增、删除、`in`、`Object.keys`、数组下标和 `length` 等操作；`defineProperty` 只能劫持已有属性的 getter/setter，新增删除属性需要额外 API，数组也要重写方法。
+
+### reactive 和 ref 怎么选？
+
+原始值用 `ref`，对象状态可以用 `reactive`。如果对象需要整体替换，例如接口返回数据，常用 `ref`；如果是一组稳定的状态字段，可以用 `reactive`。
+
+### computed 为什么有缓存？
+
+`computed` 内部是惰性 effect。依赖没变时直接返回缓存；依赖变化时只把 dirty 置为 true，等下次读取时再重新计算。
