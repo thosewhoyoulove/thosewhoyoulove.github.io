@@ -70,6 +70,7 @@
   - 协作与加分项
     - [团队协作与主导能力](/md/面试准备/综合/团队协作与主导能力.md)
     - [综合能力与团队合作](/md/面试准备/综合/综合能力%20&%20团队合作.md)
+    - [平时工作怎么使用 AI](/md/面试准备/综合/平时工作怎么使用AI.md)
     - [Git 解决冲突](/md/Git/解决冲突.md)
     - [Git Rebase 和 Merge](/md/Git/rebase和merge的区别.md)
     - [Pull Request](/md/Git/Pull%20Request.md)
