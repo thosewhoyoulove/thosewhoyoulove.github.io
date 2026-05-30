@@ -1,0 +1,42 @@
+---
+description: omen 面试知识库的写作、结构与站点维护底线（Docsify + 中文面试导向）
+globs: docs/md/**/*.md,docs/README.md,docs/_sidebar.md,docs/scripts/generateSidebar.js
+alwaysApply: false
+---
+
+# 知识库底线
+
+本仓库是个人前端面试知识库（Docsify，部署 GitHub Pages）。写或改 `docs/` 下内容时遵守：
+
+## 语言与受众
+
+- 正文使用**简体中文**。
+- 受众是**面试候选人**：先能口述，再讲清原理，最后能落到项目与验证。
+
+## 文章结构（新文/大改必填）
+
+1. `## 面试定位` — 考什么、怎么答、易错点
+2. `## 面试回答` — 可直接背诵的口述稿（`> ` 引用块）+ **一句话总结**
+3. `## 核心原理` — 链路、机制、对比表
+4. 编号小节 — 由浅入深，含代码/流程图/取舍
+5. 长文文末可选：`## 高频追问`、`## 延伸阅读`（Docsify 站内相对路径）
+
+详细模板与标杆文：加载 skill `knowledge-article-author`。全栈/Agent 专题、复习体系同步、定稿校对分别用 `fullstack-knowledge-expansion`、`agent-frontend-knowledge`、`interview-curriculum-sync`、`technical-accuracy-review`。
+
+## 质量
+
+- 不堆 API 清单；每个结论要有「为什么」和边界。
+- 不编造版本特性；不确定时标注需核实，或只写已验证行为。
+- 代码块标明语言；示例宜短、可理解，避免伪代码冒充真实 API。
+- 新增主题前先搜索 `docs/md/`，避免与深文/速记重复；速记页只保留提纲 + 链接深文。
+
+## 站点
+
+- 新文章路径：`docs/md/<分类>/标题.md`，文件名与现有风格一致。
+- 新文或改导航后：在 `docs/` 目录执行 `pnpm run generate-sidebar`（或 `npm run generate-sidebar`）更新 `_sidebar.md`；新大类还需改 `docs/scripts/generateSidebar.js` 的 `SIDEBAR`。
+- 详细流程：加载 skill `docsify-knowledge-site`。
+
+## 安全
+
+- 勿把密钥、内网地址、真实用户数据写入 markdown 或提交到仓库。
+- 勿修改 `docs/index.html` 中的 Gitalk 等第三方凭证，除非用户明确要求。
