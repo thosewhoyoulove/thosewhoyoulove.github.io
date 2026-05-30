@@ -1,9 +1,13 @@
   - 面试总览
     - [面试总览](/md/面试准备/面试总览.md)
+    - [全栈岗位冲刺（千帆）](/md/面试准备/全栈岗位冲刺路线.md)
     - [复习路线](/md/面试准备/复习路线.md)
     - [高频追问清单](/md/面试准备/高频追问清单.md)
     - [项目表达模板](/md/面试准备/项目表达模板.md)
-    - [百度面经](/md/面试准备/百度面经.md)
+  - 全栈 · 千帆
+    - [DuMate 与 Harness](/md/面试准备/技术/DuMate千帆与Harness工程.md)
+    - [Go 全栈速记](/md/面试准备/技术/Go全栈面试速记.md)
+    - [Node 与全栈](/md/面试准备/技术/NodeJs%20&%20全栈开发.md)
   - JavaScript 与浏览器
     - [数据类型](/md/基础/JavaScript/数据类型.md)
     - [This 的理解](/md/基础/JavaScript/This的理解.md)
@@ -25,7 +29,6 @@
     - [IntersectionObserver](/md/浏览器/Web-API/IntersectionObserver.md)
   - 网络与安全
     - [面试速记：网络与安全](/md/面试准备/技术/网络与安全.md)
-    - [URL 解析流程](/md/网络/URL解析流程.md)
     - [HTTP](/md/网络/HTTP.md)
     - [HTTP 状态码](/md/网络/HTTP状态码.md)
     - [HTTPS](/md/网络/HTTPS.md)
