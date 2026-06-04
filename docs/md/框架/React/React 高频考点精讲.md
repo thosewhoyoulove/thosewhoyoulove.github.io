@@ -2,7 +2,7 @@
 
 ## 面试定位
 
-这篇用于 React 核心原理的第一轮复习，先覆盖四类最常被问到的问题：**React 基础思想**、**组件与渲染**、**Hooks 高频**和 **useEffect 必考**。回答时不要只背 API 定义，要先给出能口述的结论，再补充背后的更新模型、数据流、状态不可变、Hook 调用顺序、effect 生命周期等原理。
+这篇用于 React 核心原理的第一轮复习，覆盖八类最常被问到的问题：**React 基础思想**、**组件与渲染**、**Hooks 高频**、**useEffect 必考**、**React 原理高频**、**Diff 算法高频**、**合成事件高频**和**性能优化高频**。回答时不要只背 API 定义，要先给出能口述的结论，再补充背后的更新模型、数据流、状态不可变、Hook 调用顺序、effect 生命周期、Fiber、Diff、事件系统和性能取舍。
 
 ---
 
@@ -47,6 +47,45 @@
 - [依赖项变化会怎样？](#依赖项变化会怎样)
 - [useEffect 为什么会出现闭包陷阱？](#useeffect-为什么会出现闭包陷阱)
 - [useEffect 怎么清除副作用？](#useeffect-怎么清除副作用)
+
+### React 原理高频
+
+- [React 渲染流程是什么？](#react-渲染流程是什么)
+- [React Element 是什么？](#react-element-是什么)
+- [Virtual DOM 是什么？](#virtual-dom-是什么)
+- [React Element 和 Fiber 是什么关系？](#react-element-和-fiber-是什么关系)
+- [Fiber 是什么？](#fiber-是什么)
+- [React diff 算法是什么？](#react-diff-算法是什么)
+- [React reconciliation 是什么？](#react-reconciliation-是什么)
+- [React 15 和 React 16 之后有什么区别？](#react-15-和-react-16-之后有什么区别)
+- [React 为什么能中断渲染？](#react-为什么能中断渲染)
+
+### Diff 算法高频
+
+- [React diff 怎么做的？](#react-diff-怎么做的)
+- [为什么 React diff 是 O(n)？](#为什么-react-diff-是-on)
+- [key 在 diff 中有什么作用？](#key-在-diff-中有什么作用)
+- [同层比较是什么意思？](#同层比较是什么意思)
+- [不同类型节点 React 怎么处理？](#不同类型节点-react-怎么处理)
+
+### 合成事件高频
+
+- [React 合成事件是什么？](#react-合成事件是什么)
+- [为什么要有合成事件？](#为什么要有合成事件)
+- [React 事件和原生事件有什么区别？](#react-事件和原生事件有什么区别)
+- [React 事件绑定在哪里？](#react-事件绑定在哪里)
+- [React 17 事件机制有什么变化？](#react-17-事件机制有什么变化)
+- [e.target 和 e.currentTarget 区别？](#etarget-和-ecurrenttarget-区别)
+
+### 性能优化高频
+
+- [React 项目怎么做性能优化？](#react-项目怎么做性能优化)
+- [React.memo 有什么用？](#reactmemo-有什么用)
+- [useMemo 有什么用？](#usememo-有什么用)
+- [useCallback 有什么用？](#usecallback-有什么用)
+- [怎么避免子组件无意义渲染？](#怎么避免子组件无意义渲染)
+- [大列表怎么优化？](#大列表怎么优化)
+- [首屏加载怎么优化？](#首屏加载怎么优化)
 
 ---
 
@@ -1081,6 +1120,797 @@ useEffect(() => {
 ```
 
 这样当 `id` 变化或组件卸载时，旧请求不会继续占用资源，也不应该再更新已经过期的界面。
+
+---
+
+## 5. React 原理高频
+
+<a id="react-渲染流程是什么"></a>
+
+### React 渲染流程是什么？
+
+#### 面试回答
+
+可以这样答：
+
+> React 渲染流程可以分成触发更新、调度、render、commit 四步。组件调用 `setState`、父组件更新、Context 变化后，React 会创建 update 并标记到对应 Fiber；调度器根据优先级决定什么时候处理。render 阶段会构建 workInProgress Fiber 树，调用组件函数，生成新的 React Element，并通过 reconciliation 找出变化；这个阶段只做计算，不改真实 DOM。commit 阶段不可中断，会把变化提交到真实 DOM，并执行 ref、layout effect 和 passive effect。
+
+一句话总结：
+
+> React 渲染 = 更新入队 → 调度 → render 计算差异 → commit 提交 DOM 和副作用。
+
+#### 核心原理
+
+```text
+setState / props / context
+  → 创建 update
+  → 标记 Fiber lane
+  → scheduler 调度
+  → render 阶段构建 workInProgress
+  → reconciliation 生成 flags
+  → commit 阶段更新 DOM
+  → 执行 layout effect / passive effect
+```
+
+面试重点是区分 render 和 commit：render 可以被中断、重启或丢弃；commit 一旦开始就必须同步完成。
+
+---
+
+<a id="react-element-是什么"></a>
+
+### React Element 是什么？
+
+#### 面试回答
+
+可以这样答：
+
+> React Element 是 React 用来描述 UI 的普通 JavaScript 对象。JSX 编译后会得到 React Element，它包含节点类型、props、children、key 等信息。它不是 DOM，也不是组件实例，只是某次 render 的 UI 描述。React 会根据这些 Element 构建或复用 Fiber，再在 commit 阶段把最终变化同步到真实 DOM。
+
+一句话总结：
+
+> React Element 是不可变的 UI 描述对象，是 JSX 编译后的结果。
+
+#### 核心原理
+
+```jsx
+const element = <div className="card">Hello</div>
+```
+
+大致等价于：
+
+```js
+const element = {
+  type: 'div',
+  props: {
+    className: 'card',
+    children: 'Hello'
+  }
+}
+```
+
+React Element 每次 render 生成一批新的描述对象，React 再用它们和旧 Fiber 做协调。
+
+---
+
+<a id="virtual-dom-是什么"></a>
+
+### Virtual DOM 是什么？
+
+#### 面试回答
+
+可以这样答：
+
+> Virtual DOM 可以理解为用 JavaScript 对象描述真实 DOM 结构的一种模型。在 React 里，开发者通过 JSX 得到 React Element，React 再基于这些描述计算 UI 变化。它的价值不是“永远比手写 DOM 快”，而是让 UI 更新从命令式 DOM 操作变成声明式描述，再由框架统一做 diff、调度和批量提交。
+
+一句话总结：
+
+> Virtual DOM 的核心价值是声明式 UI 和跨平台描述，不是简单等同于性能更快。
+
+#### 核心原理
+
+直接操作 DOM 的问题是更新路径分散，复杂页面容易出现状态和视图不一致。Virtual DOM 把更新变成：
+
+```text
+状态变化
+  → 生成新的 UI 描述
+  → 与旧描述 / 旧 Fiber 对比
+  → 计算最小必要提交
+```
+
+React DOM、React Native 等不同渲染器可以基于同一套组件描述，提交到不同宿主环境。
+
+---
+
+<a id="react-element-和-fiber-是什么关系"></a>
+
+### React Element 和 Fiber 是什么关系？
+
+#### 面试回答
+
+可以这样答：
+
+> React Element 是一次 render 产生的 UI 描述，Fiber 是 React 运行时保存组件状态、更新队列、父子关系、优先级和副作用标记的工作单元。可以理解为 Element 描述“这次 UI 应该是什么样”，Fiber 负责“这个 UI 节点在运行时怎么被更新和管理”。render 阶段会根据新的 Element 和旧 Fiber 进行协调，生成新的 workInProgress Fiber 树。
+
+一句话总结：
+
+> Element 是静态描述，Fiber 是运行时工作单元。
+
+#### 核心原理
+
+| 维度 | React Element | Fiber |
+| --- | --- | --- |
+| 角色 | 描述 UI | 管理更新 |
+| 生命周期 | 每次 render 可能新建 | 在更新中复用、克隆、替换 |
+| 保存内容 | type、props、key | state、props、lanes、flags、child/sibling/return |
+| 是否可调度 | 否 | 是 |
+
+React 不是直接拿 Element 改 DOM，而是把 Element 转成 Fiber 层面的工作，再统一提交。
+
+---
+
+<a id="fiber-是什么"></a>
+
+### Fiber 是什么？
+
+#### 面试回答
+
+可以这样答：
+
+> Fiber 是 React 16 引入的新架构，也是每个组件或宿主节点对应的运行时工作单元。它用链表结构保存节点之间的 `child`、`sibling`、`return` 关系，同时记录 props、state、更新队列、优先级和副作用标记。Fiber 的核心价值是把原来不可中断的递归更新拆成可暂停、可恢复、可丢弃的小工作单元，为优先级调度、并发渲染、Suspense 和 Transition 打基础。
+
+一句话总结：
+
+> Fiber = React 的可调度工作单元，让 render 阶段可以被拆分和中断。
+
+#### 核心原理
+
+Fiber 节点常见字段：
+
+```text
+type / key
+stateNode
+child / sibling / return
+pendingProps / memoizedProps
+memoizedState / updateQueue
+lanes / flags
+```
+
+链表结构让 React 可以从当前 Fiber 暂停，下次从保存的位置继续，而不依赖浏览器调用栈一次性递归到底。
+
+---
+
+<a id="react-diff-算法是什么"></a>
+
+### React diff 算法是什么？
+
+#### 面试回答
+
+可以这样答：
+
+> React diff 是 React 在 reconciliation 阶段比较新旧子节点，判断哪些节点需要复用、插入、移动或删除的算法。完整树 diff 理论复杂度很高，React 通过三个假设把常见 UI 对比降到 O(n)：不同类型节点直接替换、只做同层比较、用 key 标识同一层列表里的节点身份。diff 的结果不会立刻改 DOM，而是给 Fiber 打上副作用标记，等 commit 阶段统一提交。
+
+一句话总结：
+
+> React diff = 基于 type、层级和 key 的启发式对比，用于生成最小必要更新标记。
+
+#### 核心原理
+
+```text
+新 React Element
+  + 旧 Fiber
+  → 比较 type / key / position
+  → 复用或创建新 Fiber
+  → 标记 Placement / Update / Deletion
+```
+
+diff 是 reconciliation 的核心步骤之一，但 reconciliation 不只包含 diff，还包括构建新 Fiber、处理更新队列和收集副作用。
+
+---
+
+<a id="react-reconciliation-是什么"></a>
+
+### React reconciliation 是什么？
+
+#### 面试回答
+
+可以这样答：
+
+> reconciliation 通常翻译为协调，是 React render 阶段根据新的 React Element 和旧 Fiber 树计算下一棵 Fiber 树的过程。它会调用组件函数得到新的子节点，比较新旧节点是否能复用，处理列表 diff，并给需要变化的 Fiber 打标记。协调阶段只决定“应该变什么”，真正修改 DOM 要等 commit 阶段。
+
+一句话总结：
+
+> reconciliation = React 在 render 阶段计算新旧 Fiber 差异并生成更新标记的过程。
+
+#### 核心原理
+
+```text
+beginWork
+  → 调用组件 / 处理子节点
+  → reconcileChildren
+completeWork
+  → 收集 flags
+  → 构建 effect 链路
+commit
+  → 提交 flags 对应的 DOM 操作
+```
+
+回答时要避免把 reconciliation 简单等同于真实 DOM diff，它发生在 React 的 Fiber 层。
+
+---
+
+<a id="react-15-和-react-16-之后有什么区别"></a>
+
+### React 15 和 React 16 之后有什么区别？
+
+#### 面试回答
+
+可以这样答：
+
+> React 15 主要使用 Stack Reconciler，更新过程更接近同步递归，一旦开始处理一棵大树就很难暂停，容易长时间占用主线程。React 16 引入 Fiber 架构，把渲染工作拆成一个个 Fiber 单元，并引入优先级和可中断的 render 阶段。这个变化不是 API 层的简单升级，而是 React 后续并发能力、错误边界、Suspense、Transition 等能力的基础。
+
+一句话总结：
+
+> React 15 偏同步递归更新，React 16+ 用 Fiber 把更新变成可调度工作。
+
+#### 核心原理
+
+| 维度 | React 15 | React 16+ |
+| --- | --- | --- |
+| 协调器 | Stack Reconciler | Fiber Reconciler |
+| 遍历方式 | 递归调用栈 | Fiber 链表工作循环 |
+| 中断能力 | 基本不可中断 | render 阶段可中断 |
+| 后续能力 | 同步渲染为主 | 并发特性的基础 |
+
+需要注意：Fiber 让 render 阶段具备可中断能力，但 commit 阶段仍然必须同步完成。
+
+---
+
+<a id="react-为什么能中断渲染"></a>
+
+### React 为什么能中断渲染？
+
+#### 面试回答
+
+可以这样答：
+
+> React 能中断渲染，核心原因是 Fiber 把原来的递归调用栈改造成了可保存进度的工作单元链表。render 阶段处理完一个 Fiber 后，React 可以判断当前时间片是否用完，或者是否有更高优先级任务需要先执行；如果需要让出主线程，就保存当前进度，之后再继续或重新开始。中断只发生在 render 计算阶段，commit 阶段不能中断，否则真实 DOM 会处在不一致状态。
+
+一句话总结：
+
+> Fiber 保存工作进度 + Scheduler 按优先级调度，让 render 阶段可以暂停、恢复或丢弃。
+
+#### 核心原理
+
+```text
+performUnitOfWork(Fiber A)
+  → performUnitOfWork(Fiber B)
+  → shouldYield() 为 true
+  → 暂停，把主线程还给浏览器
+  → 之后继续或重启 render
+```
+
+这也是为什么 render 阶段必须纯净：它可能执行多次，但只有最终 commit 的结果才会真正影响页面。
+
+---
+
+## 6. Diff 算法高频
+
+<a id="react-diff-怎么做的"></a>
+
+### React diff 怎么做的？
+
+#### 面试回答
+
+可以这样答：
+
+> React diff 主要比较同一层级的新旧节点。先看节点类型，类型不同就直接卸载旧节点、创建新节点；类型相同则复用 Fiber 和 DOM，只更新 props。对子节点列表，React 会结合 key 判断哪些节点可以复用，哪些需要插入、移动或删除。diff 的目标不是做理论上最优的树编辑距离，而是在 UI 场景里用启发式规则快速得到足够好的更新方案。
+
+一句话总结：
+
+> React diff 按同层、type、key 三个维度判断复用、插入、移动和删除。
+
+#### 核心原理
+
+```text
+比较根节点 type
+  → type 不同：替换整棵子树
+  → type 相同：复用并更新 props
+比较 children
+  → 无 key：按位置比较
+  → 有 key：按 key 匹配身份
+```
+
+列表是 diff 最容易出问题的地方，所以动态列表必须保证 key 稳定。
+
+---
+
+<a id="为什么-react-diff-是-on"></a>
+
+### 为什么 React diff 是 O(n)？
+
+#### 面试回答
+
+可以这样答：
+
+> 完整树 diff 如果考虑任意层级移动和最优编辑距离，复杂度可能达到 O(n³)，React 不做这种通用算法。它基于 UI 的常见规律做了三个假设：不同类型节点产生不同树；跨层级移动很少，所以只做同层比较；开发者用 key 标识列表中稳定的节点身份。这样 React 基本只需要线性扫描同层节点，所以常见场景可以做到 O(n)。
+
+一句话总结：
+
+> React diff 的 O(n) 来自启发式假设，不是通用树 diff 的理论最优解。
+
+#### 核心原理
+
+三个假设：
+
+```text
+1. type 不同，直接替换
+2. 只比较同一层 children
+3. key 帮助识别列表节点身份
+```
+
+代价是 React 不会聪明地识别任意跨层级移动；如果把节点从很深的位置搬到另一个层级，React 更可能销毁再创建。
+
+---
+
+<a id="key-在-diff-中有什么作用"></a>
+
+### key 在 diff 中有什么作用？
+
+#### 面试回答
+
+可以这样答：
+
+> key 在 diff 中用来标识同一层兄弟节点的稳定身份。没有 key 时，React 更依赖节点位置做比较；列表头部插入、删除、排序时，位置变化会导致错误复用或大量无意义更新。有稳定 key 时，React 可以知道某个节点只是移动了，还是被删除或新增了，从而正确保留 DOM 和组件 state。
+
+一句话总结：
+
+> key 让 React 在列表 diff 中按数据身份复用节点，而不是只按位置猜测。
+
+#### 核心原理
+
+```jsx
+items.map(item => <Row key={item.id} item={item} />)
+```
+
+React 会先看 key 是否匹配，再看 type 是否匹配。key 相同且 type 相同，才倾向于复用旧 Fiber；key 变化会让 React 把它当作新节点。
+
+---
+
+<a id="同层比较是什么意思"></a>
+
+### 同层比较是什么意思？
+
+#### 面试回答
+
+可以这样答：
+
+> 同层比较是指 React diff 只比较同一个父节点下的新旧 children，不会把旧树第一层的节点拿去和新树第三层的节点做匹配。这样能让算法保持简单和线性，但代价是跨层级移动通常会被当成删除旧节点、创建新节点。业务里如果希望保留组件状态，就要尽量保持组件在树中的层级和 key 稳定。
+
+一句话总结：
+
+> 同层比较 = React 只在同一个父节点的 children 范围内判断节点复用。
+
+#### 核心原理
+
+```text
+旧树：A 的 children = [B, C]
+新树：A 的 children = [C, B]
+```
+
+这种同层重排 React 可以借助 key 识别。但如果 B 从 A 的 children 移到另一个父节点下，React 通常不会当作同一个节点跨层复用。
+
+---
+
+<a id="不同类型节点-react-怎么处理"></a>
+
+### 不同类型节点 React 怎么处理？
+
+#### 面试回答
+
+可以这样答：
+
+> 如果新旧节点类型不同，React 通常会直接卸载旧节点及其子树，再创建新节点及其子树。比如从 `<div>` 变成 `<span>`，或者从 `<UserCard>` 变成 `<AdminCard>`，React 不会继续深度比较它们的子节点。这样做符合“不同类型通常代表不同结构和语义”的假设，也能降低 diff 成本。
+
+一句话总结：
+
+> type 不同就替换子树，type 相同才考虑复用和更新 props。
+
+#### 核心原理
+
+```jsx
+// 旧
+<UserCard user={user} />
+
+// 新
+<AdminCard user={user} />
+```
+
+即使两个组件内部返回相似 DOM，React 也会把它们当成不同类型，旧组件 state 会丢失，新组件重新挂载。
+
+---
+
+## 7. 合成事件高频
+
+<a id="react-合成事件是什么"></a>
+
+### React 合成事件是什么？
+
+#### 面试回答
+
+可以这样答：
+
+> React 合成事件是 React 对浏览器原生事件做的一层封装。开发者在 JSX 里写 `onClick`、`onChange`，拿到的事件对象通常是 SyntheticEvent，它抹平了不同浏览器的事件差异，并接入 React 的事件委托、优先级调度和批处理机制。它不是完全脱离原生事件，而是在原生事件基础上做统一封装。
+
+一句话总结：
+
+> 合成事件 = React 基于原生事件封装出的统一事件系统。
+
+#### 核心原理
+
+```jsx
+<button onClick={event => {
+  console.log(event.target)
+}}>
+  保存
+</button>
+```
+
+这里的 `event` 是 React 封装后的事件对象，它内部仍然可以通过 `nativeEvent` 访问原生事件。
+
+---
+
+<a id="为什么要有合成事件"></a>
+
+### 为什么要有合成事件？
+
+#### 面试回答
+
+可以这样答：
+
+> React 需要合成事件主要有三个原因：第一，抹平浏览器事件兼容性，让开发者用统一 API；第二，通过事件委托减少大量 DOM 节点上的事件绑定；第三，把事件接入 React 更新系统，让事件里的状态更新可以被批处理，并根据事件类型赋予不同优先级。简单说，合成事件不是为了替代原生事件，而是为了让事件和 React 渲染模型协同工作。
+
+一句话总结：
+
+> 合成事件让事件处理统一、可委托、可批处理、可调度。
+
+#### 核心原理
+
+如果每个节点都直接绑定原生事件，节点多时管理成本高。React 通过事件委托统一监听，再根据事件冒泡路径找到对应组件回调：
+
+```text
+原生事件触发
+  → 冒泡到 React 监听容器
+  → React 收集捕获 / 冒泡阶段回调
+  → 按顺序执行合成事件回调
+  → 批处理其中的状态更新
+```
+
+---
+
+<a id="react-事件和原生事件有什么区别"></a>
+
+### React 事件和原生事件有什么区别？
+
+#### 面试回答
+
+可以这样答：
+
+> React 事件写在 JSX 上，但底层通常不是直接绑到当前 DOM 节点，而是通过 React 的事件系统做委托分发。React 事件对象是 SyntheticEvent，API 接近原生事件，但经过封装并接入批处理。原生事件是浏览器直接派发的事件，使用 `addEventListener` 绑定。两者同时存在时，要注意执行顺序、冒泡边界和 `stopPropagation` 的影响范围。
+
+一句话总结：
+
+> 原生事件由浏览器直接派发，React 事件由 React 统一委托、封装和分发。
+
+#### 核心原理
+
+| 维度 | React 事件 | 原生事件 |
+| --- | --- | --- |
+| 绑定方式 | JSX 属性，如 `onClick` | `addEventListener` |
+| 事件对象 | SyntheticEvent | Native Event |
+| 分发机制 | React 事件系统委托分发 | 浏览器事件模型 |
+| 更新处理 | 接入 React 批处理和优先级 | 不天然接入 React |
+
+需要操作第三方 DOM 库时可能会混用原生事件，但要在卸载时手动清理监听。
+
+---
+
+<a id="react-事件绑定在哪里"></a>
+
+### React 事件绑定在哪里？
+
+#### 面试回答
+
+可以这样答：
+
+> React 事件一般通过事件委托绑定在统一容器上，而不是给每个 DOM 节点都绑定一份监听。React 16 及之前主要委托到 `document`，React 17 开始改为委托到 React root container。组件里写的 `onClick` 会被 React 记录起来，原生事件冒泡到容器后，再由 React 根据 Fiber 和事件路径分发到对应组件回调。
+
+一句话总结：
+
+> React 事件通过委托集中绑定；React 17+ 主要绑定在 root container。
+
+#### 核心原理
+
+```text
+<button onClick={handleClick} />
+  → React 记录 listener
+  → root container 监听原生 click
+  → 事件冒泡到 root
+  → React 分发给 handleClick
+```
+
+这样能减少事件监听数量，也方便 React 控制事件分发和批处理。
+
+---
+
+<a id="react-17-事件机制有什么变化"></a>
+
+### React 17 事件机制有什么变化？
+
+#### 面试回答
+
+可以这样答：
+
+> React 17 的重要变化是事件委托位置从 `document` 调整到了 React root container。这样做主要是为了更好支持渐进升级和多版本 React 共存，避免不同 React 根之间的事件互相影响。另一个相关变化是 React 17 不再使用旧的事件池机制，事件对象不会在回调后被清空，因此一般不再需要 `event.persist()`。
+
+一句话总结：
+
+> React 17 把事件委托从 document 移到 root container，并移除了旧事件池行为。
+
+#### 核心原理
+
+React 16 及之前：
+
+```text
+document
+  → React 统一监听和分发
+```
+
+React 17+：
+
+```text
+root container
+  → 当前 React 根独立监听和分发
+```
+
+这对微前端、局部升级、页面里多个 React 根的场景更友好。
+
+---
+
+<a id="etarget-和-ecurrenttarget-区别"></a>
+
+### e.target 和 e.currentTarget 区别？
+
+#### 面试回答
+
+可以这样答：
+
+> `e.target` 表示事件最初触发的真实元素，`e.currentTarget` 表示当前正在执行事件处理函数的元素。比如点击按钮里的 span，`target` 可能是 span，而按钮上的 onClick 执行时，`currentTarget` 是 button。事件委托、冒泡、父子元素点击判断时，这两个属性很常用。
+
+一句话总结：
+
+> `target` 是事件源头，`currentTarget` 是当前监听器所在元素。
+
+#### 核心原理
+
+```jsx
+<button onClick={e => {
+  console.log(e.target)
+  console.log(e.currentTarget)
+}}>
+  <span>保存</span>
+</button>
+```
+
+点击 `span` 文本时，`target` 指向 `span`，`currentTarget` 指向绑定 `onClick` 的 `button`。
+
+---
+
+## 8. 性能优化高频
+
+<a id="react-项目怎么做性能优化"></a>
+
+### React 项目怎么做性能优化？
+
+#### 面试回答
+
+可以这样答：
+
+> React 性能优化我会先定位瓶颈，再选择方案，而不是一上来就加 memo。常见方向有四类：减少不必要渲染，比如状态下沉、拆分组件、`React.memo`、稳定 props；降低单次渲染成本，比如虚拟列表、懒加载、避免重计算；优化首屏和包体积，比如路由级代码分割、资源压缩、SSR/SSG、预加载关键资源；最后用 React DevTools Profiler 和 Chrome Performance 验证优化是否有效。
+
+一句话总结：
+
+> React 优化 = 先度量瓶颈，再减少渲染次数、降低渲染成本、优化加载链路。
+
+#### 核心原理
+
+```text
+定位问题
+  → render 次数多？
+  → 单次 render 慢？
+  → commit / layout 慢？
+  → JS 包太大或网络慢？
+  → 针对性优化并复测
+```
+
+优化前后要看数据：组件渲染次数、耗时、长任务、LCP、INP、包体积等。
+
+---
+
+<a id="reactmemo-有什么用"></a>
+
+### React.memo 有什么用？
+
+#### 面试回答
+
+可以这样答：
+
+> `React.memo` 用来缓存函数组件的渲染结果，当父组件重新渲染但传给子组件的 props 浅比较没有变化时，React 可以跳过这个子组件的重新渲染。它适合纯展示组件、渲染成本较高的组件，或者父组件频繁更新而子组件 props 很稳定的场景。它不是越多越好，因为浅比较也有成本，如果 props 每次都是新对象或新函数，memo 很容易失效。
+
+一句话总结：
+
+> `React.memo` 通过 props 浅比较跳过无意义的子组件重新渲染。
+
+#### 核心原理
+
+```jsx
+const UserCard = React.memo(function UserCard({ user }) {
+  return <div>{user.name}</div>
+})
+```
+
+如果父组件每次都这样传值，memo 可能失效：
+
+```jsx
+<UserCard user={{ name }} />
+```
+
+因为对象引用每次都是新的，需要用稳定数据结构或 `useMemo` 配合。
+
+---
+
+<a id="usememo-有什么用"></a>
+
+### useMemo 有什么用？
+
+#### 面试回答
+
+可以这样答：
+
+> `useMemo` 用来缓存计算结果，依赖项不变时直接复用上一次结果。它常用于缓存昂贵计算，比如大数组过滤排序；也常用于稳定对象或数组引用，避免传给 memo 子组件的 props 每次都变化。但 `useMemo` 不是语义保证，React 可能在特定情况下丢弃缓存；业务逻辑不能依赖它保持状态，只应该把它当性能优化工具。
+
+一句话总结：
+
+> `useMemo` 缓存计算结果，用于减少重计算或稳定引用。
+
+#### 核心原理
+
+```jsx
+const sortedList = useMemo(() => {
+  return expensiveSort(list)
+}, [list])
+```
+
+适合用在“计算确实重”或“引用稳定能减少下游渲染”的场景；简单拼字符串、轻量 map 通常没必要。
+
+---
+
+<a id="usecallback-有什么用"></a>
+
+### useCallback 有什么用？
+
+#### 面试回答
+
+可以这样答：
+
+> `useCallback` 用来缓存函数引用，依赖项不变时返回同一个函数。它常见用途是把回调传给 `React.memo` 包裹的子组件，避免父组件每次 render 都创建新函数导致子组件重新渲染；也可以用于稳定 effect 依赖。它不会让函数内部执行更快，只是让函数引用更稳定。
+
+一句话总结：
+
+> `useCallback` 缓存函数引用，不缓存函数执行结果。
+
+#### 核心原理
+
+```jsx
+const handleSelect = useCallback((id) => {
+  setSelectedId(id)
+}, [])
+
+return <MemoList onSelect={handleSelect} />
+```
+
+如果子组件没有 memo，或者函数没有作为依赖/props 传递，`useCallback` 通常收益不明显。
+
+---
+
+<a id="怎么避免子组件无意义渲染"></a>
+
+### 怎么避免子组件无意义渲染？
+
+#### 面试回答
+
+可以这样答：
+
+> 避免子组件无意义渲染，首先要减少父组件无关状态对它的影响，比如状态下沉、拆分组件、把变化频繁的区域隔离出去。其次对纯展示且成本较高的子组件使用 `React.memo`，并用 `useMemo`、`useCallback` 稳定传入的对象、数组和函数。Context 场景要拆分 Provider 或稳定 value。最后要用 Profiler 验证，不要为了“看起来高级”到处加缓存。
+
+一句话总结：
+
+> 避免无意义渲染 = 缩小状态影响范围 + 稳定 props + 必要时 memo + Profiler 验证。
+
+#### 核心原理
+
+常见手段：
+
+```text
+状态下沉：把 state 放到真正需要它的组件
+组件拆分：让频繁更新区域更小
+React.memo：props 不变跳过子组件
+useMemo/useCallback：稳定对象和函数引用
+拆 Context：避免一个 value 变化影响所有消费者
+```
+
+优化时优先调整状态结构，再考虑缓存 API。
+
+---
+
+<a id="大列表怎么优化"></a>
+
+### 大列表怎么优化？
+
+#### 面试回答
+
+可以这样答：
+
+> 大列表优化的核心是不要一次性渲染所有 DOM。最常用方案是虚拟列表，只渲染可视区域和少量缓冲区，比如 `react-window`、`react-virtualized`、`react-virtuoso`。如果列表项渲染复杂，可以配合 `React.memo`、稳定 item props、分页或增量加载。还要避免在 render 中做大规模排序过滤，必要时用 `useMemo`、Web Worker 或后端分页。
+
+一句话总结：
+
+> 大列表优化 = 虚拟滚动减少 DOM 数量，配合分页、缓存和稳定渲染降低计算成本。
+
+#### 核心原理
+
+```text
+总数据 10000 条
+  → 页面只显示 20 条
+  → 实际只渲染可视区 + buffer
+  → 滚动时复用容器并替换内容
+```
+
+大列表瓶颈通常不只是 React render，还包括 DOM 节点数量、布局计算、滚动事件和图片资源。
+
+---
+
+<a id="首屏加载怎么优化"></a>
+
+### 首屏加载怎么优化？
+
+#### 面试回答
+
+可以这样答：
+
+> 首屏优化要从网络、资源、渲染三条线看。网络上减少关键请求、开启缓存和 CDN；资源上做路由级代码分割、Tree Shaking、压缩、图片懒加载和现代格式；渲染上减少首屏不必要组件、避免长任务，必要时用 SSR/SSG 提前输出 HTML。React 项目里常用 `React.lazy`、动态 import、骨架屏、预加载关键资源，并用 Lighthouse、Web Vitals 关注 LCP、FCP、TTI、INP 等指标。
+
+一句话总结：
+
+> 首屏优化 = 减少关键资源体积和请求，让用户更快看到可用内容。
+
+#### 核心原理
+
+```jsx
+const SettingsPage = React.lazy(() => import('./SettingsPage'))
+```
+
+常见组合：
+
+```text
+代码分割
+  + 静态资源缓存 / CDN
+  + 图片压缩和懒加载
+  + SSR / SSG
+  + 骨架屏
+  + Web Vitals 监控
+```
+
+优化不能只看“白屏时间”，还要关注用户能否交互以及交互是否流畅。
 
 ---
 
