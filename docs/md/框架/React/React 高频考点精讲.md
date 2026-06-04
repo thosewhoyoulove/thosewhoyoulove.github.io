@@ -2,7 +2,7 @@
 
 ## 面试定位
 
-这篇用于 React 核心原理的第一轮复习，先覆盖两类最常被问到的问题：**React 基础思想**和**组件与渲染**。回答时不要只背 API 定义，要先给出能口述的结论，再补充背后的更新模型、数据流、状态不可变、key 与 diff 等原理。
+这篇用于 React 核心原理的第一轮复习，先覆盖四类最常被问到的问题：**React 基础思想**、**组件与渲染**、**Hooks 高频**和 **useEffect 必考**。回答时不要只背 API 定义，要先给出能口述的结论，再补充背后的更新模型、数据流、状态不可变、Hook 调用顺序、effect 生命周期等原理。
 
 ---
 
@@ -26,6 +26,27 @@
 - [React 为什么不能直接修改 state？](#react-为什么不能直接修改-state)
 - [key 的作用是什么？](#key-的作用是什么)
 - [为什么列表渲染不推荐用 index 作为 key？](#为什么列表渲染不推荐用-index-作为-key)
+
+### Hooks 高频
+
+- [useState 原理是什么？](#usestate-原理是什么)
+- [useEffect 是什么？什么时候执行？](#useeffect-是什么什么时候执行)
+- [useEffect 和 useLayoutEffect 区别？](#useeffect-和-uselayouteffect-区别)
+- [useMemo 和 useCallback 区别？](#usememo-和-usecallback-区别)
+- [useRef 有什么用？](#useref-有什么用)
+- [useReducer 适合什么场景？](#usereducer-适合什么场景)
+- [useContext 有什么问题？](#usecontext-有什么问题)
+- [为什么 Hook 不能写在 if 里面？](#为什么-hook-不能写在-if-里面)
+- [自定义 Hook 是什么？](#自定义-hook-是什么)
+
+### useEffect 必考
+
+- [useEffect 第二个参数是什么意思？](#useeffect-第二个参数是什么意思)
+- [useEffect 不传依赖数组会怎样？](#useeffect-不传依赖数组会怎样)
+- [传空数组会怎样？](#传空数组会怎样)
+- [依赖项变化会怎样？](#依赖项变化会怎样)
+- [useEffect 为什么会出现闭包陷阱？](#useeffect-为什么会出现闭包陷阱)
+- [useEffect 怎么清除副作用？](#useeffect-怎么清除副作用)
 
 ---
 
@@ -466,6 +487,600 @@ items.map(item => <TodoItem key={item.id} item={item} />)
 ```jsx
 items.map(item => <TodoItem key={item.id} item={item} />)
 ```
+
+---
+
+## 3. Hooks 高频
+
+<a id="usestate-原理是什么"></a>
+
+### useState 原理是什么？
+
+#### 面试回答
+
+可以这样答：
+
+> `useState` 是函数组件里保存状态的 Hook。它不是把状态存在函数局部变量里，而是由 React 挂在当前组件对应的 Fiber 上；每次组件渲染时，React 按 Hook 的调用顺序找到对应的状态。调用 `setState` 时，React 会创建一次状态更新，放入更新队列，再调度组件重新渲染。重新渲染时 React 会按队列计算出新 state，并用新的 state 执行组件函数。所以 `useState` 的关键不是“函数里有变量”，而是 Fiber 上有 Hook 链表和更新队列。
+
+一句话总结：
+
+> `useState` = Fiber 保存 Hook 状态，`setState` 入队更新，下一次 render 按顺序取出并计算新状态。
+
+#### 核心原理
+
+函数组件每次渲染都会重新执行，普通局部变量会重新创建：
+
+```jsx
+function Counter() {
+  const [count, setCount] = useState(0)
+  return <button onClick={() => setCount(count + 1)}>{count}</button>
+}
+```
+
+React 能记住 `count`，是因为 Hook 状态挂在 Fiber 上，而不是挂在函数调用栈里。大致链路是：
+
+```text
+首次 render
+  → 创建 Hook 节点
+  → 保存初始 state
+  → 返回 [state, dispatch]
+
+调用 dispatch
+  → 创建 update
+  → 放入 Hook 的 update queue
+  → 调度当前 Fiber 更新
+
+下次 render
+  → 按 Hook 顺序找到旧 Hook
+  → 计算 update queue
+  → 得到新 state
+```
+
+如果新状态依赖旧状态，优先用函数式更新：
+
+```jsx
+setCount(prev => prev + 1)
+```
+
+---
+
+<a id="useeffect-是什么什么时候执行"></a>
+
+### useEffect 是什么？什么时候执行？
+
+#### 面试回答
+
+可以这样答：
+
+> `useEffect` 是函数组件处理副作用的 Hook，比如请求数据、订阅事件、操作定时器、写日志等。它不会在 render 阶段执行，而是在组件结果提交到 DOM 之后执行；通常可以理解为浏览器完成绘制后再执行 passive effect。这样设计是为了让 render 保持纯净，不把请求、订阅、DOM 外部操作混在 UI 计算里。依赖数组决定 effect 是否需要重新执行，返回函数用于清理上一次副作用。
+
+一句话总结：
+
+> `useEffect` 用来处理渲染后的副作用，执行时机在 commit 之后，依赖数组决定是否重跑。
+
+#### 核心原理
+
+React 更新分为 render 和 commit。`useEffect` 属于 passive effect，不在 render 阶段执行：
+
+```text
+render 阶段
+  → 计算 UI，不执行 useEffect
+commit 阶段
+  → 更新 DOM
+  → 浏览器绘制
+  → 执行 useEffect
+```
+
+常见写法：
+
+```jsx
+useEffect(() => {
+  const timer = setInterval(() => {
+    refresh()
+  }, 1000)
+
+  return () => clearInterval(timer)
+}, [refresh])
+```
+
+如果把副作用写在组件函数体里，并发渲染或重复 render 时可能造成多次请求、重复订阅等问题。
+
+---
+
+<a id="useeffect-和-uselayouteffect-区别"></a>
+
+### useEffect 和 useLayoutEffect 区别？
+
+#### 面试回答
+
+可以这样答：
+
+> `useEffect` 和 `useLayoutEffect` 都是在 commit 阶段处理副作用，但时机不同。`useLayoutEffect` 会在 DOM 更新后、浏览器绘制前同步执行，适合读取布局并立即修改样式，避免用户看到闪烁；`useEffect` 通常在浏览器绘制后异步执行，适合请求、订阅、日志、定时器这类不影响首帧布局的副作用。实际开发里优先用 `useEffect`，只有必须在用户看到画面前完成 DOM 测量或同步修正时才用 `useLayoutEffect`。
+
+一句话总结：
+
+> `useLayoutEffect` 阻塞绘制，适合布局读写；`useEffect` 不阻塞绘制，适合普通副作用。
+
+#### 核心原理
+
+| 维度 | useEffect | useLayoutEffect |
+| --- | --- | --- |
+| 执行时机 | DOM 提交后，通常在 paint 后 | DOM 提交后、paint 前同步执行 |
+| 是否阻塞绘制 | 不阻塞 | 阻塞 |
+| 典型场景 | 请求、订阅、日志、定时器 | 测量 DOM、修正布局、防闪烁 |
+
+示例场景：弹层需要先测量按钮位置再定位。如果用 `useEffect`，用户可能看到弹层先出现在默认位置再跳动；用 `useLayoutEffect` 可以在绘制前完成修正。
+
+---
+
+<a id="usememo-和-usecallback-区别"></a>
+
+### useMemo 和 useCallback 区别？
+
+#### 面试回答
+
+可以这样答：
+
+> `useMemo` 缓存的是计算结果，`useCallback` 缓存的是函数引用。它们都依赖依赖数组，依赖不变时复用上一次结果。`useMemo` 适合缓存昂贵计算或稳定对象引用，`useCallback` 适合把回调传给被 `React.memo` 包裹的子组件，避免子组件因为函数引用每次变化而重新渲染。它们不是默认性能优化开关，只有计算成本明显、引用稳定有价值，或者 Profiler 证明有无效渲染时才值得使用。
+
+一句话总结：
+
+> `useMemo(fn, deps)` 缓存 `fn()` 的结果，`useCallback(fn, deps)` 缓存 `fn` 本身。
+
+#### 核心原理
+
+二者可以这样理解：
+
+```jsx
+const value = useMemo(() => heavyCompute(list), [list])
+
+const handleClick = useCallback(() => {
+  submit(id)
+}, [id])
+```
+
+`useCallback(fn, deps)` 近似等价于：
+
+```jsx
+const handleClick = useMemo(() => fn, deps)
+```
+
+常见误区是到处包 `useMemo` 和 `useCallback`。缓存也有成本：React 需要保存上一次值、比较依赖数组，代码复杂度也会上升。
+
+---
+
+<a id="useref-有什么用"></a>
+
+### useRef 有什么用？
+
+#### 面试回答
+
+可以这样答：
+
+> `useRef` 有两个常见用途：一是保存 DOM 引用，比如聚焦输入框、读取元素尺寸；二是保存跨 render 持久存在但变化时不需要触发渲染的值，比如定时器 id、上一次值、某个请求标记。`ref.current` 改变不会触发组件重新渲染，这点和 state 不同。所以需要影响 UI 的数据用 state，只是想保存一个可变容器或实例引用时用 ref。
+
+一句话总结：
+
+> `useRef` 是跨 render 持久存在的可变容器，改 `current` 不会触发重新渲染。
+
+#### 核心原理
+
+访问 DOM：
+
+```jsx
+function SearchBox() {
+  const inputRef = useRef(null)
+
+  return (
+    <>
+      <input ref={inputRef} />
+      <button onClick={() => inputRef.current?.focus()}>聚焦</button>
+    </>
+  )
+}
+```
+
+保存可变值：
+
+```jsx
+const timerRef = useRef(null)
+
+useEffect(() => {
+  timerRef.current = setInterval(tick, 1000)
+  return () => clearInterval(timerRef.current)
+}, [tick])
+```
+
+`useRef` 返回的对象在组件生命周期内通常保持同一个引用，因此适合保存不参与渲染的数据。
+
+---
+
+<a id="usereducer-适合什么场景"></a>
+
+### useReducer 适合什么场景？
+
+#### 面试回答
+
+可以这样答：
+
+> `useReducer` 适合状态结构比较复杂、更新分支多、下一状态依赖当前状态和 action 的场景。比如表单编辑器、筛选条件、购物车、复杂弹窗流程。相比多个 `useState` 分散更新，`useReducer` 可以把状态变化集中到 reducer 里，让每种 action 对应一种明确的状态迁移。它不是替代所有 `useState`，简单开关、输入框值、局部计数器用 `useState` 更直接。
+
+一句话总结：
+
+> 状态简单用 `useState`，状态迁移复杂且分支多时用 `useReducer`。
+
+#### 核心原理
+
+典型结构：
+
+```jsx
+function reducer(state, action) {
+  switch (action.type) {
+    case 'keyword/change':
+      return { ...state, keyword: action.keyword, page: 1 }
+    case 'page/change':
+      return { ...state, page: action.page }
+    default:
+      return state
+  }
+}
+
+const [state, dispatch] = useReducer(reducer, {
+  keyword: '',
+  page: 1
+})
+```
+
+`reducer` 应该保持纯函数：同样的 `state` 和 `action` 返回同样的新状态，不在里面请求接口或修改外部变量。
+
+---
+
+<a id="usecontext-有什么问题"></a>
+
+### useContext 有什么问题？
+
+#### 面试回答
+
+可以这样答：
+
+> `useContext` 的问题主要是更新粒度容易过粗。只要 Provider 的 `value` 引用变化，消费这个 Context 的组件就会重新渲染，即使组件只用到了 value 里的一个字段。如果把 user、theme、locale、notifications 都塞进一个 Context，一个高频变化字段可能带着很多无关组件一起更新。优化思路是拆分 Context、用 `useMemo` 稳定 value 引用，或者把高频、细粒度状态交给外部 store。
+
+一句话总结：
+
+> `useContext` 方便跨层传值，但 Provider value 变化会影响所有消费者，容易造成无关重渲染。
+
+#### 核心原理
+
+反模式：
+
+```jsx
+<AppContext.Provider value={{ user, theme, notifications }}>
+  {children}
+</AppContext.Provider>
+```
+
+每次父组件 render 都创建新的 value 对象，消费者可能被带着更新。更稳妥的做法：
+
+```jsx
+const value = useMemo(() => ({ user, login, logout }), [user])
+
+<AuthContext.Provider value={value}>
+  {children}
+</AuthContext.Provider>
+```
+
+对于变化频率不同的数据，优先拆 Context：
+
+```jsx
+<ThemeContext.Provider value={theme}>
+  <UserContext.Provider value={user}>{children}</UserContext.Provider>
+</ThemeContext.Provider>
+```
+
+---
+
+<a id="为什么-hook-不能写在-if-里面"></a>
+
+### 为什么 Hook 不能写在 if 里面？
+
+#### 面试回答
+
+可以这样答：
+
+> Hook 不能写在 `if`、循环或嵌套函数里，是因为 React 依赖 Hook 的调用顺序来对应每个 Hook 的状态。函数组件每次 render 都会重新执行，React 并不是通过变量名找 `useState`，而是按“第几个 Hook”找到 Fiber 上对应的 Hook 节点。如果某次渲染因为条件分支少调用了一个 Hook，后面的 Hook 顺序就会错位，状态和 effect 都可能对应错。
+
+一句话总结：
+
+> Hook 必须保持每次 render 调用顺序一致，否则 React 无法把 Hook 调用和 Fiber 上的状态一一对应。
+
+#### 核心原理
+
+错误写法：
+
+```jsx
+function Profile({ enabled }) {
+  if (enabled) {
+    useEffect(() => {
+      track()
+    }, [])
+  }
+
+  const [name, setName] = useState('')
+}
+```
+
+正确写法是把条件放到 Hook 内部：
+
+```jsx
+useEffect(() => {
+  if (!enabled) return
+  track()
+}, [enabled])
+```
+
+这样每次 render 都会调用同样数量、同样顺序的 Hook。
+
+---
+
+<a id="自定义-hook-是什么"></a>
+
+### 自定义 Hook 是什么？
+
+#### 面试回答
+
+可以这样答：
+
+> 自定义 Hook 是把组件中可复用的状态逻辑抽成一个以 `use` 开头的函数。它可以调用 React 内置 Hook，也可以组合其他自定义 Hook。它复用的是逻辑，不是状态本身；每个组件调用自定义 Hook 都会拥有自己独立的一份 Hook 状态。常见场景包括请求封装、事件监听、表单逻辑、权限判断、响应式尺寸监听等。
+
+一句话总结：
+
+> 自定义 Hook = 用普通函数封装可复用的 Hook 逻辑，每次调用都有独立状态。
+
+#### 核心原理
+
+示例：
+
+```jsx
+function useWindowSize() {
+  const [size, setSize] = useState(() => ({
+    width: window.innerWidth,
+    height: window.innerHeight
+  }))
+
+  useEffect(() => {
+    const handleResize = () => {
+      setSize({ width: window.innerWidth, height: window.innerHeight })
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  return size
+}
+```
+
+自定义 Hook 必须遵守 Hook 规则：只能在函数组件或其他 Hook 顶层调用，不能在条件分支里调用。
+
+---
+
+## 4. useEffect 必考
+
+<a id="useeffect-第二个参数是什么意思"></a>
+
+### useEffect 第二个参数是什么意思？
+
+#### 面试回答
+
+可以这样答：
+
+> `useEffect` 第二个参数是依赖数组，用来告诉 React 这个 effect 依赖哪些响应式值，比如 props、state、组件内定义的变量和函数。React 会在每次提交后比较依赖项和上一次是否变化，如果变化就先清理上一次 effect，再执行新的 effect。依赖数组不是“想让它什么时候执行”的随意开关，而是描述 effect 读取了哪些外部值。
+
+一句话总结：
+
+> 依赖数组描述 effect 依赖的数据，React 根据依赖变化决定是否重新执行 effect。
+
+#### 核心原理
+
+```jsx
+useEffect(() => {
+  document.title = `${count}`
+}, [count])
+```
+
+这里 effect 读取了 `count`，所以 `count` 应该出现在依赖数组里。漏写依赖可能导致 effect 使用旧值；乱写依赖可能导致 effect 不必要地重复执行。
+
+---
+
+<a id="useeffect-不传依赖数组会怎样"></a>
+
+### useEffect 不传依赖数组会怎样？
+
+#### 面试回答
+
+可以这样答：
+
+> 不传依赖数组时，`useEffect` 会在每次组件提交后执行。也就是说首次渲染后会执行，后续每次 state、props 或父组件导致的重新渲染提交后也会执行。如果 effect 里又更新 state，就要特别小心，可能造成无限渲染。这个写法适合确实每次渲染后都要同步的副作用，但大多数业务 effect 应该明确依赖数组。
+
+一句话总结：
+
+> 不传依赖数组 = 每次 commit 后都执行 effect。
+
+#### 核心原理
+
+```jsx
+useEffect(() => {
+  console.log('每次提交后执行')
+})
+```
+
+危险写法：
+
+```jsx
+useEffect(() => {
+  setCount(count + 1)
+})
+```
+
+上面会导致 effect 执行后更新 state，更新后又触发 effect，容易进入无限循环。
+
+---
+
+<a id="传空数组会怎样"></a>
+
+### 传空数组会怎样？
+
+#### 面试回答
+
+可以这样答：
+
+> 传空数组表示这个 effect 不依赖任何会随渲染变化的值，因此通常只在组件挂载后执行一次，并在组件卸载时执行清理函数。它常用于初始化订阅、启动定时器、进入页面上报等场景。但要注意，如果 effect 内读取了 props 或 state，却依然写空数组，就会固定拿到首次渲染时的值，容易形成闭包陷阱。
+
+一句话总结：
+
+> 空依赖数组通常表示挂载后执行一次、卸载时清理，但不能掩盖 effect 实际读取的响应式值。
+
+#### 核心原理
+
+```jsx
+useEffect(() => {
+  subscribe()
+  return () => unsubscribe()
+}, [])
+```
+
+在 React 18 开发环境的 Strict Mode 下，React 可能会额外执行一次 setup + cleanup 来帮助发现副作用清理问题；生产环境不会因为 Strict Mode 这样重复执行。
+
+---
+
+<a id="依赖项变化会怎样"></a>
+
+### 依赖项变化会怎样？
+
+#### 面试回答
+
+可以这样答：
+
+> 当依赖项变化时，React 会在提交后重新执行 effect。重新执行前，如果上一次 effect 返回了清理函数，React 会先执行清理函数，再执行新的 effect。这样可以避免旧订阅、旧定时器、旧请求回调继续影响当前组件。这个顺序很重要：不是先执行新 effect 再清理旧 effect，而是先清理旧副作用，再建立新副作用。
+
+一句话总结：
+
+> 依赖变化时，React 会先清理上一次 effect，再执行下一次 effect。
+
+#### 核心原理
+
+```jsx
+useEffect(() => {
+  const connection = connect(roomId)
+
+  return () => {
+    connection.disconnect()
+  }
+}, [roomId])
+```
+
+当 `roomId` 从 A 变成 B 时：
+
+```text
+清理 A 房间连接
+  → 建立 B 房间连接
+```
+
+这也是订阅、WebSocket、定时器必须写 cleanup 的原因。
+
+---
+
+<a id="useeffect-为什么会出现闭包陷阱"></a>
+
+### useEffect 为什么会出现闭包陷阱？
+
+#### 面试回答
+
+可以这样答：
+
+> `useEffect` 的闭包陷阱来自 JavaScript 闭包和 React render 机制。每次 render 都会创建一套新的 props、state 和函数，effect 捕获的是本次 render 里的值。如果依赖数组漏写了某个值，effect 后续不会重新创建，就会一直读到旧 render 的值。解决方式不是盲目清空依赖数组，而是补全依赖、使用函数式更新、把不需要触发渲染的最新值放进 ref，或者把逻辑移到事件处理函数里。
+
+一句话总结：
+
+> 闭包陷阱 = effect 捕获了某次 render 的旧值，但依赖没变导致它没有被重新创建。
+
+#### 核心原理
+
+典型问题：
+
+```jsx
+useEffect(() => {
+  const timer = setInterval(() => {
+    console.log(count)
+  }, 1000)
+
+  return () => clearInterval(timer)
+}, [])
+```
+
+这里 `count` 没有进入依赖数组，定时器回调会一直读取首次 render 的 `count`。如果是累加状态，可以用函数式更新：
+
+```jsx
+useEffect(() => {
+  const timer = setInterval(() => {
+    setCount(prev => prev + 1)
+  }, 1000)
+
+  return () => clearInterval(timer)
+}, [])
+```
+
+如果只是想让异步回调读取最新值，可以用 ref 保存最新状态，但要明确它不会触发渲染。
+
+---
+
+<a id="useeffect-怎么清除副作用"></a>
+
+### useEffect 怎么清除副作用？
+
+#### 面试回答
+
+可以这样答：
+
+> `useEffect` 通过返回一个清理函数来清除副作用。清理函数会在组件卸载时执行，也会在依赖变化导致 effect 重新执行前执行。常见清理包括取消事件监听、清除定时器、断开 WebSocket、取消订阅、忽略或中止过期请求。原则是 effect 建立了什么外部资源，cleanup 就负责释放什么资源，避免内存泄漏和旧副作用影响新状态。
+
+一句话总结：
+
+> effect 返回 cleanup，依赖变化前和组件卸载时执行，用来释放上一次副作用。
+
+#### 核心原理
+
+```jsx
+useEffect(() => {
+  const handleScroll = () => {
+    report(window.scrollY)
+  }
+
+  window.addEventListener('scroll', handleScroll)
+
+  return () => {
+    window.removeEventListener('scroll', handleScroll)
+  }
+}, [report])
+```
+
+请求场景可以用 `AbortController`：
+
+```jsx
+useEffect(() => {
+  const controller = new AbortController()
+
+  fetch(`/api/user/${id}`, {
+    signal: controller.signal
+  })
+
+  return () => {
+    controller.abort()
+  }
+}, [id])
+```
+
+这样当 `id` 变化或组件卸载时，旧请求不会继续占用资源，也不应该再更新已经过期的界面。
 
 ---
 
