@@ -2,349 +2,474 @@
 
 ## 面试定位
 
-这篇用于 React 核心原理复习，覆盖渲染流程、Fiber、批处理、effect、diff、Context、性能优化、SSR/Hydration 等高频点。
-
-## 核心原理
-
-React 的核心主线是：状态变化触发更新，React 基于 Fiber 树进行可中断的 render 计算，生成变更，再在 commit 阶段一次性提交到真实 DOM。render 阶段必须保持纯净，副作用放到事件处理或 effect 中。
+这篇用于 React 核心原理的第一轮复习，先覆盖两类最常被问到的问题：**React 基础思想**和**组件与渲染**。回答时不要只背 API 定义，要先给出能口述的结论，再补充背后的更新模型、数据流、状态不可变、key 与 diff 等原理。
 
 ---
 
-## 问题：React 的渲染流程是什么？render 阶段和 commit 阶段有什么区别？
+## 问题导航
 
-React 的更新分两个阶段：
+### React 基础思想
 
-**Render 阶段（可中断）：**
-- 从触发更新的组件开始，递归调用组件函数（或类组件的 render 方法）
-- 生成新的虚拟 DOM 树（Fiber 树）
-- 通过 diff 算法（reconciliation）找出需要变更的节点
-- 这个阶段**不操作真实 DOM**，所以可以被中断、重启
+- [React 是什么？](#react-是什么)
+- [React 的核心思想是什么？](#react-的核心思想是什么)
+- [React 为什么是声明式 UI？](#react-为什么是声明式-ui)
+- [React 单向数据流是什么？](#react-单向数据流是什么)
+- [React 和 Vue 有什么区别？](#react-和-vue-有什么区别)
+- [JSX 是什么？](#jsx-是什么)
 
-**Commit 阶段（不可中断）：**
-- 把 render 阶段算出的变更一次性刷到真实 DOM
-- 执行 `useLayoutEffect`（同步，在 paint 之前）
-- 浏览器 paint
-- 执行 `useEffect`（异步，在 paint 之后）
+### 组件与渲染
 
-**面试关键点**：render 阶段可能执行多遍（并发模式下可能被打断重来），所以组件函数必须是纯的，不能有副作用。副作用只能放在 effect 或事件处理函数里。
-
----
-
-## 问题：什么是 Fiber？解决了什么问题？
-
-**问题背景**：React 15 的 reconciliation 是递归的、同步的，一旦开始就不能中断。如果组件树很大，一次更新可能占用主线程几十毫秒，导致用户输入、动画卡顿。
-
-**Fiber 是什么**：Fiber 是 React 16 引入的新架构，每个组件对应一个 Fiber 节点，节点之间通过 `child`、`sibling`、`return` 指针形成链表结构（而不是树的递归）。
-
-**解决了什么**：
-1. **可中断**：链表结构可以随时暂停、恢复遍历，不像递归调用栈那样必须一口气跑完
-2. **优先级调度**：不同更新可以标记不同优先级，高优先级（用户输入）可以打断低优先级（数据预加载）
-3. **并发特性的基础**：`useTransition`、`Suspense` 等都依赖 Fiber 的可中断能力
-
-**面试怎么说**：
-> "Fiber 本质是把递归的 diff 过程改成了可中断的链表遍历，这样 React 就能把长任务拆成小片段，每片段之间让出主线程给浏览器处理用户交互，避免卡顿。"
+- [函数组件和类组件的区别？](#函数组件和类组件的区别)
+- [React 组件什么时候会重新渲染？](#react-组件什么时候会重新渲染)
+- [父组件更新，子组件一定会更新吗？](#父组件更新子组件一定会更新吗)
+- [setState 是同步还是异步？](#setstate-是同步还是异步)
+- [React 为什么不能直接修改 state？](#react-为什么不能直接修改-state)
+- [key 的作用是什么？](#key-的作用是什么)
+- [为什么列表渲染不推荐用 index 作为 key？](#为什么列表渲染不推荐用-index-作为-key)
 
 ---
 
-## 问题：React 18 的自动批处理是什么？和之前有什么区别？
+## 1. React 基础思想
 
-**React 17 及之前**：只有在 React 事件处理函数里的多个 setState 会被合并成一次渲染。setTimeout、Promise、原生事件里的 setState 每次都会触发一次渲染。
+<a id="react-是什么"></a>
 
-**React 18**：所有场景下的多个 setState 都会自动合并（Automatic Batching），包括：
-- 事件处理函数
-- setTimeout / setInterval
-- Promise.then
-- 原生事件监听器
+### React 是什么？
 
-```jsx
-// React 18：这三个 setState 只触发一次渲染
-setTimeout(() => {
-  setCount(1)
-  setFlag(true)
-  setName('test')
-  // 只 render 一次
-}, 0)
-```
-
-**如果确实需要同步刷新**：用 `flushSync`，但要慎用，因为它会打破批处理、阻塞主线程。
-
----
-
-## 问题：useEffect 和 useLayoutEffect 有什么区别？什么时候用哪个？
-
-| | useEffect | useLayoutEffect |
-| --- | --- | --- |
-| 执行时机 | 浏览器 paint **之后**，异步 | DOM 更新后、浏览器 paint **之前**，同步 |
-| 是否阻塞渲染 | 不阻塞 | 阻塞 |
-| 典型场景 | 数据请求、订阅、日志上报 | DOM 测量、防止闪烁、同步读写布局 |
-
-**什么时候用 useLayoutEffect**：
-
-当你需要在用户看到画面之前做一些 DOM 操作时。比如：
-- 测量一个元素的宽高，然后根据结果调整另一个元素的位置
-- 如果用 useEffect，用户会先看到"错误的位置"再跳到"正确的位置"（闪烁）
-
-**原则**：能用 useEffect 就用 useEffect，只有出现视觉闪烁时才换 useLayoutEffect。
-
----
-
-## 问题：React 的 diff 算法是怎么工作的？时间复杂度是多少？
-
-完整的树 diff 是 O(n³)，React 通过三个假设把它降到了 **O(n)**：
-
-### 假设一：不同类型的元素产生不同的树
-
-如果根节点类型变了（比如 `<div>` 变成 `<span>`），React 直接销毁旧树、创建新树，不做深度比较。
-
-### 假设二：同层比较
-
-React 只比较同一层级的节点，不会跨层级移动。如果一个节点从第一层移到了第三层，React 会销毁旧的、创建新的。
-
-### 假设三：key 标识同一节点
-
-通过 `key` 告诉 React 哪些节点是"同一个"，这样列表重排时可以复用节点而不是销毁重建。
-
-**为什么不能用 index 做 key**：如果列表头部插入一条数据，所有 index 都变了，React 会认为每个节点都变了，全部重新渲染。而且带本地状态的组件（比如输入框）会错位。
-
----
-
-## 问题：Context 的性能问题是什么？怎么优化？
-
-**问题**：Context 的 `value` 一变，所有消费该 Context 的组件**全部重渲染**，即使它只用了 value 里的某一个字段。
-
-```jsx
-// 反模式：把所有东西塞一个 Context
-const AppContext = createContext()
-<AppContext.Provider value={{ user, theme, locale, notifications }}>
-```
-
-`notifications` 每秒变一次，`theme` 几乎不变，但它们在同一个 value 对象里，theme 的消费者也会被连带重渲染。
-
-**优化方案：**
-
-**1. 拆分 Context**
-
-```jsx
-<ThemeContext.Provider value={theme}>
-  <UserContext.Provider value={user}>
-    <NotificationContext.Provider value={notifications}>
-```
-
-变化频率不同的数据放不同的 Context，互不影响。
-
-**2. useMemo 稳定 value 引用**
-
-```jsx
-const value = useMemo(() => ({ user, login, logout }), [user])
-<AuthContext.Provider value={value}>
-```
-
-避免父组件每次 render 都创建新对象导致下游无意义更新。
-
-**3. 高频变化的数据用外部 store**
-
-Zustand、Jotai 这类库用 `useSyncExternalStore` 实现细粒度订阅，只有真正用到的字段变了才重渲染。
-
----
-
-## 问题：React.memo、useMemo、useCallback 分别是什么？什么时候用？
-
-**React.memo**：包裹组件，props 浅比较相等时跳过重渲染
-
-```jsx
-const Child = React.memo(({ data, onClick }) => {
-  // 只有 data 或 onClick 引用变了才重渲染
-})
-```
-
-**useMemo**：缓存计算结果，依赖不变就不重新计算
-
-```jsx
-const sorted = useMemo(() => heavySort(list), [list])
-```
-
-**useCallback**：缓存函数引用，依赖不变就不创建新函数
-
-```jsx
-const handleClick = useCallback(() => {
-  doSomething(id)
-}, [id])
-```
-
-**什么时候用**：
-- 子组件被 `React.memo` 包裹了，父组件传给它的 props 需要用 useMemo/useCallback 稳定引用，否则 memo 白包
-- 有昂贵的计算需要缓存
-- effect 的依赖里有对象/函数，需要稳定引用避免无限循环
-
-**什么时候不用**：
-- 简单组件、渲染成本低的，加 memo 反而多了比较开销
-- 不确定是否有性能问题时，先用 Profiler 测量再决定
-
----
-
-## 问题：受控组件和非受控组件有什么区别？
-
-**受控组件**：表单的值由 React state 控制，每次输入都通过 onChange 更新 state
-
-```jsx
-const [value, setValue] = useState('')
-<input value={value} onChange={e => setValue(e.target.value)} />
-```
-
-**非受控组件**：表单的值由 DOM 自己管理，React 通过 ref 在需要时读取
-
-```jsx
-const inputRef = useRef()
-<input defaultValue="" ref={inputRef} />
-// 提交时：inputRef.current.value
-```
-
-**怎么选**：
-- 大部分场景用受控，因为 React 掌握数据源，方便做校验、联动、禁用等
-- 文件上传（`<input type="file">`）只能非受控
-- 集成第三方 DOM 库（富文本编辑器）时通常非受控
-
-**面试陷阱**：不要混用——给了 `value` 又不给 `onChange`，输入框会变成只读；给了 `defaultValue` 又给 `value`，行为不可预测。
-
----
-
-## 问题：Error Boundary 是什么？能捕获哪些错误？
-
-Error Boundary 是一个类组件，通过 `componentDidCatch` 和 `getDerivedStateFromError` 捕获子树的渲染错误，显示降级 UI 而不是白屏。
-
-**能捕获**：
-- 子组件 render 阶段的错误
-- 生命周期方法里的错误
-- 构造函数里的错误
-
-**不能捕获**：
-- 事件处理函数里的错误（要自己 try-catch）
-- 异步代码（setTimeout、Promise）
-- SSR
-- Error Boundary 自身的错误
-
-```jsx
-class ErrorBoundary extends React.Component {
-  state = { hasError: false }
-  
-  static getDerivedStateFromError(error) {
-    return { hasError: true }
-  }
-  
-  componentDidCatch(error, info) {
-    logErrorToService(error, info.componentStack)
-  }
-  
-  render() {
-    if (this.state.hasError) return <FallbackUI />
-    return this.props.children
-  }
-}
-```
-
-**实际使用**：通常在路由级别包一层，每个页面独立降级，一个页面崩了不影响其他页面。
-
----
-
-## 问题：React 的合成事件是什么？和原生事件有什么区别？
-
-React 不是把事件直接绑在每个 DOM 元素上，而是在**根节点**（React 17+ 是 root container）做事件委托，所有事件冒泡到根节点后由 React 统一处理。
-
-**区别**：
-1. **事件委托**：原生事件绑在具体元素，React 事件委托在根节点
-2. **事件对象**：React 包了一层 SyntheticEvent，抹平浏览器差异
-3. **执行顺序**：原生事件先触发，React 合成事件后触发（因为要等冒泡到根节点）
-4. **阻止冒泡**：`e.stopPropagation()` 只能阻止 React 事件体系内的冒泡，阻止不了原生事件
-
-**面试常问**：如果在一个元素上同时绑了原生事件和 React 事件，谁先执行？
-> 原生事件先执行。因为原生事件在目标元素上直接触发，React 事件要等冒泡到根节点才处理。
-
----
-
-## 问题：React Router 的实现原理是什么？
-
-核心是**监听 URL 变化，匹配路由规则，渲染对应组件**。
-
-**两种模式**：
-
-**Hash 模式**：监听 `hashchange` 事件，URL 带 `#`（如 `example.com/#/about`）
-- 优点：不需要服务端配置
-- 缺点：URL 不美观，SEO 不友好
-
-**History 模式**：用 `history.pushState` / `popstate` 事件，URL 正常（如 `example.com/about`）
-- 优点：URL 美观
-- 缺点：需要服务端配置 fallback（所有路由都返回 index.html），否则刷新 404
-
-**React Router 6 的核心 API**：
-- `<Routes>` / `<Route>`：声明式路由配置
-- `useNavigate()`：编程式导航
-- `useParams()`：获取路由参数
-- `useLocation()`：获取当前路径信息
-- `<Outlet>`：嵌套路由的渲染出口
-
----
-
-## 问题：SSR 和 CSR 有什么区别？hydration 是什么？
-
-**CSR（客户端渲染）**：浏览器下载空 HTML + JS bundle → JS 执行后渲染页面。首屏白屏时间长，SEO 差。
-
-**SSR（服务端渲染）**：服务端执行 React 组件，生成完整 HTML 发给浏览器 → 用户立刻看到内容 → JS 加载后"激活"交互。
-
-**Hydration（注水）**：客户端 JS 加载后，React 不重新创建 DOM，而是"接管"服务端已经渲染好的 DOM，给它绑上事件监听器和状态。
-
-**Hydration Mismatch**：如果服务端渲染的 HTML 和客户端首次渲染的结果不一致，React 会报警告甚至出 bug。常见原因：
-- 用了 `Date.now()`、`Math.random()` 这种每次结果不同的
-- 用了 `window`、`localStorage` 等只有客户端才有的 API
-- 时区差异导致日期格式不同
-
-**解决**：用 `useId` 生成稳定 id，客户端专属逻辑用 `useEffect` 延迟执行。
-
----
-
-## 问题：React 性能优化的思路是什么？
-
-按排查优先级：
-
-### 1. 减少不必要的重渲染
-
-- `React.memo` 包裹纯展示组件
-- `useMemo` / `useCallback` 稳定 props 引用
-- 拆分 Context，避免无关组件被连带更新
-- 状态下沉：把 state 放到真正需要它的组件里，而不是提升到顶层
-
-### 2. 减少渲染成本
-
-- 虚拟列表（react-window / react-virtuoso）处理长列表
-- `React.lazy` + `Suspense` 做代码分割
-- 重计算用 `useMemo` 缓存
-
-### 3. 减少提交成本
-
-- `startTransition` 标记非紧急更新，避免阻塞用户输入
-- 批量 DOM 操作（React 18 自动批处理已经帮你做了）
-
-### 4. 工具
-
-- React DevTools Profiler：看哪个组件 render 次数多、耗时长
-- Chrome Performance：看长任务、布局抖动
-- why-did-you-render：自动检测不必要的重渲染
-
-## 面试回答
+#### 面试回答
 
 可以这样答：
 
-> React 的更新可以分成 render 和 commit 两个阶段。render 阶段基于 Fiber 树计算新旧结果差异，这个阶段不操作真实 DOM，可以被中断和重启；commit 阶段把变更提交到真实 DOM，并执行 layout effect 和 passive effect。Fiber 本质上把递归树遍历改成了链表式可中断工作单元，为优先级调度、并发特性、Suspense、Transition 打基础。React 性能优化一般从减少不必要渲染、降低渲染成本和控制提交成本入手，比如 React.memo、useMemo、useCallback、拆 Context、虚拟列表、代码分割和 startTransition。面试里还要强调组件 render 应该是纯函数，副作用不能写在 render 阶段。
+> React 是一个用于构建用户界面的 JavaScript 库，核心职责是把组件状态映射成 UI。开发者用组件、JSX 和 state 描述页面在某个状态下应该长什么样；当状态变化时，React 会重新计算组件输出，通过调和过程找出需要更新的部分，再把变化提交到真实 DOM。它不强制完整应用架构，所以路由、状态管理、请求方案通常由生态组合完成。面试里我会强调 React 不是简单的 DOM 操作工具，而是一套状态驱动 UI 的组件化模型。
 
-## 高频追问
+一句话总结：
 
-### React render 阶段为什么可能执行多次？
+> React = 用组件描述 UI，用状态驱动更新，用调和机制把变化同步到页面。
 
-并发模式下 render 阶段可以被高优先级更新打断并重启，因此组件函数可能执行多次。不能在 render 中写副作用。
+#### 核心原理
 
-### React.memo 一定能提升性能吗？
+React 关注的是 UI 层，它把 UI 拆成组件，再把组件渲染结果组织成一棵树。状态变化后，React 不要求开发者手动找 DOM 节点、改 DOM 属性，而是重新执行组件，得到新的 UI 描述，再和旧结果对比。
 
-不一定。它有 props 浅比较成本。如果组件很轻或 props 每次都是新引用，memo 可能没有收益，甚至增加开销。
+```text
+state / props 变化
+  → 重新执行组件
+  → 得到新的 React Element
+  → reconciliation 对比新旧结果
+  → commit 阶段更新真实 DOM
+```
 
-### useEffect 和 useLayoutEffect 怎么选？
+所以 React 的价值不只是“封装 DOM”，而是让 UI 更新进入统一的组件、状态和调度模型。
 
-大多数副作用用 `useEffect`。只有需要在浏览器绘制前同步测量或修改 DOM，避免闪烁时，才用 `useLayoutEffect`。
+---
+
+<a id="react-的核心思想是什么"></a>
+
+### React 的核心思想是什么？
+
+#### 面试回答
+
+可以这样答：
+
+> React 的核心思想可以概括为组件化、声明式 UI、状态驱动和单向数据流。组件化让页面可以按功能拆分和复用；声明式 UI 让我们描述“状态对应什么界面”，而不是一步步操作 DOM；状态驱动意味着 UI 来源于 props 和 state；单向数据流让数据从父到子传递，子组件通过回调通知父组件更新。它们组合起来，使复杂页面的更新路径更清晰，也更容易定位问题。
+
+一句话总结：
+
+> React 核心思想 = 组件化拆分 + 声明式表达 + 状态驱动渲染 + 单向数据流管理。
+
+#### 核心原理
+
+React 的思想不是孤立概念，而是一条完整链路：
+
+```text
+组件负责拆分 UI
+  → props / state 描述数据
+  → render 返回 UI 描述
+  → React 负责计算和提交变化
+```
+
+这背后的关键取舍是：开发者少写命令式 DOM 操作，把“什么时候更新、怎么最小化更新、如何批处理更新”交给框架。代价是必须遵守 React 的约束，例如 state 不可直接修改、render 保持纯净、列表 key 必须稳定。
+
+---
+
+<a id="react-为什么是声明式-ui"></a>
+
+### React 为什么是声明式 UI？
+
+#### 面试回答
+
+可以这样答：
+
+> React 是声明式 UI，因为我们写组件时主要描述某个状态下页面应该是什么结果，而不是写一连串 DOM 操作步骤。比如 `isLogin` 为 true 时显示用户信息，为 false 时显示登录按钮；状态改变后，React 负责重新执行组件、对比前后结果并更新 DOM。这样代码更接近业务规则，状态和视图的关系更直接，也减少了手动操作 DOM 带来的遗漏和不一致。
+
+一句话总结：
+
+> 声明式 UI 是描述“状态对应的界面结果”，命令式 UI 是描述“怎么一步步改界面”。
+
+#### 核心原理
+
+命令式写法强调过程：
+
+```js
+button.style.display = isLogin ? 'none' : 'block'
+userPanel.textContent = user.name
+```
+
+React 写法强调结果：
+
+```jsx
+function Header({ isLogin, user }) {
+  return isLogin ? <UserPanel user={user} /> : <LoginButton />
+}
+```
+
+React 能这样做，是因为 JSX 会变成 React Element，React 每次更新都能拿到一份新的 UI 描述，然后通过 diff 找出真实 DOM 需要变化的部分。
+
+---
+
+<a id="react-单向数据流是什么"></a>
+
+### React 单向数据流是什么？
+
+#### 面试回答
+
+可以这样答：
+
+> React 的单向数据流是指数据通常从父组件通过 props 传给子组件，子组件不能直接修改父组件的数据。如果子组件需要改变数据，要通过父组件传下来的回调函数通知父组件，由父组件更新 state 后再把新的 props 传下来。这样做的好处是数据来源更清晰，出了问题可以沿着“父 state → 子 props → 事件回调”的链路排查。
+
+一句话总结：
+
+> 单向数据流 = 父组件传数据，子组件发事件，真正的数据修改回到拥有 state 的组件完成。
+
+#### 核心原理
+
+React 组件的输入主要是 props，组件内部状态是 state。props 对子组件来说应该是只读的，因为 props 属于父组件的渲染结果。
+
+```jsx
+function Parent() {
+  const [count, setCount] = useState(0)
+
+  return <Counter count={count} onChange={setCount} />
+}
+
+function Counter({ count, onChange }) {
+  return <button onClick={() => onChange(count + 1)}>{count}</button>
+}
+```
+
+这个模型让状态所有权明确：谁拥有 state，谁负责修改；谁只拿到 props，谁只负责消费和通知。
+
+---
+
+<a id="react-和-vue-有什么区别"></a>
+
+### React 和 Vue 有什么区别？
+
+#### 面试回答
+
+可以这样答：
+
+> React 和 Vue 都是组件化 UI 框架，都通过状态变化驱动视图更新。核心区别在更新模型和开发约束：Vue 更偏响应式依赖追踪，数据被读取时收集依赖，数据变化时能较精确地触发相关更新；React 更偏显式状态更新，调用 setState 后重新执行组件函数，再通过虚拟 DOM、Fiber 和 diff 找出需要提交的变化。写法上 Vue 使用模板、指令和单文件组件约定，React 使用 JSX，把 UI 和逻辑都放在 JavaScript 表达能力里。项目选型时我会看团队熟悉度、生态要求、业务复杂度和长期维护成本，而不是简单说谁更好。
+
+一句话总结：
+
+> Vue 偏响应式依赖追踪和模板约定，React 偏显式状态更新和函数式组合。
+
+#### 核心原理
+
+可以从三个角度对比：
+
+| 维度 | React | Vue |
+| --- | --- | --- |
+| 更新模型 | state 变化后重新执行组件，再调和差异 | 响应式系统追踪依赖，数据变化后触发相关 effect |
+| UI 表达 | JSX，JavaScript 表达能力强 | 模板 + 指令，约定更明确 |
+| 逻辑组织 | Hooks 和函数组合 | Composition API / Options API |
+
+React 的优势是模型统一、生态灵活；Vue 的优势是上手更快、响应式粒度更直观。面试里不要停留在“React 灵活、Vue 简单”，要说清楚它们背后的更新机制差异。
+
+---
+
+<a id="jsx-是什么"></a>
+
+### JSX 是什么？
+
+#### 面试回答
+
+可以这样答：
+
+> JSX 是 JavaScript 的语法扩展，用类似 HTML 的写法描述 React UI。它本身不是浏览器原生语法，需要经过 Babel 或构建工具编译，最终会变成创建 React Element 的 JavaScript 调用。JSX 的价值是让 UI 结构、组件引用和 JavaScript 表达式放在一起，既保留声明式结构，又能使用 JS 的变量、条件和数组映射能力。它不是模板字符串，也不会直接生成真实 DOM。
+
+一句话总结：
+
+> JSX = 用类似 HTML 的语法写 UI，编译后得到 React Element 描述对象。
+
+#### 核心原理
+
+以 React 17+ 的新 JSX transform 为例：
+
+```jsx
+const element = <h1 className="title">Hello</h1>
+```
+
+大致会被编译成：
+
+```js
+import { jsx } from 'react/jsx-runtime'
+
+const element = jsx('h1', {
+  className: 'title',
+  children: 'Hello'
+})
+```
+
+React Element 是普通对象，用来描述节点类型、props 和 children。React 后续会根据这些描述对象构建 Fiber，并在 commit 阶段更新真实 DOM。
+
+---
+
+## 2. 组件与渲染
+
+<a id="函数组件和类组件的区别"></a>
+
+### 函数组件和类组件的区别？
+
+#### 面试回答
+
+可以这样答：
+
+> 函数组件本质是接收 props、返回 UI 的函数，配合 Hooks 管理状态、副作用和复用逻辑；类组件通过继承 `React.Component`，用 `this.state`、`this.setState` 和生命周期方法组织逻辑。现在 React 推荐优先使用函数组件，因为 Hooks 让逻辑复用更自然，也避免了 class 中 `this`、生命周期拆散逻辑等问题。但类组件仍然存在于老项目和 Error Boundary 场景里，所以面试时不能说类组件完全不能用了。
+
+一句话总结：
+
+> 函数组件用 Hooks 组织状态和副作用，类组件用实例、state 和生命周期组织逻辑。
+
+#### 核心原理
+
+两者的主要区别：
+
+| 维度 | 函数组件 | 类组件 |
+| --- | --- | --- |
+| 状态 | `useState`、`useReducer` | `this.state` |
+| 副作用 | `useEffect`、`useLayoutEffect` | `componentDidMount`、`componentDidUpdate`、`componentWillUnmount` |
+| 逻辑复用 | 自定义 Hook | HOC、Render Props |
+| this | 无需关注 `this` | 需要处理 `this` 绑定 |
+
+函数组件每次渲染都会重新执行函数，Hooks 状态由 React 按调用顺序挂在对应 Fiber 上。因此 Hooks 不能写在条件语句或循环里，否则状态对应关系会错乱。
+
+---
+
+<a id="react-组件什么时候会重新渲染"></a>
+
+### React 组件什么时候会重新渲染？
+
+#### 面试回答
+
+可以这样答：
+
+> React 组件重新渲染通常来自四类情况：自身 state 更新、父组件重新渲染导致它被重新执行、消费的 Context value 变化、外部 store 订阅的数据变化。重新渲染不等于真实 DOM 一定变化，React 只是重新计算组件输出，后续还要经过 diff 判断是否需要提交 DOM 更新。排查性能问题时，我会先区分“组件 render 了”和“DOM 真的改了”，再用 React DevTools Profiler 看是哪类更新触发的。
+
+一句话总结：
+
+> 组件重新渲染 = React 重新执行组件计算 UI，不一定等于真实 DOM 更新。
+
+#### 核心原理
+
+常见触发源：
+
+```text
+setState / dispatch
+  → 当前组件重新渲染
+
+父组件重新渲染
+  → 默认会继续计算子组件
+
+Context value 变化
+  → 消费该 Context 的组件重新渲染
+
+外部 store 变更
+  → 订阅该数据的组件重新渲染
+```
+
+render 阶段只是计算新结果。只有当新旧结果经过 reconciliation 后存在需要插入、更新或删除的节点，commit 阶段才会修改真实 DOM。
+
+---
+
+<a id="父组件更新子组件一定会更新吗"></a>
+
+### 父组件更新，子组件一定会更新吗？
+
+#### 面试回答
+
+可以这样答：
+
+> 默认情况下，父组件重新渲染时，React 会继续执行它返回的子组件，所以子组件通常也会重新渲染。但这不代表子组件的真实 DOM 一定会变化，因为 React 还会 diff。也不代表一定无法跳过，如果子组件被 `React.memo` 包裹，并且 props 浅比较没有变化，React 可以跳过这个子组件的重新渲染。类组件里也可以用 `PureComponent` 或 `shouldComponentUpdate` 做类似控制。
+
+一句话总结：
+
+> 父组件更新时子组件默认会重新计算，但可通过 memo / PureComponent / shouldComponentUpdate 跳过。
+
+#### 核心原理
+
+React 的默认策略偏保守：父组件 render 后，会得到新的子元素描述，React 需要继续判断子树是否变化。
+
+```jsx
+const Child = React.memo(function Child({ name }) {
+  return <div>{name}</div>
+})
+```
+
+`React.memo` 做的是 props 浅比较。如果父组件每次都传入新的对象或函数，即使内容一样，浅比较也会认为变了：
+
+```jsx
+// 每次 render 都是新对象，memo 容易失效
+<Child options={{ theme: 'dark' }} />
+```
+
+所以优化子组件渲染时，常常需要配合 `useMemo` 或 `useCallback` 稳定引用，但前提是确实存在性能问题。
+
+---
+
+<a id="setstate-是同步还是异步"></a>
+
+### setState 是同步还是异步？
+
+#### 面试回答
+
+可以这样答：
+
+> 更准确地说，`setState` 本身是同步调用的，但 React 对状态更新和渲染提交通常会做批处理，所以你不能假设调用 `setState` 后下一行代码就能读到最新 state。在 React 18 中，事件、Promise、setTimeout、原生事件等场景里的多次状态更新默认都会自动批处理，最后合并成较少的渲染。如果确实需要基于上一次状态更新，应该使用函数式写法；如果确实要同步刷新 DOM，可以用 `flushSync`，但要谨慎。
+
+一句话总结：
+
+> setState 调用是同步的，状态生效和 DOM 提交通常被 React 批处理，不应依赖立即读取最新值。
+
+#### 核心原理
+
+错误理解：
+
+```jsx
+setCount(count + 1)
+console.log(count) // 这里通常还是本次 render 闭包里的旧值
+```
+
+更稳妥的写法：
+
+```jsx
+setCount(prev => prev + 1)
+setCount(prev => prev + 1)
+```
+
+React 会把更新放入队列，再根据当前优先级和批处理策略安排渲染。函数式更新拿到的是队列中上一次计算后的值，适合连续更新依赖前值的场景。
+
+---
+
+<a id="react-为什么不能直接修改-state"></a>
+
+### React 为什么不能直接修改 state？
+
+#### 面试回答
+
+可以这样答：
+
+> React 不建议直接修改 state，因为 React 需要通过状态引用变化来判断是否应该更新，并且不可变数据能让前后两次状态更容易比较。如果直接修改原对象再传回去，引用可能没变，React 可能认为没有变化；即使触发了渲染，也容易破坏历史快照、memo 比较和调试追踪。正确做法是创建新对象或新数组，用 `setState` 把新引用交给 React。
+
+一句话总结：
+
+> state 要不可变更新，因为 React 依赖新旧引用和更新队列来判断变化、调度渲染和做性能优化。
+
+#### 核心原理
+
+错误写法：
+
+```jsx
+user.name = 'Tom'
+setUser(user)
+```
+
+正确写法：
+
+```jsx
+setUser(prev => ({
+  ...prev,
+  name: 'Tom'
+}))
+```
+
+对数组也是一样：
+
+```jsx
+setList(prev => prev.filter(item => item.id !== id))
+```
+
+不可变更新的核心收益是让变化边界清晰：旧状态仍然代表上一轮渲染快照，新状态代表下一轮渲染输入，React 和开发者都能更容易比较和追踪。
+
+---
+
+<a id="key-的作用是什么"></a>
+
+### key 的作用是什么？
+
+#### 面试回答
+
+可以这样答：
+
+> `key` 的作用是帮助 React 在同一层级的列表 diff 中识别哪些节点是同一个。列表顺序变化、插入、删除时，如果 key 稳定，React 就能复用正确的 DOM 和组件实例，只移动或更新必要节点；如果 key 不稳定，React 可能错误复用节点，导致输入框内容、组件本地状态或动画状态错位。key 只需要在同一层兄弟节点中唯一，不需要全局唯一。
+
+一句话总结：
+
+> key 是列表节点的稳定身份标识，用来帮助 React 正确复用、移动或删除同层节点。
+
+#### 核心原理
+
+React diff 列表时会结合 `type` 和 `key` 判断节点身份：
+
+```jsx
+items.map(item => <TodoItem key={item.id} item={item} />)
+```
+
+如果 `type` 相同且 `key` 相同，React 倾向于复用旧 Fiber 和 DOM；如果 key 变了，React 会把它当成新的节点。这里的复用不仅影响 DOM，也影响组件内部 state 是否保留。
+
+---
+
+<a id="为什么列表渲染不推荐用-index-作为-key"></a>
+
+### 为什么列表渲染不推荐用 index 作为 key？
+
+#### 面试回答
+
+可以这样答：
+
+> 不推荐用 index 作为 key，是因为 index 描述的是当前位置，不是数据身份。只要列表发生头部插入、删除、排序，后面元素的 index 都会变化，React 可能把 A 的组件实例复用给 B，导致本地状态、输入框内容或选中状态错位。如果列表完全静态、不排序、不插入删除，用 index 问题不大；但动态列表应该优先使用后端 id 或业务上稳定的唯一字段。
+
+一句话总结：
+
+> index key 最大问题是位置会变，数据身份不稳定，动态列表容易出现错误复用和状态错位。
+
+#### 核心原理
+
+假设原列表是：
+
+```text
+0: A
+1: B
+2: C
+```
+
+头部插入 X 后变成：
+
+```text
+0: X
+1: A
+2: B
+3: C
+```
+
+如果用 index 作为 key，React 会认为 key 为 0 的节点还是“同一个”，于是可能把原来 A 的 DOM 或组件状态复用到 X 上。稳定 id 则不会有这个问题：
+
+```jsx
+items.map(item => <TodoItem key={item.id} item={item} />)
+```
+
+---
+
+## 延伸阅读
+
+- [React 渲染原理](/md/框架/React/React%20渲染原理.md)
+- [React & Vue](/md/面试准备/技术/React%20%26%20Vue.md)
