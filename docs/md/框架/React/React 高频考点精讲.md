@@ -1946,5 +1946,6 @@ const SettingsPage = React.lazy(() => import('./SettingsPage'))
 
 ## 延伸阅读
 
+- [React 进阶高频考点精讲](/md/框架/React/React%20进阶高频考点精讲.md)
 - [React 渲染原理](/md/框架/React/React%20渲染原理.md)
 - [React & Vue](/md/面试准备/技术/React%20%26%20Vue.md)

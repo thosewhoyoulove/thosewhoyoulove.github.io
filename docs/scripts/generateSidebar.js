@@ -73,6 +73,7 @@ const SIDEBAR = [
             ["Vue 渲染原理", "/md/框架/Vue/Vue%20渲染原理.md"],
             ["Vue Diff 算法", "/md/框架/Vue/Vue%20Diff算法.md"],
             ["React 高频考点", "/md/框架/React/React%20高频考点精讲.md"],
+            ["React 进阶高频考点", "/md/框架/React/React%20进阶高频考点精讲.md"],
             ["React 渲染原理", "/md/框架/React/React%20渲染原理.md"],
             ["React Hooks", "/md/框架/React/Hooks.md"],
             ["Vue vs React", "/md/框架/Vue%20vs%20React.md"],
