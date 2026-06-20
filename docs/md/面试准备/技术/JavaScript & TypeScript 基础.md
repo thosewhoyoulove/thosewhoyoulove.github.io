@@ -2,9 +2,20 @@
 
 ## 面试定位
 
-JavaScript 和 TypeScript 基础是前端面试的第一层筛选。它主要判断你是否理解语言机制，而不是只会使用框架。
+三年前端岗的 JS/TS 题，重点不是背八股清单，而是证明你**理解运行时机制、能设计类型边界、能把结论落到框架和项目里**。
 
-这类问题通常会从变量、类型、作用域、闭包、事件循环、Promise 进入，再延伸到 TypeScript 的类型系统、泛型和项目实践。
+高频路径：数据类型与拷贝 → 闭包与 this → Promise / async-await → 事件循环输出题 → TypeScript 类型建模（interface、泛型、工具类型、unknown 收窄）。原型链、手写 Promise 可能追问，但通常作为深度加分，不是开场题。
+
+## 三年岗复习优先级
+
+| 优先级 | 主题 | 为什么 |
+| --- | --- | --- |
+| P0 | 事件循环、Promise、async/await | 几乎每轮必考，常出输出顺序题 |
+| P0 | 闭包、this、箭头函数 | 结合防抖节流、组件回调、内存泄漏追问 |
+| P0 | TS：type vs interface、泛型、工具类型 | 业务代码和组件 props 设计日常在用 |
+| P1 | 深浅拷贝、类型判断、隐式转换 | 状态不可变、接口数据处理 |
+| P1 | unknown / never / 类型守卫 | 外部输入与穷尽检查 |
+| P2 | 手写 Promise、V8 细节 | 答稳 P0 后再准备 |
 
 ## 核心原理
 
@@ -92,30 +103,19 @@ console.log(a.user.name); // Jerry
 - new 调用：指向新创建的实例。
 - 箭头函数：没有自己的 `this`，从外层词法作用域继承。
 
-## Promise 和事件循环
+## Promise、async/await 与事件循环
 
-Promise 有三种状态：
+Promise 有三种状态：pending、fulfilled、rejected；状态不可逆。
 
-- pending。
-- fulfilled。
-- rejected。
+`async/await` 是 Promise 语法糖：`await` 之后的代码进入微任务，等价于 `.then`。
 
-状态一旦从 pending 变成 fulfilled 或 rejected，就不能再改变。
+事件循环里，同步代码先执行。一次宏任务结束后，会清空当前所有微任务，再进入下一轮宏任务。
 
-事件循环里，同步代码先执行。一次宏任务执行结束后，会清空当前所有微任务，再进入下一轮宏任务。
+常见微任务：Promise then/catch/finally、queueMicrotask、MutationObserver。
 
-常见微任务：
+常见宏任务：setTimeout、setInterval、I/O、UI 事件。
 
-- Promise then/catch/finally。
-- queueMicrotask。
-- MutationObserver。
-
-常见宏任务：
-
-- setTimeout。
-- setInterval。
-- I/O。
-- UI 事件。
+浏览器与渲染、缓存、Core Web Vitals 见 [浏览器与性能速记](/md/面试准备/技术/浏览器面试速记.md)。
 
 ## TypeScript 基础
 
@@ -134,13 +134,15 @@ TypeScript 的核心价值是静态类型检查和更清晰的接口约束。
 
 ## 面试回答
 
-JavaScript 基础我会从运行时机制回答，TypeScript 我会从开发期类型约束回答。
+> 三年岗我会把 JS 和 TS 分开说。JS 侧核心是作用域、闭包、this、Promise 和事件循环——比如闭包保留词法作用域引用，this 由调用方式决定，Promise 回调是微任务，会在当前宏任务清空后、下一个宏任务前执行。
+>
+> TS 侧核心是静态类型约束：interface 描述对象形状，type 更灵活可联合/交叉；外部数据用 unknown 再收窄，而不是 any；泛型和 Pick/Omit 这类工具类型用来从 API 类型推导 UI 状态，减少重复定义。
+>
+> 这些不是孤立知识点，会直接影响 React 不可变更新、异步请求错误处理、组件 props 设计和接口层类型安全。
 
-JavaScript 里比较核心的是作用域、闭包、this、Promise 和事件循环。比如 `let` 和 `const` 是块级作用域，有暂时性死区；闭包本质是函数保留对词法作用域的引用；`this` 由调用方式决定；Promise 的回调属于微任务，会在当前宏任务结束后执行。
+一句话总结：
 
-TypeScript 则是在 JavaScript 之上增加静态类型系统。它不会改变运行时行为，但可以在开发阶段发现类型错误。实际项目里，我会用它约束接口返回、组件 props、业务状态和工具函数。对于外部不可信数据，我更倾向于先用 `unknown`，再通过类型守卫或运行时校验收窄，而不是直接用 `any`。
-
-所以这部分基础不是孤立知识点，它们会影响框架状态更新、异步处理、组件设计和项目类型安全。
+> JS 讲运行时机制，TS 讲编译期约束；三年岗要能串到框架和项目验证。
 
 ## 高频追问
 
@@ -174,8 +176,17 @@ TypeScript 是 JavaScript 的超集，增加了类型系统和编译期检查。
 
 `unknown` 使用前必须先判断类型，更适合接口返回、外部输入、第三方数据这类不确定来源。
 
+### async/await 和 Promise.then 在事件循环里一样吗？
+
+本质一样，`await` 之后的代码相当于放进 `.then`，都是微任务。
+
+### type 和 interface 怎么选？
+
+对象形状两者都可；需要联合类型、映射类型、条件类型时用 type；需要声明合并（如扩展第三方）时用 interface。
+
 ## 相关链接
 
+- [浏览器与性能速记](/md/面试准备/技术/浏览器面试速记.md)
 - [数据类型](/md/基础/JavaScript/数据类型.md)
 - [This 的理解](/md/基础/JavaScript/This的理解.md)
 - [闭包的理解](/md/基础/JavaScript/闭包的理解.md)

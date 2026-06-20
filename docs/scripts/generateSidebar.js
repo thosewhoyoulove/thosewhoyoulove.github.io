@@ -10,39 +10,93 @@ const SIDEBAR = [
     {
         title: "JavaScript 与浏览器",
         children: [
-            ["数据类型", "/md/基础/JavaScript/数据类型.md"],
-            ["This 的理解", "/md/基础/JavaScript/This的理解.md"],
-            ["闭包的理解", "/md/基础/JavaScript/闭包的理解.md"],
-            ["函数 call / apply / bind", "/md/基础/JavaScript/函数的call,apply和bind方法.md"],
-            ["Promise", "/md/基础/ES6/Promise.md"],
-            ["手写 Promise", "/md/基础/ES6/手写Promise.md"],
-            ["TypeScript 基础类型", "/md/TypeScript/基础类型.md"],
-            ["TypeScript 泛型", "/md/TypeScript/泛型.md"],
-            ["类型守卫与类型收窄", "/md/TypeScript/类型守卫与类型收窄.md"],
-            ["type 和 interface", "/md/TypeScript/type%20和%20interface.md"],
-            ["TypeScript 工具类型", "/md/TypeScript/工具类型.md"],
-            ["TypeScript 项目实践", "/md/TypeScript/项目实践.md"],
-            ["浏览器事件循环", "/md/浏览器/浏览器的事件循环.md"],
-            ["浏览器渲染原理", "/md/浏览器/浏览器的渲染原理.md"],
-            ["浏览器缓存机制", "/md/浏览器/浏览器的缓存机制.md"],
-            ["首屏优化", "/md/浏览器/加快首屏加载速度.md"],
-            ["Web Worker", "/md/浏览器/Web%20Worker.md"],
-            ["IntersectionObserver", "/md/浏览器/Web-API/IntersectionObserver.md"],
+            ["速记：JS & TS 基础", "/md/面试准备/技术/JavaScript%20&%20TypeScript%20基础.md"],
+            ["速记：浏览器与性能", "/md/面试准备/技术/浏览器面试速记.md"],
+            {
+                title: "JavaScript 语言",
+                children: [
+                    ["数据类型", "/md/基础/JavaScript/数据类型.md"],
+                    ["闭包", "/md/基础/JavaScript/闭包的理解.md"],
+                    ["This", "/md/基础/JavaScript/This的理解.md"],
+                    ["call / apply / bind", "/md/基础/JavaScript/函数的call,apply和bind方法.md"],
+                    ["编程范式", "/md/基础/JavaScript/编程范式.md"],
+                ],
+            },
+            {
+                title: "异步与事件循环",
+                children: [
+                    ["Promise", "/md/基础/ES6/Promise.md"],
+                    ["手写 Promise", "/md/基础/ES6/手写Promise.md"],
+                    ["浏览器事件循环", "/md/浏览器/浏览器的事件循环.md"],
+                ],
+            },
+            {
+                title: "TypeScript",
+                children: [
+                    ["基础类型", "/md/TypeScript/基础类型.md"],
+                    ["type 和 interface", "/md/TypeScript/type%20和%20interface.md"],
+                    ["泛型", "/md/TypeScript/泛型.md"],
+                    ["类型守卫与收窄", "/md/TypeScript/类型守卫与类型收窄.md"],
+                    ["工具类型", "/md/TypeScript/工具类型.md"],
+                ],
+            },
+            {
+                title: "浏览器原理",
+                children: [
+                    ["渲染原理", "/md/浏览器/浏览器的渲染原理.md"],
+                    ["缓存机制", "/md/浏览器/浏览器的缓存机制.md"],
+                    ["浏览器高阶（进程 / V8）", "/md/浏览器/高阶知识点.md"],
+                ],
+            },
+            {
+                title: "性能与 Web API",
+                children: [
+                    ["首屏优化", "/md/浏览器/加快首屏加载速度.md"],
+                    ["Web Worker", "/md/浏览器/Web%20Worker.md"],
+                ],
+            },
         ],
     },
     {
         title: "网络与安全",
         children: [
-            ["面试速记：网络与安全", "/md/面试准备/技术/网络与安全.md"],
-            ["HTTP", "/md/网络/HTTP.md"],
-            ["HTTP 状态码", "/md/网络/HTTP状态码.md"],
-            ["HTTPS", "/md/网络/HTTPS.md"],
-            ["TCP 三次握手", "/md/网络/TCP三次握手.md"],
-            ["TCP 四次挥手", "/md/网络/TCP四次挥手.md"],
-            ["OPTIONS 预检请求", "/md/网络/OPTIONS预检请求.md"],
-            ["WebSocket", "/md/网络/WebSocket.md"],
-            ["XSS", "/md/安全/XSS的理解.md"],
-            ["CSRF", "/md/安全/CSRF的理解.md"],
+            ["速记：三年岗复习路线", "/md/面试准备/技术/网络与安全.md"],
+            {
+                title: "全链路与加密",
+                children: [
+                    ["从输入 URL 到页面展示", "/md/网络/URL解析流程.md"],
+                    ["HTTPS", "/md/网络/HTTPS.md"],
+                    ["TCP 三次握手", "/md/网络/TCP三次握手.md"],
+                    ["TCP 四次挥手", "/md/网络/TCP四次挥手.md"],
+                ],
+            },
+            {
+                title: "HTTP 协议",
+                children: [
+                    ["HTTP", "/md/网络/HTTP.md"],
+                    ["HTTP 状态码", "/md/网络/HTTP状态码.md"],
+                    ["浏览器缓存机制", "/md/浏览器/浏览器的缓存机制.md"],
+                ],
+            },
+            {
+                title: "跨域与 CORS",
+                children: [
+                    ["OPTIONS 预检请求", "/md/网络/OPTIONS预检请求.md"],
+                ],
+            },
+            {
+                title: "实时通信",
+                children: [
+                    ["WebSocket", "/md/网络/WebSocket.md"],
+                ],
+            },
+            {
+                title: "Web 安全",
+                children: [
+                    ["XSS", "/md/安全/XSS的理解.md"],
+                    ["CSRF", "/md/安全/CSRF的理解.md"],
+                ],
+            },
         ],
     },
     {
