@@ -8,24 +8,6 @@ const path = require("path");
  */
 const SIDEBAR = [
     {
-        title: "面试总览",
-        children: [
-            ["面试总览", "/md/面试准备/面试总览.md"],
-            ["全栈岗位冲刺（千帆）", "/md/面试准备/全栈岗位冲刺路线.md"],
-            ["复习路线", "/md/面试准备/复习路线.md"],
-            ["高频追问清单", "/md/面试准备/高频追问清单.md"],
-            ["项目表达模板", "/md/面试准备/项目表达模板.md"],
-        ],
-    },
-    {
-        title: "全栈 · 千帆",
-        children: [
-            ["DuMate 与 Harness", "/md/面试准备/技术/DuMate千帆与Harness工程.md"],
-            ["Go 全栈速记", "/md/面试准备/技术/Go全栈面试速记.md"],
-            ["Node 与全栈", "/md/面试准备/技术/NodeJs%20&%20全栈开发.md"],
-        ],
-    },
-    {
         title: "JavaScript 与浏览器",
         children: [
             ["数据类型", "/md/基础/JavaScript/数据类型.md"],
