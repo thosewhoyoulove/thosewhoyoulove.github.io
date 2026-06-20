@@ -103,6 +103,12 @@ const SIDEBAR = [
         title: "框架：Vue / React",
         children: [
             ["面试速记：React & Vue", "/md/面试准备/技术/React%20&%20Vue.md"],
+            {
+                title: "开放性题目",
+                children: [
+                    ["响应式 vs 不可变（第 1 题）", "/md/框架/框架开放性面试题.md"],
+                ],
+            },
             ["Vue 高频考点", "/md/框架/Vue/Vue%20高频考点精讲.md"],
             ["Vue 2 和 Vue 3 区别", "/md/框架/Vue/vue2和3的区别.md"],
             ["Vue 3 响应式原理", "/md/框架/Vue/vue3响应式原理.md"],
