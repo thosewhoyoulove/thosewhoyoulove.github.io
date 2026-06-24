@@ -125,17 +125,66 @@ const SIDEBAR = [
     {
         title: "工程化与性能",
         children: [
-            ["面试速记：前端工程化", "/md/面试准备/技术/前端工程化.md"],
-            ["面试速记：性能优化", "/md/面试准备/技术/前端性能优化.md"],
-            ["工程化体系", "/md/工程化/体系与实践/工程化体系.md"],
-            ["前端工程化", "/md/工程化/体系与实践/前端工程化.md"],
-            ["CI/CD", "/md/工程化/体系与实践/CI&CD.md"],
-            ["Monorepo", "/md/工程化/体系与实践/Monorepo.md"],
-            ["Vite 为什么快", "/md/工程化/Vite/为什么Vite快.md"],
-            ["Vite 依赖预构建", "/md/工程化/Vite/依赖预构建.md"],
-            ["Webpack 构建流程", "/md/工程化/Webpack/构建流程.md"],
-            ["Webpack 常见优化", "/md/工程化/Webpack/常见优化手段.md"],
-            ["首屏优化与代码分包", "/md/面试准备/技术/首屏优化以及代码分包.md"],
+            {
+                title: "面试速记",
+                children: [
+                    ["前端工程化速记", "/md/面试准备/技术/前端工程化.md"],
+                    ["前端性能优化速记", "/md/面试准备/技术/前端性能优化.md"],
+                ],
+            },
+            {
+                title: "工程化体系",
+                children: [
+                    ["工程化体系", "/md/工程化/体系与实践/工程化体系.md"],
+                    ["前端工程化落地", "/md/工程化/体系与实践/前端工程化.md"],
+                    ["打包优化面试专题", "/md/工程化/体系与实践/打包优化面试专题.md"],
+                ],
+            },
+            {
+                title: "Webpack",
+                children: [
+                    ["构建流程", "/md/工程化/Webpack/构建流程.md"],
+                    ["Loader 与 Plugin", "/md/工程化/Webpack/Loader与Plugin.md"],
+                    ["Loader 执行顺序", "/md/工程化/Webpack/Loader执行顺序.md"],
+                    ["Tapable", "/md/工程化/Webpack/Tapable.md"],
+                    ["Compiler 和 Compilation", "/md/工程化/Webpack/Compiler和Compilation.md"],
+                    ["Plugin", "/md/工程化/Webpack/Plugin.md"],
+                    ["常见优化手段", "/md/工程化/Webpack/常见优化手段.md"],
+                ],
+            },
+            {
+                title: "Vite",
+                children: [
+                    ["为什么 Vite 快", "/md/工程化/Vite/为什么Vite快.md"],
+                    ["Dev Server 拦截 Import", "/md/工程化/Vite/DevServer拦截Import.md"],
+                    ["依赖预构建", "/md/工程化/Vite/依赖预构建.md"],
+                    ["开发与生产打包差异", "/md/工程化/Vite/开发环境与生产环境打包差异.md"],
+                    ["常见配置", "/md/工程化/Vite/常见配置.md"],
+                ],
+            },
+            {
+                title: "产物与构建优化",
+                children: [
+                    ["Tree Shaking 原理", "/md/工程化/构建优化/TreeShaking原理.md"],
+                    ["HMR 热更新原理", "/md/工程化/构建优化/HMR热更新原理.md"],
+                    ["Source Map", "/md/工程化/构建优化/SourceMap.md"],
+                    ["分包策略", "/md/工程化/构建优化/分包策略.md"],
+                ],
+            },
+            {
+                title: "运行时性能",
+                children: [
+                    ["首屏加载优化", "/md/浏览器/加快首屏加载速度.md"],
+                    ["首屏优化与代码分包", "/md/面试准备/技术/首屏优化以及代码分包.md"],
+                ],
+            },
+            {
+                title: "质量与协作",
+                children: [
+                    ["CI/CD", "/md/工程化/体系与实践/CI&CD.md"],
+                    ["Monorepo", "/md/工程化/体系与实践/Monorepo.md"],
+                ],
+            },
         ],
     },
     {
