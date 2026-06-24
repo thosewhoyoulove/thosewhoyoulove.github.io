@@ -104,22 +104,43 @@ const SIDEBAR = [
         children: [
             ["面试速记：React & Vue", "/md/面试准备/技术/React%20&%20Vue.md"],
             {
+                title: "框架对比",
+                children: [
+                    ["Vue vs React", "/md/框架/Vue%20vs%20React.md"],
+                    ["前端框架原理对比", "/md/框架/前端框架原理对比.md"],
+                ],
+            },
+            {
+                title: "React 常见题",
+                children: [
+                    ["React 高频考点", "/md/框架/React/React%20高频考点精讲.md"],
+                    ["React 进阶高频考点", "/md/框架/React/React%20进阶高频考点精讲.md"],
+                    ["Hooks 原理", "/md/框架/React/Hooks.md"],
+                    ["Fiber 架构", "/md/框架/React/Fiber架构.md"],
+                    ["React Diff 算法", "/md/框架/React/React%20Diff算法.md"],
+                    ["React 渲染原理", "/md/框架/React/React%20渲染原理.md"],
+                    ["状态管理", "/md/框架/React/状态管理.md"],
+                    ["组件设计能力", "/md/框架/React/组件设计能力.md"],
+                ],
+            },
+            {
+                title: "Vue 次主流题",
+                children: [
+                    ["Vue 高频考点", "/md/框架/Vue/Vue%20高频考点精讲.md"],
+                    ["Vue 2 和 Vue 3 区别", "/md/框架/Vue/vue2和3的区别.md"],
+                    ["响应式原理（Proxy）", "/md/框架/Vue/vue3响应式原理.md"],
+                    ["模板编译流程", "/md/框架/Vue/模板编译流程.md"],
+                    ["nextTick 与虚拟 DOM", "/md/框架/Vue/nextTick与虚拟DOM.md"],
+                    ["Vue 渲染原理", "/md/框架/Vue/Vue%20渲染原理.md"],
+                    ["Vue Diff 算法", "/md/框架/Vue/Vue%20Diff算法.md"],
+                ],
+            },
+            {
                 title: "开放性题目",
                 children: [
                     ["响应式 vs 不可变（第 1 题）", "/md/框架/框架开放性面试题.md"],
                 ],
             },
-            ["Vue 高频考点", "/md/框架/Vue/Vue%20高频考点精讲.md"],
-            ["Vue 2 和 Vue 3 区别", "/md/框架/Vue/vue2和3的区别.md"],
-            ["Vue 3 响应式原理", "/md/框架/Vue/vue3响应式原理.md"],
-            ["Vue 渲染原理", "/md/框架/Vue/Vue%20渲染原理.md"],
-            ["Vue Diff 算法", "/md/框架/Vue/Vue%20Diff算法.md"],
-            ["React 高频考点", "/md/框架/React/React%20高频考点精讲.md"],
-            ["React 进阶高频考点", "/md/框架/React/React%20进阶高频考点精讲.md"],
-            ["React 渲染原理", "/md/框架/React/React%20渲染原理.md"],
-            ["React Hooks", "/md/框架/React/Hooks.md"],
-            ["Vue vs React", "/md/框架/Vue%20vs%20React.md"],
-            ["前端框架原理对比", "/md/框架/前端框架原理对比.md"],
         ],
     },
     {

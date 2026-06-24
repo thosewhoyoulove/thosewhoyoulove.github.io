@@ -1,164 +1,69 @@
-# React & Vue
+# React & Vue 速记
 
 ## 面试定位
 
-React 和 Vue 的面试重点不是“会不会写组件”，而是你是否理解组件更新、响应式、状态管理、性能优化和框架取舍。
-
-回答时不要把 React 和 Vue 割裂开背。更好的方式是围绕几个共同问题展开：
-
-1. 数据变化后，框架如何知道要更新。
-2. 更新时如何减少真实 DOM 操作。
-3. 组件逻辑如何组织和复用。
-4. 大型项目里如何管理状态和性能。
-
-## 核心原理
-
-Vue 和 React 都解决同一个问题：把数据状态映射成用户界面。
-
-差异在于更新模型：
-
-- Vue 更偏自动依赖追踪。数据变化时，响应式系统能知道哪些副作用需要重新执行。
-- React 更偏显式状态驱动。状态更新后重新执行组件函数，再通过调和过程找出需要更新的 UI。
-
-Vue 的优势是响应式更细，模板和指令降低了开发成本。React 的优势是函数式模型更统一，生态和工程灵活度更高。
-
-## React 高频回答
-
-### useEffect 的执行机制
-
-`useEffect` 会在组件渲染提交到页面之后执行。它的依赖数组决定是否重新执行，返回的清理函数会在下一次 effect 执行前或组件卸载时执行。
-
-面试里可以这样答：
-
-```text
-useEffect 适合处理副作用，比如请求数据、订阅事件、操作定时器。
-它不是在 render 阶段执行，而是在 commit 之后执行，所以不会阻塞页面渲染。
-如果依赖数组变化，React 会重新执行 effect；如果返回清理函数，会先清理上一次副作用。
-```
-
-常见追问是依赖为什么不能乱写。答案是：依赖数组决定闭包里读取的值是否保持最新，漏依赖可能导致读到旧状态。
-
-### React 为什么需要虚拟 DOM
-
-虚拟 DOM 是用 JavaScript 对象描述 UI 结构。状态变化后，React 会生成新的虚拟 DOM，再和旧结构做对比，计算出最小必要更新。
-
-它的价值不是“永远比直接操作 DOM 快”，而是让开发者用声明式方式描述 UI，把更新过程交给框架统一调度。
-
-### Fiber 是什么
-
-Fiber 是 React 的可中断工作单元。
-
-旧的递归更新一旦开始就很难暂停，复杂页面可能长时间占用主线程。Fiber 把渲染工作拆成一个个小单元，并引入优先级调度，让高优先级任务可以先执行。
-
-面试可以这样总结：
-
-```text
-Fiber 让 React 的渲染过程从不可中断的同步递归，变成可拆分、可调度、可中断的任务模型。
-这为并发渲染、时间切片和 startTransition 这些能力打了基础。
-```
-
-### React.memo、useMemo、useCallback
-
-这几个 API 都是为了减少不必要的重复计算或重复渲染。
-
-- `React.memo`：缓存组件渲染结果，props 没变时跳过子组件渲染。
-- `useMemo`：缓存计算结果。
-- `useCallback`：缓存函数引用。
-
-不要滥用。只有当子组件较重、计算成本较高、或引用变化导致无效渲染时才值得使用。
-
-## Vue 高频回答
-
-### Vue 3 响应式原理
-
-Vue 3 使用 `Proxy` 代理对象，在读取属性时收集依赖，在修改属性时触发更新。
-
-相比 Vue 2 的 `Object.defineProperty`，`Proxy` 可以更自然地监听新增属性、删除属性和数组变化。
-
-面试可以这样答：
-
-```text
-Vue 3 的响应式核心是 Proxy + effect。
-读取响应式数据时收集当前副作用函数，修改数据时找到对应依赖并重新执行。
-这样 Vue 能更精确地知道哪些数据影响了哪些渲染或计算。
-```
-
-### Composition API 和 Options API
-
-Options API 按选项组织代码，比如 data、methods、computed。小组件里很清晰，但复杂组件里同一业务逻辑会分散在多个选项中。
-
-Composition API 按功能组织逻辑，适合抽取 composables，也更适合 TypeScript 推导。
-
-回答时不要说 Options API 过时。更准确的是：小组件 Options API 依然可读，大型复杂组件更适合 Composition API。
-
-### computed 和 watch 的区别
-
-`computed` 适合根据已有状态派生新状态，有缓存，依赖不变就不会重新计算。
-
-`watch` 适合监听数据变化后执行副作用，比如请求接口、写缓存、上报日志。
-
-一句话：
-
-```text
-computed 解决“一个值怎么计算出来”，watch 解决“一个值变化后要做什么事”。
-```
-
-### Vue Diff 中 key 的作用
-
-`key` 用来标识节点身份。列表更新时，框架可以通过 key 判断节点是移动、复用还是删除，避免错误复用 DOM 和组件状态。
-
-不建议用数组下标做 key，尤其是列表会插入、删除、排序时，容易导致状态错乱。
-
-## Vue 和 React 怎么对比
-
-可以从三点回答：
-
-1. 响应式模型：Vue 自动追踪依赖，React 通过状态更新触发组件重新执行。
-2. 逻辑组织：Vue 有模板、指令和单文件组件约束，React 用 JSX 和函数组合表达 UI。
-3. 工程取舍：Vue 上手成本低，约定更强；React 灵活度高，生态选择更多。
-
-不要简单说谁更好。真实项目要看团队经验、业务复杂度、生态要求和长期维护成本。
+React 和 Vue 的框架题重点不是“API 会不会用”，而是能不能讲清更新模型、组件复用、状态管理、Diff、响应式、渲染链路和框架取舍。
 
 ## 面试回答
 
-React 和 Vue 都是用状态驱动 UI 的框架，但它们的更新模型不同。
+> React 和 Vue 都是状态驱动 UI 的组件化框架，但更新模型不同。React 更强调显式状态更新，调用 setState 后重新执行组件函数，通过 Fiber 调度、Diff 和 commit 把变化提交到 DOM；Hooks 的状态挂在 Fiber 的 Hook 链表上，所以必须保持调用顺序稳定。Vue 更强调响应式依赖追踪，Vue 3 用 Proxy 拦截读写，读取时 track 收集依赖，写入时 trigger 触发组件 render effect；模板会先编译成 render 函数，运行时生成 VNode，再通过 patch 更新 DOM。项目里我会根据团队熟悉度、业务复杂度和生态要求选型，而不是简单说谁更好。
 
-Vue 更强调响应式依赖追踪，读取数据时收集依赖，修改数据时触发对应更新，所以它能比较细粒度地知道哪些地方需要变。React 更强调显式状态更新，调用 setState 后重新执行组件函数，再通过虚拟 DOM 和 Fiber 调和找出需要更新的部分。
+一句话总结：
 
-在项目里，我会根据场景使用对应能力。React 里会关注 Hooks 依赖、组件渲染次数、memo 的使用边界。Vue 里会关注响应式数据设计、computed 和 watch 的职责划分、列表 key 的稳定性。性能优化上，两边都不是盲目加缓存，而是先定位无效渲染、长任务、包体积或网络瓶颈，再选择方案。
+> React 偏显式状态更新和 Fiber 调度，Vue 偏响应式依赖追踪和模板编译优化。
 
-如果比较两者，我不会说哪个绝对更好。Vue 更适合约定清晰、上手快的团队，React 更适合需要高度灵活和生态组合的场景。最终还是看业务复杂度、团队熟悉度和长期维护成本。
+## React 常见题
+
+| 题目 | 必背结论 | 深文 |
+| --- | --- | --- |
+| Hooks 原理 | Hook 状态挂在 Fiber 上，按调用顺序读取 | [React Hooks](/md/框架/React/Hooks.md) |
+| Fiber 架构 | 把递归更新拆成可中断、可调度工作单元 | [Fiber 架构](/md/框架/React/Fiber架构.md) |
+| Diff 算法 | 同层比较、不同类型替换、key 标识身份 | [React Diff 算法](/md/框架/React/React%20Diff算法.md) |
+| 渲染原理 | render 阶段计算差异，commit 阶段提交 DOM | [React 渲染原理](/md/框架/React/React%20渲染原理.md) |
+| 状态管理 | 先看状态作用域，再选 Redux / Zustand / Recoil | [React 状态管理](/md/框架/React/状态管理.md) |
+| 组件设计 | 职责单一、状态归属清晰、API 可组合 | [组件设计能力](/md/框架/React/组件设计能力.md) |
+
+## Vue 次主流题
+
+| 题目 | 必背结论 | 深文 |
+| --- | --- | --- |
+| 响应式原理 | Proxy 拦截读写，track 收集，trigger 触发 | [Vue 3 响应式原理](/md/框架/Vue/vue3响应式原理.md) |
+| 模板编译 | template -> AST -> transform -> render 函数 | [模板编译流程](/md/框架/Vue/模板编译流程.md) |
+| nextTick | 等待批量 DOM 更新完成后执行回调 | [nextTick 与虚拟 DOM](/md/框架/Vue/nextTick与虚拟DOM.md) |
+| 虚拟 DOM | render 生成 VNode，patch 同步到真实 DOM | [Vue 渲染原理](/md/框架/Vue/Vue%20渲染原理.md) |
+| Diff 算法 | 同层比较，key 帮助节点复用和移动 | [Vue Diff 算法](/md/框架/Vue/Vue%20Diff算法.md) |
+| Vue 2 vs Vue 3 | 响应式、Composition API、编译优化和性能差异 | [Vue 2 和 Vue 3 区别](/md/框架/Vue/vue2和3的区别.md) |
+
+## 框架对比
+
+| 维度 | React | Vue |
+| --- | --- | --- |
+| 更新模型 | setState 触发组件重新执行 | 响应式依赖追踪触发更新 |
+| UI 表达 | JSX，JavaScript 表达能力强 | 模板 + 指令，约定更强 |
+| 逻辑复用 | Hooks | Composition API / composables |
+| 优化重点 | Fiber 调度、memo、状态下沉 | 响应式粒度、编译优化、patchFlag |
+| 适合场景 | 生态灵活、复杂工程组合 | 上手快、约定清晰、团队统一 |
 
 ## 高频追问
 
 ### React Hooks 为什么不能写在条件语句里？
 
-因为 Hooks 依赖调用顺序保存状态。
+Hooks 依赖调用顺序保存状态。如果条件分支导致某次 render 少调用一个 Hook，后面的 Hook 状态会错位。
 
-如果写在条件语句里，每次渲染 Hooks 顺序可能不一致，React 就无法正确对应每个 Hook 的状态。
+### Fiber 解决了什么问题？
 
-### useEffect 和 useLayoutEffect 有什么区别？
+Fiber 把不可中断的递归更新拆成可保存进度的工作单元，让 render 阶段可以按优先级暂停、恢复或丢弃。
 
-`useEffect` 在浏览器绘制后执行，不会阻塞渲染。`useLayoutEffect` 在 DOM 更新后、浏览器绘制前同步执行，适合读取布局并立即修改。
+### Vue 3 为什么用 Proxy？
 
-普通副作用优先用 `useEffect`，需要避免视觉闪烁的布局操作才考虑 `useLayoutEffect`。
+Proxy 可以更自然地拦截新增属性、删除属性、数组和对象操作，不需要像 Vue 2 那样递归 defineProperty 初始化。
 
-### Vue nextTick 解决什么问题？
+### nextTick 解决什么问题？
 
-Vue 的 DOM 更新是异步批量执行的。修改状态后，DOM 不会立刻更新。
-
-`nextTick` 可以在下一次 DOM 更新完成后执行回调，适合需要读取最新 DOM 的场景。
-
-### Vue 和 React 的性能优化思路有什么不同？
-
-Vue 重点关注响应式数据是否设计合理、列表 key 是否稳定、computed/watch 是否滥用。
-
-React 重点关注组件是否频繁重渲染、props 引用是否稳定、昂贵计算是否缓存、状态是否放得过高。
+Vue DOM 更新是异步批量执行的。状态变了不代表 DOM 立刻更新，`nextTick` 用来等待本轮 DOM patch 完成后再读取最新 DOM。
 
 ## 相关链接
 
-- [Vue 高频考点精讲](/md/框架/Vue/Vue%20高频考点精讲.md)
-- [Vue 3 响应式原理](/md/框架/Vue/vue3响应式原理.md)
-- [React 高频考点精讲](/md/框架/React/React%20高频考点精讲.md)
-- [React Hooks](/md/框架/React/Hooks.md)
 - [Vue vs React](/md/框架/Vue%20vs%20React.md)
+- [前端框架原理对比](/md/框架/前端框架原理对比.md)
+- [高频追问清单](/md/面试准备/高频追问清单.md)
