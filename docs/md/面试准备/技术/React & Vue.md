@@ -33,6 +33,7 @@ React 和 Vue 的框架题重点不是“API 会不会用”，而是能不能�
 | 虚拟 DOM | render 生成 VNode，patch 同步到真实 DOM | [Vue 渲染原理](/md/框架/Vue/Vue%20渲染原理.md) |
 | Diff 算法 | 同层比较，key 帮助节点复用和移动 | [Vue Diff 算法](/md/框架/Vue/Vue%20Diff算法.md) |
 | Vue 2 vs Vue 3 | 响应式、Composition API、编译优化和性能差异 | [Vue 2 和 Vue 3 区别](/md/框架/Vue/vue2和3的区别.md) |
+| Vue2→3 / JS→TS 迁移 | 分阶段 + compat + 回归指标；TS 渐进 | [Vue2 升级 Vue3 与 TS 迁移](/md/框架/Vue/Vue2升级Vue3与TS迁移专题.md) |
 
 ## 框架对比
 

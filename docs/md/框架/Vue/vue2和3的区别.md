@@ -80,7 +80,7 @@
 | 模板 | 单根（2.x 限制） | Fragment / Teleport / Suspense |
 | 典型性能手段 | 靠运行时 | 编译标记 + runtime diff 优化 |
 
-若要准备迁移题：补充 **@vue/compat**、依赖库兼容性、E2E 回归，见 [高频考点精讲 §20](/md/框架/Vue/Vue%20高频考点精讲.md)（`@vue/compat` 一节）。
+若要准备迁移题：读 [Vue2 升级 Vue3 与 TS 迁移专题](/md/框架/Vue/Vue2升级Vue3与TS迁移专题.md)，compat 细节见 [Vue 兼容包的作用](/md/面试准备/技术/vue兼容包的作用.md)，项目叙事见 [项目架构的整体升级方案](/md/面试准备/项目与架构/项目架构的整体升级方案.md)。
 
 ## 面试回答
 

@@ -128,6 +128,7 @@ const SIDEBAR = [
                 children: [
                     ["Vue 高频考点", "/md/框架/Vue/Vue%20高频考点精讲.md"],
                     ["Vue 2 和 Vue 3 区别", "/md/框架/Vue/vue2和3的区别.md"],
+                    ["Vue2 升级 Vue3 与 TS 迁移", "/md/框架/Vue/Vue2升级Vue3与TS迁移专题.md"],
                     ["响应式原理（Proxy）", "/md/框架/Vue/vue3响应式原理.md"],
                     ["模板编译流程", "/md/框架/Vue/模板编译流程.md"],
                     ["nextTick 与虚拟 DOM", "/md/框架/Vue/nextTick与虚拟DOM.md"],
