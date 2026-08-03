@@ -144,6 +144,39 @@ const SIDEBAR = [
         ],
     },
     {
+        title: "AI Agent",
+        children: [
+            ["面试速记：AI Agent", "/md/面试准备/技术/AI%20Agent.md"],
+            {
+                title: "核心概念",
+                children: [
+                    ["LLM 与 Prompt Engineering", "/md/Agent/LLM与PromptEngineering.md"],
+                    ["Agent 与 Skill 体系", "/md/Agent/Agent与Skill体系.md"],
+                    ["MCP 与工具调用概念", "/md/Agent/MCP与工具调用概念.md"],
+                ],
+            },
+            {
+                title: "Agent 产品前端",
+                children: [
+                    ["对话界面架构", "/md/Agent/对话界面架构.md"],
+                    ["流式渲染与 SSE", "/md/Agent/流式渲染与SSE.md"],
+                    ["工具调用与结果展示", "/md/Agent/工具调用与结果展示.md"],
+                    ["上下文与 Token 体验", "/md/Agent/上下文与Token体验.md"],
+                    ["安全与合规（前端）", "/md/Agent/安全与合规（前端）.md"],
+                    ["可观测性与 Debug 体验", "/md/Agent/可观测性与Debug体验.md"],
+                ],
+            },
+            {
+                title: "AI Native 研发效能",
+                children: [
+                    ["平时工作怎么使用 AI", "/md/面试准备/综合/平时工作怎么使用AI.md"],
+                    ["Cursor / Copilot 与 AI Coding", "/md/Agent/Cursor与Copilot与AICoding.md"],
+                    ["AI 应用岗位冲刺地图", "/md/面试准备/技术/AI应用岗位冲刺地图.md"],
+                ],
+            },
+        ],
+    },
+    {
         title: "工程化与性能",
         children: [
             {

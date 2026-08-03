@@ -12,6 +12,7 @@
 | [浏览器速记](/md/面试准备/技术/浏览器面试速记.md) | 事件循环、渲染、缓存、LCP/INP/CLS |
 | [网络与安全速记](/md/面试准备/技术/网络与安全.md) | **三年岗 P0/P1 路线图**：HTTP/HTTPS/跨域/XSS/CSRF |
 | [框架：Vue / React](/md/面试准备/技术/React%20&%20Vue.md) | React Hooks/Fiber/Diff/状态管理、Vue 响应式/模板编译/nextTick、框架对比 |
+| [AI Agent](/md/面试准备/技术/AI%20Agent.md) | LLM/Prompt、Agent/Skill/MCP、对话与 SSE、工具调用、AI Coding；[岗位冲刺地图](/md/面试准备/技术/AI应用岗位冲刺地图.md) |
 | [工程化与性能](/md/面试准备/技术/前端工程化.md) | Webpack、Vite、[打包优化](/md/工程化/体系与实践/打包优化面试专题.md)、[性能优化](/md/面试准备/技术/前端性能优化.md)、CI/CD、Monorepo |
 | [项目与架构](/md/面试准备/项目与架构/你的项目经历（重点）.md) | 项目表达、架构升级、性能优化、WebRTC、大屏 |
 | [协作与加分项](/md/面试准备/综合/团队协作与主导能力.md) | 团队协作、Git、技术推动、综合能力 |

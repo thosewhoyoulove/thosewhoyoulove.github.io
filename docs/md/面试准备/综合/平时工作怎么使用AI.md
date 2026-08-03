@@ -264,6 +264,9 @@ AI 生成的代码可能和项目风格不一致，比如：
 
 ## 相关链接
 
+- [AI Agent 速记](/md/面试准备/技术/AI%20Agent.md)
+- [Cursor / Copilot 与 AI Coding](/md/Agent/Cursor与Copilot与AICoding.md)
+- [AI 应用岗位冲刺地图](/md/面试准备/技术/AI应用岗位冲刺地图.md)
 - [综合能力 & 团队合作](/md/面试准备/综合/综合能力%20&%20团队合作.md)
 - [项目表达模板](/md/面试准备/项目表达模板.md)
 - [前端新技术](/md/面试准备/技术/新技术.md)
