@@ -2,15 +2,15 @@
 
 ## 面试定位
 
-面向「云计算 / AI 服务平台前端 + 参与 Agent/Skills 建设」类 JD。目标不是再学一套百科，而是按岗位职责把已有文章串成**可口述的准备路径**。React / TypeScript / Node 基本功仍走原栏目。
+面向「AI 服务平台 / B2B Agent 产品前端」类 JD（含 Accio 式交互架构、人机协同、Eval）。目标不是再学一套百科，而是按岗位职责把已有文章串成**可口述的准备路径**。React / TypeScript / Node 基本功仍走原栏目。
 
 ## 面试回答
 
-> 这类岗位我会按四条线准备：第一，AI 核心概念——LLM 边界、Prompt、Agent 循环、Skill 与 MCP；第二，Agent 产品前端——对话状态机、SSE 流式、工具调用与 HITL、Token 体验、安全与可观测；第三，AI Native 提效——Cursor/Copilot 用在哪些环节、如何验证与合规；第四，前端基本功与 BFF 协作——React 工程能力加上流式接口在 Node/BFF 的落点。对客官网场景我会强调开发者体验、国际化文案与稳定的错误可恢复；对内提效场景强调 Skill 沉淀和可观测。准备时用速记过一遍，再用追问清单自测，保证能落到项目例子。
+> 这类岗位我会按四条线准备：第一，AI 核心概念——LLM 边界、Prompt、Agent 循环、Skill、MCP，以及 RAG/Embedding 认知；第二，Agent 产品前端——对话与 SSE、生成式 UI 协议、不确定数据下的 Run 状态机、人机协同与主动式交互、工具 HITL、Token/安全/可观测，再加上 Eval 质量门禁；第三，AI Native 提效——Cursor/Copilot 与工程闭环；第四，前端基本功与 BFF 协作。对客 B2B 场景我会强调高密度工作台、证据（citation）与确认级协同；准备时用速记过一遍，再用追问清单自测。
 
 一句话总结：
 
-> 冲刺地图 = 概念能讲清 + 产品前端能设计 + AI 提效有闭环 + 基本功不丢。
+> 冲刺地图 = 概念能讲清 + 生成式交互能设计 + 质量可评测 + 基本功不丢。
 
 ---
 
@@ -29,10 +29,23 @@ JD 职责/要求
 
 | 职责 | 你要能讲什么 | 去读 |
 | --- | --- | --- |
-| 对客官网 / 开发者平台 | 文档助手、控制台体验、错误可恢复、i18n | [对话界面架构](/md/Agent/对话界面架构.md)、本文 §4 |
-| 对客 + 内部运营产品 | 同一套消息模型，权限与审计不同 | [安全与合规（前端）](/md/Agent/安全与合规（前端）.md) |
-| 构建 Agent / Skills | Agent 循环、Skill 治理、工具展示 | [Agent 与 Skill 体系](/md/Agent/Agent与Skill体系.md)、[工具调用与结果展示](/md/Agent/工具调用与结果展示.md) |
-| 团队 AI 能力沉淀 | 规则、Skill、Review、指标 | [Cursor / Copilot 与 AI Coding](/md/Agent/Cursor与Copilot与AICoding.md)、[平时工作怎么使用 AI](/md/面试准备/综合/平时工作怎么使用AI.md) |
+| 高适应 Agent 交互架构 | 组件协议、流式非结构化数据、确定性渲染 | [生成式 UI 与动态组件协议](/md/Agent/生成式UI与动态组件协议.md)、[不确定性下的前端状态机](/md/Agent/不确定性下的前端状态机.md)、[流式渲染与 SSE](/md/Agent/流式渲染与SSE.md) |
+| 人机协同 / 主动式 / 富交互 | 分级 HITL、收件箱主动卡、对话+工件双轨 | [人机协同与主动式交互](/md/Agent/人机协同与主动式交互.md)、[工具调用与结果展示](/md/Agent/工具调用与结果展示.md) |
+| 工程化标准：性能·可观测·Eval | 长链路体验、runId、黄金集门禁 | [可观测性与 Debug 体验](/md/Agent/可观测性与Debug体验.md)、[AI 输出 Eval 与质量体系](/md/Agent/AI输出Eval与质量体系.md) |
+| 对客官网 / 开发者平台 | 错误可恢复、i18n | [对话界面架构](/md/Agent/对话界面架构.md)、本文 §4 |
+| 构建 Agent / Skills | Agent 循环、Skill 治理 | [Agent 与 Skill 体系](/md/Agent/Agent与Skill体系.md) |
+| 团队 AI 能力沉淀 | 规则、Skill、Review | [Cursor / Copilot 与 AI Coding](/md/Agent/Cursor与Copilot与AICoding.md)、[平时工作怎么使用 AI](/md/面试准备/综合/平时工作怎么使用AI.md) |
+
+---
+
+## 1.1 Accio / B2B 场景映射（示例）
+
+| 业务动作 | 前端叙事锚点 |
+| --- | --- |
+| 趋势洞察 | RAG 摘要 + citation；主动推送收件箱 |
+| 新品研发 / 全网寻源 | 生成式对比卡、短名单工件轨 |
+| 多模态匹配 | 图搜结果画廊 + 证据字段 |
+| 商家验证 | 确认级 HITL + Eval 防胡编结论 |
 
 ---
 
@@ -41,10 +54,11 @@ JD 职责/要求
 | 要求 | 必背结论 | 去读 |
 | --- | --- | --- |
 | LLM / Agent / Prompt / Skill | 模型有边界；Agent 是工具闭环；Skill 可复用 | [LLM 与 Prompt Engineering](/md/Agent/LLM与PromptEngineering.md)、[Agent 与 Skill 体系](/md/Agent/Agent与Skill体系.md)、[MCP 与工具调用概念](/md/Agent/MCP与工具调用概念.md) |
+| Embedding / RAG | 先检索再生成；前端做证据与降级 | [RAG 与检索增强体验](/md/Agent/RAG与检索增强体验.md) |
 | AI Native + Cursor/Copilot | 上下文质量 + 验证闭环 | [Cursor / Copilot 与 AI Coding](/md/Agent/Cursor与Copilot与AICoding.md) |
 | React + TypeScript | 更新模型、Hooks、类型建模 | [React & Vue 速记](/md/面试准备/技术/React%20&%20Vue.md) |
 | Node / BFF / SSR | 流式聚合、鉴权、错误结构 | [Node.js 与全栈](/md/面试准备/技术/NodeJs%20&%20全栈开发.md)、[流式渲染与 SSE](/md/Agent/流式渲染与SSE.md) |
-| 独立解决 AI 前端问题 | 状态机、取消、脱敏、可观测 | 产品前端 6 篇 |
+| 独立解决 AI 前端问题 | 协议、状态机、Eval、脱敏 | 产品前端 P0 + 原 6 篇 |
 | 英文与国际化 | 能读官方文档；UI 预留 i18n | 本文 §4 |
 
 总入口：[AI Agent 速记](/md/面试准备/技术/AI%20Agent.md)。
@@ -53,24 +67,27 @@ JD 职责/要求
 
 ## 3. 建议冲刺顺序（2～3 天）
 
-### Day 1：概念 + 提效
+### Day 1：概念 + RAG + 提效
 
 - [AI Agent 速记](/md/面试准备/技术/AI%20Agent.md)
 - 核心概念 3 篇
+- [RAG 与检索增强体验](/md/Agent/RAG与检索增强体验.md)
 - [平时工作怎么使用 AI](/md/面试准备/综合/平时工作怎么使用AI.md)
 - [Cursor / Copilot 与 AI Coding](/md/Agent/Cursor与Copilot与AICoding.md)
 
-### Day 2：产品前端主链路
+### Day 2：Accio P0 主链路
 
+- [生成式 UI 与动态组件协议](/md/Agent/生成式UI与动态组件协议.md)
+- [不确定性下的前端状态机](/md/Agent/不确定性下的前端状态机.md)
+- [人机协同与主动式交互](/md/Agent/人机协同与主动式交互.md)
 - [对话界面架构](/md/Agent/对话界面架构.md)
 - [流式渲染与 SSE](/md/Agent/流式渲染与SSE.md)
-- [工具调用与结果展示](/md/Agent/工具调用与结果展示.md)
-- [上下文与 Token 体验](/md/Agent/上下文与Token体验.md)
 
-### Day 3：安全可观测 + 基本功回炉
+### Day 3：质量体系 + 回炉
 
-- [安全与合规（前端）](/md/Agent/安全与合规（前端）.md)
+- [AI 输出 Eval 与质量体系](/md/Agent/AI输出Eval与质量体系.md)
 - [可观测性与 Debug 体验](/md/Agent/可观测性与Debug体验.md)
+- [安全与合规（前端）](/md/Agent/安全与合规（前端）.md)
 - React / Node 速记查漏
 - [高频追问清单](/md/面试准备/高频追问清单.md) 中 AI Agent 小节自测
 
