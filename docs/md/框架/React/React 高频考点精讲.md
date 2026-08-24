@@ -64,6 +64,7 @@
 - [React 15 和 React 16 之后有什么区别？](#react-15-和-react-16-之后有什么区别)
 - [React 为什么能中断渲染？](#react-为什么能中断渲染)
 - [React 的可中断渲染和时间切片是怎么实现的？](#react-的可中断渲染和时间切片是怎么实现的)
+- [低优先级更新一直被打断会饿死吗？](#低优先级更新一直被打断会饿死吗)
 - [React 时间切片使用 requestIdleCallback 吗？](#react-时间切片使用-requestidlecallback-吗)
 
 ### Diff 算法高频
@@ -860,13 +861,26 @@ const [state, dispatch] = useReducer(reducer, {
 
 可以这样答：
 
-> `useContext` 的问题主要是更新粒度容易过粗。只要 Provider 的 `value` 引用变化，消费这个 Context 的组件就会重新渲染，即使组件只用到了 value 里的一个字段。如果把 user、theme、locale、notifications 都塞进一个 Context，一个高频变化字段可能带着很多无关组件一起更新。优化思路是拆分 Context、用 `useMemo` 稳定 value 引用，或者把高频、细粒度状态交给外部 store。
+> `useContext` 的问题主要是更新粒度过粗，但不要说成「Provider 下面整棵子树都会炸」。Provider 的 `value` 用 `Object.is` 和上次比，引用变了之后，只有调用了 `useContext(该 Context)` 的组件会重新执行；没订这个 Context 的子孙不会被这次更新单独点名。`React.memo` 挡不住这种更新，因为它是 Context 订阅，不是 props 浅比较。如果把 user、theme、通知都塞进一个对象，或每次 `value={{ user, setUser }}` 造新引用，低频字段也会被高频字段拖着 render。优化先拆 Context、用 `useMemo` 稳住 value、state 和 dispatch 分开；高频细粒度状态再交给 Zustand / Redux 的 selector。有 Context 不等于必须上状态库。
 
 一句话总结：
 
-> `useContext` 方便跨层传值，但 Provider value 变化会影响所有消费者，容易造成无关重渲染。
+> Context 按 value 引用通知**所有消费者**；隐患来自大而全、高频变的 value，不是「用了 Context 就有罪」。
 
 #### 核心原理
+
+比较和通知范围：
+
+```text
+Provider value 变化（Object.is 为 false）
+  → 所有 useContext(ThatContext) 的组件 render
+  → 再 diff，DOM 不一定变
+
+没 useContext 的节点
+  → 不会被这次 Context 更新单独点名
+```
+
+和「父组件 setState」要分开：Provider 自己重渲染时，若 `children` 是它内部写的 JSX，中间层可能跟着父组件 render。把 `children` 从外部传入，只能减少株连无关子树，**救不了已经订了 Context 的消费者**。
 
 反模式：
 
@@ -876,7 +890,9 @@ const [state, dispatch] = useReducer(reducer, {
 </AppContext.Provider>
 ```
 
-每次父组件 render 都创建新的 value 对象，消费者可能被带着更新。更稳妥的做法：
+每次父组件 render 都是新对象，即使字段没变，消费者也会更新。
+
+更稳妥：
 
 ```jsx
 const value = useMemo(() => ({ user, login, logout }), [user])
@@ -886,13 +902,23 @@ const value = useMemo(() => ({ user, login, logout }), [user])
 </AuthContext.Provider>
 ```
 
-对于变化频率不同的数据，优先拆 Context：
+变化频率不同就拆开；写操作用稳定的 `dispatch`，不必和 state 绑在同一个 value 上：
 
 ```jsx
 <ThemeContext.Provider value={theme}>
-  <UserContext.Provider value={user}>{children}</UserContext.Provider>
+  <UserContext.Provider value={user}>
+    <DispatchContext.Provider value={dispatch}>{children}</DispatchContext.Provider>
+  </UserContext.Provider>
 </ThemeContext.Provider>
 ```
+
+`useReducer` 的 `dispatch` 引用稳定，只负责派发的组件可以只订 DispatchContext。
+
+为什么不一定换 Zustand / Redux：Context 是跨层注入，不是细粒度 store。主题、locale、当前用户读多写少，用 Context 够。列表、输入、角标这种高频切片，选择器才能「只订一个字段」。react-redux / Zustand 往往把 **store 引用**放进 Context（引用稳定），真正驱动渲染的是 `useSelector` / selector，不是整包 value。
+
+字段级订阅官方 Context 没有内置 selector（第三方如 `use-context-selector`，不要说成 React 稳定 API）。先用 Profiler 确认是 Context 造成的卡顿，再换库。
+
+选型对照见 [React 状态管理](/md/框架/React/状态管理.md)。
 
 ---
 
@@ -1417,7 +1443,7 @@ Fiber 的核心价值可以概括为三点：
 ```text
 可中断：render 阶段处理到某个 Fiber 后，可以先让出主线程
 可恢复：后续可以从保存的工作进度继续处理
-可丢弃：低优先级或过期的 render 结果可以被放弃，重新计算更新结果
+可丢弃：未 commit 的 workInProgress 树可以被丢掉重来；update 还在队列里。挂太久会过期，强制纳入本轮，防止饿死
 ```
 
 需要强调的是，中断发生在 render 阶段，因为这个阶段只做计算，不操作真实 DOM；commit 阶段会修改 DOM 和执行副作用，所以一旦开始就不能中断。
@@ -1621,7 +1647,48 @@ if (nextUnitOfWork) {
 | Scheduler | 根据优先级安排任务执行 |
 | `shouldYield` | 判断当前时间片是否该让出主线程 |
 
-优先级通常由 lane 模型表达。比如用户输入是高优先级，列表过滤、页面切换中的非紧急更新可以通过 `startTransition` 标记为低优先级。高优先级更新到来时，低优先级 render 可以被暂停、丢弃或重新计算。
+优先级通常由 lane 模型表达。比如用户输入是高优先级，列表过滤、页面切换中的非紧急更新可以通过 `startTransition` 标记为低优先级。高优先级更新到来时，当前这棵未提交的低优先级树可以被暂停或丢掉重来；更新本身还在队列里。若一直被打断，会走下面的过期机制，避免饿死。
+
+---
+
+<a id="低优先级更新一直被打断会饿死吗"></a>
+
+### 低优先级更新一直被打断会饿死吗？
+
+#### 面试回答
+
+可以这样答：
+
+> 能打断是为了输入流畅，但 React 不会让低优先级更新无限挂着。被丢掉的是还没 commit 的 workInProgress 树，`updateQueue` 里的更新还在。高优先级 commit 之后，剩余 lane 会再调度。如果用户一直输入，transition 可能迟迟上不了屏，这时靠过期：每个 lane 绑定过期时间，工作循环前 `markStarvedLanesAsExpired` 检查 pending lane，超时的标进 `expiredLanes`。`getNextLanes` 必须带上过期 lane，相当于临时抬成“本轮一定要做”。过期工作通常不再时间切片让路，尽快走完 render 并 commit。所以公平性靠过期强制纳入，不是靠一直丢弃。Idle、Offscreen 这类可以不过期。React 16/17 用 `expirationTime`，18 换成 lane + 根上的过期表，意思一样。超时大约是交互 250ms、默认和 transition 5s，具体以源码为准。
+
+一句话总结：
+
+> 打断丢掉的是未提交的树；饿死靠 lane 过期强制纳入本轮，尽快 commit。
+
+#### 核心原理
+
+```text
+startTransition 过滤列表（transition lane）
+  → 用户连续输入（更高优先级 lane）
+  → 丢掉当前 WIP，先 commit 输入
+  → 列表 update 仍在队列，再次调度
+  → 若一直让路且超过过期点
+  → markStarvedLanesAsExpired
+  → expiredLanes 并入 getNextLanes
+  → 本轮必须带上列表更新，通常不再 shouldYield 让路
+  → commit，列表终于出现
+```
+
+| 容易混的点 | 实际含义 |
+| --- | --- |
+| 丢掉低优先级 render | 丢掉未 commit 的 Fiber 树，不是删掉那次 setState |
+| 过期 | pending 太久，必须并进本轮 lanes |
+| 过期后还时间切片吗 | 过期 lane 通常按阻塞工作处理，尽快做完 |
+| 所有更新都会过期吗 | 不是。Idle / Offscreen 可以 `NoTimestamp`，一直低优先级 |
+
+和 Scheduler 的关系：Scheduler 自己的任务也有 timeout（用户阻塞约 250ms、普通约 5s）。Fiber 的 `expiredLanes` 决定**哪些更新必须进本轮**；Scheduler 的过期决定**回调何时不能再拖**。面试抓 FiberRoot 上的过期即可。
+
+B 端列表示例：搜索框紧急更新、`startTransition` 过滤大表。连续输入时表格可以晚一帧出现，但不能永远空白。验证：DevTools Profiler 看 transition 是否最终有一次 commit；不要用同步死循环输入去测，那种会把主线程占满，调度也帮不上。
 
 ---
 
@@ -2115,9 +2182,9 @@ return <MemoList onSelect={handleSelect} />
 ```text
 状态下沉：把 state 放到真正需要它的组件
 组件拆分：让频繁更新区域更小
-React.memo：props 不变跳过子组件
+React.memo：props 不变可跳过；挡不住组件自己 useContext 且 value 变了
 useMemo/useCallback：稳定对象和函数引用
-拆 Context：避免一个 value 变化影响所有消费者
+拆 Context：value 按引用通知所有消费者，不是整棵子树；高频状态不要塞一个 Provider
 ```
 
 优化时优先调整状态结构，再考虑缓存 API。

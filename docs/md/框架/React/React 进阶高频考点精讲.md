@@ -503,7 +503,7 @@ Context 适合读多写少的共享数据；高频变化数据要注意重渲染
 
 #### 面试回答
 
-> Context 最大的问题是更新粒度容易过粗。Provider 的 `value` 引用变化后，消费这个 Context 的组件都会重新渲染，即使它只用了其中一个字段。如果把用户、主题、通知、权限都塞进一个 Context，高频变化字段会拖累无关组件。优化方式是拆分 Context、稳定 value 引用，或者用外部 store 做细粒度订阅。
+> Context 最大的问题是更新粒度容易过粗。Provider 的 `value` 用 `Object.is` 比较，引用变了之后 **所有 `useContext` 的消费者** 都会再 render，即使只用其中一个字段；没订这个 Context 的节点不会被单独点名。`React.memo` 挡不住 Context 订阅。用户、主题、通知塞在一起，或每次传入新对象，都会放大问题。优化：拆 Context、`useMemo` 稳定 value、state 和 dispatch 分开；高频切片再用 Zustand / Redux 的 selector。展开见 [useContext 有什么问题](/md/框架/React/React%20高频考点精讲.md#usecontext-有什么问题)。
 
 一句话总结：
 
@@ -768,12 +768,12 @@ React 18 的很多能力都建立在 Fiber 和 Scheduler 之上。
 ```text
 低优先级列表更新开始
   → 用户输入触发高优先级更新
-  → React 暂停或丢弃低优先级 render
+  → React 暂停或丢掉未提交的低优先级树（update 还在）
   → 先处理输入
-  → 再继续列表更新
+  → 再调度列表更新；若一直被打断则 lane 过期，强制纳入本轮
 ```
 
-它要求 render 阶段保持纯净，因为 render 可能执行多次。
+它要求 render 阶段保持纯净，因为 render 可能执行多次。饿死机制见 [低优先级更新会不会饿死](/md/框架/React/React%20高频考点精讲.md#低优先级更新一直被打断会饿死吗)。
 
 ---
 
