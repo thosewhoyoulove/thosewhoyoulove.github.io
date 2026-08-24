@@ -330,5 +330,7 @@ key 用来在同层列表中标识新旧节点是否是同一个。稳定 key �
 ## 延伸阅读
 
 - React 核心考点：[React 高频考点](/md/框架/React/React%20高频考点精讲.md)
+- 子节点调和：[React Diff 算法](/md/框架/React/React%20Diff算法.md)
+- Fiber 工作单元：[React Fiber 架构](/md/框架/React/Fiber架构.md)
 - Hooks 更新模型：[React Hooks](/md/框架/React/Hooks.md)
 - Vue 渲染对比：[Vue 渲染原理](/md/框架/Vue/Vue%20渲染原理.md)

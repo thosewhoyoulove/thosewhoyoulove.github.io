@@ -1665,6 +1665,8 @@ scheduleCallback(priority, task)
 
 ## 6. Diff 算法高频
 
+子节点调和的完整控制流（`ChildReconciler`、单节点 / 数组路径、`lastPlacedIndex`）见 [React Diff 算法](/md/框架/React/React%20Diff算法.md)。下面只保留口述口径。
+
 <a id="react-diff-怎么做的"></a>
 
 ### React diff 怎么做的？

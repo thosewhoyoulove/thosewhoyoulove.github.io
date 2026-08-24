@@ -18,7 +18,7 @@ React 和 Vue 的框架题重点不是“API 会不会用”，而是能不能�
 | --- | --- | --- |
 | Hooks 原理 | Hook 状态挂在 Fiber 上，按调用顺序读取 | [React Hooks](/md/框架/React/Hooks.md) |
 | Fiber 架构 | 把递归更新拆成可中断、可调度工作单元 | [Fiber 架构](/md/框架/React/Fiber架构.md) |
-| Diff 算法 | 同层比较、不同类型替换、key 标识身份 | [React Diff 算法](/md/框架/React/React%20Diff算法.md) |
+| Diff 算法 | 同层比较；单节点扫链表，数组先按下标再 Map；移动用 lastPlacedIndex 贪心，不是 LIS | [React Diff 算法](/md/框架/React/React%20Diff算法.md) |
 | 渲染原理 | render 阶段计算差异，commit 阶段提交 DOM | [React 渲染原理](/md/框架/React/React%20渲染原理.md) |
 | 状态管理 | 先看状态作用域，再选 Redux / Zustand / Recoil | [React 状态管理](/md/框架/React/状态管理.md) |
 | 组件设计 | 职责单一、状态归属清晰、API 可组合 | [组件设计能力](/md/框架/React/组件设计能力.md) |
@@ -54,6 +54,10 @@ Hooks 依赖调用顺序保存状态。如果条件分支导致某次 render 少
 ### Fiber 解决了什么问题？
 
 Fiber 把不可中断的递归更新拆成可保存进度的工作单元，让 render 阶段可以按优先级暂停、恢复或丢弃。
+
+### React 列表 Diff 和 Vue 3 有什么差别？
+
+两边都是同层比较、靠 key 认人。React 的 `ChildReconciler` 先按下标试探，对不上再进 Map；移动用 `lastPlacedIndex` 贪心，不保证最少 DOM 移动。Vue 3 乱序段求最长递增子序列。细节见 [React Diff 算法](/md/框架/React/React%20Diff算法.md)、[Vue Diff 算法](/md/框架/Vue/Vue%20Diff算法.md)。
 
 ### Vue 3 为什么用 Proxy？
 

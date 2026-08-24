@@ -107,7 +107,7 @@ function App() {
 
 | 维度 | Vue 3 | React |
 | --- | --- | --- |
-| 子节点对比 | 前后缩 + 最长递增子序列（LIS） | 单向遍历 + key 映射 |
+| 子节点对比 | 前后缩 + 最长递增子序列（LIS） | `ChildReconciler`：按下标试探，对不上再 Map；移动用 `lastPlacedIndex` 贪心 |
 | 目标 | 最少 DOM 移动 | 找出变更，不保证最少移动 |
 | 编译辅助 | patchFlag / Block Tree / 静态提升 | 无（JSX 难以静态分析） |
 | 更新粒度 | 精确到组件（响应式追踪） | 从触发点往下整棵子树 |
@@ -115,6 +115,8 @@ function App() {
 **Vue 的优势**：编译器 + 响应式让进入 diff 的节点更少，diff 本身也用 LIS 保证最少移动。
 
 **React 的优势**：Fiber 架构让 diff 可中断，配合优先级调度（useTransition），长列表更新不阻塞用户交互。
+
+完整控制流见 [React Diff 算法](/md/框架/React/React%20Diff算法.md) 和 [Vue Diff 算法](/md/框架/Vue/Vue%20Diff算法.md)。
 
 ---
 

@@ -323,6 +323,7 @@ Vue 3 的 diff 快不只因为算法，还因为**进入 diff 的节点更少**�
 
 - 响应式如何触发 patch：[Vue 3 响应式原理](/md/框架/Vue/vue3响应式原理.md)  
 - 编译优化细节：[Vue 2 与 Vue 3 的区别 §5](/md/框架/Vue/vue2和3的区别.md)  
+- 对照 React 列表调和：[React Diff 算法](/md/框架/React/React%20Diff算法.md)
 - Vue 3 源码入口：[`packages/runtime-core/src/renderer.ts` → `patchKeyedChildren`](https://github.com/vuejs/core/blob/main/packages/runtime-core/src/renderer.ts)
 
 ## 高频追问
