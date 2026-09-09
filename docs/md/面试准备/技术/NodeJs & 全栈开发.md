@@ -147,5 +147,6 @@ Node.js 本身是事件驱动和异步非阻塞 I/O，适合做接口聚合、BF
 ## 相关链接
 
 - [Node.js 事件循环](/md/Node.js/事件循环.md)
+- [SSR 与 Hydration](/md/框架/React/SSR与Hydration.md)
 - [网络与安全](/md/面试准备/技术/网络与安全.md)
 - [项目表达模板](/md/面试准备/项目表达模板.md)
