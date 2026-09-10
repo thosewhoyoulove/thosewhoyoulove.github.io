@@ -20,6 +20,7 @@ React 和 Vue 的框架题重点不是“API 会不会用”，而是能不能�
 | Fiber 架构 | 把递归更新拆成可中断、可调度工作单元 | [Fiber 架构](/md/框架/React/Fiber架构.md) |
 | Diff 算法 | 同层比较；单节点扫链表，数组先按下标再 Map；移动用 lastPlacedIndex 贪心，不是 LIS | [React Diff 算法](/md/框架/React/React%20Diff算法.md) |
 | 渲染原理 | render 阶段计算差异，commit 阶段提交 DOM | [React 渲染原理](/md/框架/React/React%20渲染原理.md) |
+| SSR / Hydration | 服务端出 HTML，客户端复用 DOM 挂交互；RSC ≠ 传统 SSR | [SSR 与 Hydration](/md/框架/React/SSR与Hydration.md) |
 | 状态管理 | 先看状态作用域，再选 Redux / Zustand / Recoil | [React 状态管理](/md/框架/React/状态管理.md) |
 | 组件设计 | 职责单一、状态归属清晰、API 可组合 | [组件设计能力](/md/框架/React/组件设计能力.md) |
 
@@ -67,8 +68,13 @@ Proxy 可以更自然地拦截新增属性、删除属性、数组和对象操�
 
 Vue DOM 更新是异步批量执行的。状态变了不代表 DOM 立刻更新，`nextTick` 用来等待本轮 DOM patch 完成后再读取最新 DOM。
 
+### SSR 和 CSR 核心差别是什么？Hydration / RSC 怎么答？
+
+CSR 靠客户端 JS 生成首屏 DOM；SSR 服务端先出带内容的 HTML。Hydration 是客户端复用这段 DOM 并绑定事件，不是拆掉重画。RSC 关注「哪些组件代码留在服务端、少下发 JS」，和「首屏谁出 HTML」的传统 SSR 不是同一层问题。详见 [SSR 与 Hydration](/md/框架/React/SSR与Hydration.md)。
+
 ## 相关链接
 
 - [Vue vs React](/md/框架/Vue%20vs%20React.md)
 - [前端框架原理对比](/md/框架/前端框架原理对比.md)
+- [SSR 与 Hydration](/md/框架/React/SSR与Hydration.md)
 - [高频追问清单](/md/面试准备/高频追问清单.md)

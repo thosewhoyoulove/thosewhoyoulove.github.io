@@ -32,7 +32,7 @@
 
 ## SSR 与部署
 
-- [ ] Next.js / Nuxt SSR 与 CSR 取舍（若扩框架）
+- [x] Next.js / Nuxt SSR 与 CSR 取舍（若扩框架）→ 深文：[SSR 与 Hydration](/md/框架/React/SSR与Hydration.md)
 - [ ] 环境变量、配置分环境
 - [ ] 日志、traceId、前后端联调
 
