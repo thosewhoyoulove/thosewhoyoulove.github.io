@@ -6,7 +6,7 @@ Hooks 是 React 面试核心。回答重点是 Hook 调用顺序、状态快照�
 
 ## 核心原理
 
-React Hooks 依赖“稳定调用顺序”保存状态。每个函数组件对应一条 Hook 链表，React 在每次 render 时按调用顺序依次读取 Hook 状态。因此 Hook 必须写在组件或自定义 Hook 顶层，不能写在条件、循环或普通函数里。
+React Hooks 依赖“稳定调用顺序”保存状态。函数组件 Fiber 的 `memoizedState` 指向一条 Hook 链表：首次渲染用 `mountWorkInProgressHook` 按调用顺序建节点，后续更新用 `updateWorkInProgressHook` 按相同顺序复用状态。因此 Hook 必须写在组件或自定义 Hook 顶层，不能写在条件、循环或普通函数里。源码分流见 [Hooks 底层原理](/md/框架/React/React%20高频考点精讲.md#react-hooks-的底层原理是什么)。
 
 ---
 
@@ -383,7 +383,7 @@ const deferredQuery = useDeferredValue(query)
 
 ### Hook 为什么不能条件调用？
 
-因为 React 靠调用顺序匹配 Hook 和状态。条件调用会让某次 render 少调用一个 Hook，后面的状态全部错位。
+因为 React 靠调用顺序匹配 Hook 和状态：首次 `mountWorkInProgressHook` 按顺序建链表，更新时 `updateWorkInProgressHook` 按同样顺序复用。条件调用会让某次 render 少调用一个 Hook，后面的状态全部错位。
 
 ### 什么是 stale closure？
 
@@ -392,3 +392,8 @@ const deferredQuery = useDeferredValue(query)
 ### useMemo 和 useCallback 是否应该到处用？
 
 不应该。它们本身也有依赖比较和缓存成本。没有性能问题或没有稳定引用需求时，过度使用会让代码更复杂。
+
+## 延伸阅读
+
+- [Hooks 底层原理](/md/框架/React/React%20高频考点精讲.md#react-hooks-的底层原理是什么)
+- [React & Vue 速记](/md/面试准备/技术/React%20%26%20Vue.md)

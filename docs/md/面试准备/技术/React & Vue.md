@@ -16,7 +16,7 @@ React 和 Vue 的框架题重点不是“API 会不会用”，而是能不能�
 
 | 题目 | 必背结论 | 深文 |
 | --- | --- | --- |
-| Hooks 原理 | Hook 状态挂在 Fiber 上，按调用顺序读取 | [React Hooks](/md/框架/React/Hooks.md) |
+| Hooks 原理 | Fiber.memoizedState 存链表；首次 mount，更新按调用顺序复用 | [React Hooks](/md/框架/React/Hooks.md) |
 | Fiber 架构 | 把递归更新拆成可中断、可调度工作单元 | [Fiber 架构](/md/框架/React/Fiber架构.md) |
 | Diff 算法 | 同层比较；单节点扫链表，数组先按下标再 Map；移动用 lastPlacedIndex 贪心，不是 LIS | [React Diff 算法](/md/框架/React/React%20Diff算法.md) |
 | 渲染原理 | render 阶段计算差异，commit 阶段提交 DOM | [React 渲染原理](/md/框架/React/React%20渲染原理.md) |
@@ -50,7 +50,7 @@ React 和 Vue 的框架题重点不是“API 会不会用”，而是能不能�
 
 ### React Hooks 为什么不能写在条件语句里？
 
-Hooks 依赖调用顺序保存状态。如果条件分支导致某次 render 少调用一个 Hook，后面的 Hook 状态会错位。
+Hooks 依赖调用顺序保存状态：首次 `mountWorkInProgressHook` 建链表，更新时 `updateWorkInProgressHook` 按 `next` 对齐。如果条件分支导致某次 render 少调用一个 Hook，后面的 Hook 状态会错位。原理展开见 [Hooks 底层原理](/md/框架/React/React%20高频考点精讲.md#react-hooks-的底层原理是什么)。
 
 ### Fiber 解决了什么问题？
 

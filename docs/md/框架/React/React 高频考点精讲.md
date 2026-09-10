@@ -567,7 +567,7 @@ React 能记住 `count`，是因为 Hook 状态挂在 Fiber 上，而不是挂�
 
 ```text
 首次 render
-  → 创建 Hook 节点
+  → mountWorkInProgressHook 创建 Hook 节点
   → 保存初始 state
   → 返回 [state, dispatch]
 
@@ -577,7 +577,7 @@ React 能记住 `count`，是因为 Hook 状态挂在 Fiber 上，而不是挂�
   → 调度当前 Fiber 更新
 
 下次 render
-  → 按 Hook 顺序找到旧 Hook
+  → updateWorkInProgressHook 按顺序找到旧 Hook
   → 计算 update queue
   → 得到新 state
 ```
@@ -598,11 +598,11 @@ setCount(prev => prev + 1)
 
 可以这样答：
 
-> Hooks 的底层核心是：函数组件每次 render 都会重新执行，但 Hook 状态不是存在函数局部变量里，而是挂在当前组件对应的 Fiber 节点上。React 在 Fiber 的 `memoizedState` 上维护一条 Hook 链表，每次调用 `useState`、`useEffect` 这类 Hook 时，都会按调用顺序读取或创建对应的 Hook 节点。更新时，`setState` 会把 update 放到 Hook 的更新队列里，下一次 render 再按队列计算新状态。所以 Hooks 能工作，依赖的是 Fiber 保存状态、Hook 链表保存顺序、更新队列保存变化。
+> Hooks 的底层核心是：函数组件每次 render 都会重新执行，但 Hook 状态不是存在函数局部变量里，而是挂在当前组件对应的 Fiber 节点上。React 在 Fiber 的 `memoizedState` 上维护一条 Hook 链表，节点之间用 `next` 连接。首次渲染走 `mountWorkInProgressHook`，按调用顺序创建节点；后续更新走 `updateWorkInProgressHook`，按同样顺序找到上一轮对应的 Hook，并复用其中保存的状态。`setState` 把 update 放到 Hook 的更新队列里，下一次 render 再按队列计算新状态。所以 React 靠的是调用顺序，不是变量名；条件、循环一旦打乱顺序，状态就会错位。
 
 一句话总结：
 
-> Hooks = Fiber 上的 Hook 链表 + 固定调用顺序 + update queue。
+> Hooks = Fiber.memoizedState 上的链表 + mount/update 按调用顺序对齐 + update queue。
 
 #### 核心原理
 
@@ -623,7 +623,26 @@ queue：状态更新队列
 next：下一个 Hook
 ```
 
-这也是 Hook 不能写在条件语句里的根本原因：React 不是根据变量名找状态，而是根据 Hook 调用顺序找链表节点。顺序一变，后面的状态就会错位。
+`renderWithHooks` 在真正执行函数组件前，会根据 current Fiber 上有没有 Hook 链表切换 dispatcher：
+
+| 时机 | dispatcher | 每次调用 Hook 时 |
+| --- | --- | --- |
+| 首次渲染 | `HooksDispatcherOnMount` | `mountWorkInProgressHook`：新建节点，接到 WIP 链表尾部 |
+| 后续更新 | `HooksDispatcherOnUpdate` | `updateWorkInProgressHook`：按 `next` 走到上一轮对应节点，把 Hook 节点克隆到 WIP（`queue` 与 current 共享） |
+
+```text
+renderWithHooks(fiber)
+  → 切换 mount / update dispatcher
+  → 执行函数组件
+      每调一次 Hook，指针往后走一格
+  → Fiber.memoizedState 指向链表头
+```
+
+所以 React 建立的是「第几次调用 ↔ 链表第几个节点」，不是「变量名 ↔ 状态」。`name`、`age` 这些标识符对 React 没有意义；它只认这次 render 调到了第几个 Hook。
+
+这也是 Hook 不能写在条件语句、循环、普通函数里的根本原因：这些写法可能让两次 render 的调用顺序不一致。少调、多调、或中间插了一个 Hook，后面的节点就会全部错位。开发环境通常会警告 Hook 顺序变化；数量对不上时，源码会抛 `Rendered fewer/more hooks than expected`。即便数量碰巧相同，类型或含义对不上时，状态也会静默错位。条件逻辑应放进 Hook 内部，例子见 [为什么 Hook 不能写在 if 里面](#为什么-hook-不能写在-if-里面)。
+
+源码函数名以 React 18/19 的 `ReactFiberHooks` 为准，这套「链表 + 调用顺序」模型从 Hooks 引入后一直没变。
 
 ---
 
@@ -962,6 +981,8 @@ useEffect(() => {
 ```
 
 这样每次 render 都会调用同样数量、同样顺序的 Hook。
+
+源码层面就是前面的 mount / update 分流：更新时 `updateWorkInProgressHook` 只会按 `next` 往后走，不会按变量名回头找。条件一旦让某次少调或多调，指针就对不上了。完整链路见 [Hooks 底层原理](#react-hooks-的底层原理是什么)。
 
 ---
 
@@ -2255,6 +2276,7 @@ const SettingsPage = React.lazy(() => import('./SettingsPage'))
 
 ## 延伸阅读
 
+- [React Hooks](/md/框架/React/Hooks.md)
 - [React 进阶高频考点精讲](/md/框架/React/React%20进阶高频考点精讲.md)
 - [React 渲染原理](/md/框架/React/React%20渲染原理.md)
 - [React & Vue](/md/面试准备/技术/React%20%26%20Vue.md)
