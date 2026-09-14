@@ -1,5 +1,7 @@
 # Agent 前端专题提纲
 
+每篇服从 `knowledge-article-author`：面试回答为首章；正文先主链路再 Trace；文末常见误区 + 追问链。本文件只列专题选题，不另定文章骨架。
+
 ## 对话与状态
 
 - 消息模型：user / assistant / tool / system；id 与 parentId（分支）

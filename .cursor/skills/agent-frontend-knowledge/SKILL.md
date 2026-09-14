@@ -11,7 +11,7 @@ description: >-
 
 为本知识库新增「**AI Agent / 对话式产品前端**」栏目。读者仍是**面试候选人** + **真实做 Agent 界面的前端**：要能口述、能讲架构取舍、能讲工程验证。
 
-文章骨架遵循 `knowledge-article-author`；本 skill 定义**领域边界与专题地图**。
+**文章骨架与写作精度遵循** `knowledge-article-author`（面试回答为首章、2～3 分钟口述、主链路、Trace、常见误区、追问链）。本 skill 定义**领域边界与专题地图**。
 
 ## 何时使用
 
@@ -53,29 +53,50 @@ docs/md/Agent/                    # 推荐新建分类
 6. **安全**：敏感信息不上传、脱敏展示、内网/密钥不进 prompt 的前端拦截
 7. **可观测**：requestId、trace、复现步骤（可对照 `百度面经.md` 中 Debug 模式题）
 
+写入正文时：先画整体链路（例如：用户发送 → 建消息 → 建连接 → 增量渲染 → 工具调用态 → 完成/失败），再展开各维；协议/状态机至少给一个最小 Trace。
+
 ## 技术表述注意
 
 - **SDK / 官方 API**（Cursor Agent、OpenAI 等）：先查官方文档或 Cursor `sdk` skill，再写入；版本不明则标注「以官方文档为准」。
-- 区分 **产品概念**（Agent、Tool、MCP）与 **实现细节**（具体字段名易变，用示意图 + 伪结构）。
+- 区分 **产品概念**（Agent、Tool、MCP）与 **实现细节**（具体字段名易变，用示意图 + 伪结构）；术语首次出现先白话。
+- 区分直觉模型（「像打字机一样往外蹦字」）与工程模型（chunk 缓冲、未完成 markdown 如何渲染）。
 - 全栈衔接：流式接口常在 BFF/Node 聚合，可链 `fullstack-knowledge-expansion`。
 
-## 口述模板（Agent 前端题）
+## 口述模板（写入「面试回答」）
 
 ```text
-场景（聊天/IDE/企业 Copilot）
+场景（聊天/IDE/企业 Copilot）解决什么问题
 → 前端状态机与消息模型
-→ 流式/工具调用的渲染与错误恢复
-→ 性能与安全边界
+→ 流式/工具调用的渲染与错误恢复（带一例）
+→ 性能与安全边界 / 设计取舍
 → 怎么验证（E2E、录屏、日志、人工 approve）
 ```
+
+## 常见误区（Agent 文建议覆盖）
+
+- 「SSE 是双向通信」→ 下行推送；上行另接口
+- 「流式 = WebSocket」→ 协议、代理、重连策略不同
+- 「乐观更新永远正确」→ 以服务端事件为准的冲突处理
+- 把易变 SDK 字段名写成跨产品通用事实
 
 ## 专题地图
 
 详见 [reference/topic-outline.md](reference/topic-outline.md)。
 
+## 与其他 skill 的关系
+
+```text
+knowledge-article-author       # 结构与写作精度（必须先读）
+  ↑ 本 skill 只补 Agent 领域
+technical-accuracy-review      # SSE/SDK 等事实校对
+docsify-knowledge-site         # Agent 分组进侧边栏
+interview-curriculum-sync      # 追问清单 / 可选速记
+fullstack-knowledge-expansion  # BFF 流式聚合等后端边界
+```
+
 ## 完成后
 
-- [ ] 符合 `knowledge-article-author` 自检
+- [ ] 符合 `knowledge-article-author` 自检（无「面试定位」；有口述 / 一句话 / 原理 / 常见误区 / 追问）
 - [ ] 与 `平时工作怎么使用AI.md` / 面经互链
-- [ ] `SIDEBAR` + generate-sidebar
+- [ ] `SIDEBAR` + generate-sidebar（`docsify-knowledge-site`）
 - [ ] 可选：在 `高频追问清单.md` 增加「Agent 前端」小节 2～5 题 → `interview-curriculum-sync`

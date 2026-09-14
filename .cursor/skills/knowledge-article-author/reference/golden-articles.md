@@ -1,12 +1,15 @@
 # 标杆文章索引
 
-撰写前阅读 **同类型 1 篇**，模仿结构、密度与语气，不要复制正文。
+撰写前阅读 **同类型 1 篇**，模仿密度、主链路与追问深度，不要复制正文。
 
-## 原理深文（机制 + 链路 + 对比 + 追问）
+**结构说明：** 现行规范以 `knowledge-article-author/SKILL.md` 为准——标题后第一节为「面试回答」，不再生成「面试定位」；须含「常见误区」。仓库里较早的深文可能仍保留「面试定位」，作标杆时学**链路 / Trace / Why / 取舍 / 追问链**，不要照搬旧目录骨架。
+
+## 原理深文（口述 → 原理 → 误区 → 追问）
 
 | 主题 | 路径 | 学什么 |
 | --- | --- | --- |
-| React 渲染 | `docs/md/框架/React/React 渲染原理.md` | 面试定位/口述/链路图/表格/React vs Vue/高频追问/延伸阅读 |
+| React Diff | `docs/md/框架/React/React Diff算法.md` | 2～3 分钟口述、一句话箭头总结、列表 Trace、`lastPlacedIndex`、与 Vue 取舍 |
+| React 渲染 | `docs/md/框架/React/React 渲染原理.md` | 更新主链路、Element/Fiber 区分、Render vs Commit |
 | Vue 渲染 | `docs/md/框架/Vue/Vue 渲染原理.md` | 与 React 篇对称，便于写对比文 |
 | Promise | `docs/md/基础/ES6/Promise.md` | 基础概念 + 手写题衔接 |
 | HTTP | `docs/md/网络/HTTP.md` | 网络类叙述节奏 |
@@ -20,7 +23,7 @@
 | 网络与安全 | `docs/md/面试准备/技术/网络与安全.md` |
 | 前端工程化 | `docs/md/面试准备/技术/前端工程化.md` |
 
-速记文：**提纲 + 关键词 + 链接深文**，不重复深文整段原理。
+速记文：**提纲 + 关键词 + 链接深文**，不重复深文整段原理。速记可省略 Trace / 常见误区全文，但须能指回深文。
 
 ## 项目与架构
 
@@ -49,4 +52,15 @@
 | --- | --- | --- |
 | Node 与全栈 | `docs/md/面试准备/技术/NodeJs & 全栈开发.md` | 前端视角的全栈：不写成后端教材 |
 
-扩写全栈或 Agent 前端时，加载 `fullstack-knowledge-expansion` 或 `agent-frontend-knowledge`；定稿前加载 `technical-accuracy-review`；入库后加载 `interview-curriculum-sync`。
+## Skill 协作链
+
+```text
+knowledge-article-author     # 写什么、结构、口述与原理精度
+  → technical-accuracy-review  # 定稿事实校对
+  → docsify-knowledge-site     # 路径、侧边栏、站内链接
+  → interview-curriculum-sync  # 总览 / 路线 / 追问清单 / 速记
+
+领域扩写（仍服从主编结构）：
+  fullstack-knowledge-expansion
+  agent-frontend-knowledge
+```

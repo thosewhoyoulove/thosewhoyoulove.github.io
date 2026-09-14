@@ -36,3 +36,5 @@
 | 生成结果 | `docs/_sidebar.md` |
 
 新增 **Agent** 大类时：同步改 `面试总览`、`README`、可选 `新技术.md` 或新建速记。
+
+深文写作结构见 `knowledge-article-author`（不再要求「面试定位」）。本索引只列复习网文件路径。

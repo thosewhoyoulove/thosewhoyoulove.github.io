@@ -11,6 +11,8 @@ description: >-
 
 本仓库站点根目录为 **`docs/`**（不是仓库根）。Docsify 配置在 `docs/index.html`，侧边栏源数据在 `docs/scripts/generateSidebar.js`。
 
+本 skill **不管**文章怎么写（结构、口述、原理精度由 `knowledge-article-author` 负责）；只负责**放哪、如何进导航、链接能否点开**。
+
 ## 何时使用
 
 - 新增或重命名 `docs/md/**/*.md`
@@ -71,6 +73,8 @@ pnpm run generate-sidebar
 
 本地预览时 Docsify 以 `docs/` 为根，`/md/...` 才能正确解析。
 
+深文文末「延伸阅读」是主编结构的固定章节；本 skill 只校验**链接可解析**，不改写链接文案。
+
 ## 本地预览
 
 ```bash
@@ -94,14 +98,23 @@ pnpm dev
 - **不要长期手改** `_sidebar.md`（下次 generate 会覆盖）
 - **不要**在未授权时修改 `index.html` 的 Gitalk `clientSecret` 等凭证
 - **不要**把 `docs/` 外无关文件链进侧边栏
+- **不要**用本 skill 重写文章结构（无「面试定位」、口述时长等 → 交回 `knowledge-article-author`）
 
 ## 与写文章 skill 的分工
 
 | 任务 | Skill |
 | --- | --- |
-| 写什么、怎么写 | `knowledge-article-author` |
-| 放哪、如何进导航、如何预览 | `docsify-knowledge-site`（本 skill） |
-| 复习路线/追问清单同步 | `interview-curriculum-sync` |
+| 写什么、结构、口述与原理 | `knowledge-article-author` |
+| 全栈 / Agent 领域边界 | `fullstack-knowledge-expansion` / `agent-frontend-knowledge` |
+| 定稿事实校对 | `technical-accuracy-review` |
+| 放哪、导航、预览 | `docsify-knowledge-site`（本 skill） |
+| 复习路线 / 追问清单 / 速记 | `interview-curriculum-sync` |
+
+协作顺序建议：
+
+```text
+写完深文（主编）→ 事实校对 → 本 skill 入库导航 → curriculum 同步复习网
+```
 
 ## 快速检查清单
 

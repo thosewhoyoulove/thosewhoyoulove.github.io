@@ -8,7 +8,7 @@ description: >-
 
 # 技术事实校验
 
-在文章定稿或 PR 前做**第二遍审查**，专门消灭模型常见幻觉与版本错配。不替代 `knowledge-article-author` 的写作流程。
+在文章定稿或 PR 前做**第二遍审查**，专门消灭模型常见幻觉与版本错配。不替代 `knowledge-article-author` 的写作流程；写作结构与口述规范以主编 skill 为准。
 
 ## 何时使用
 
@@ -20,8 +20,9 @@ description: >-
 
 1. **标出高风险句**：凡含版本号、执行顺序、「一定/永远/所有」的绝对化表述。
 2. **按领域对照** [reference/common-pitfalls.md](reference/common-pitfalls.md)。
-3. **输出审查表**（见下方模板），只改事实错误，不顺手改文风。
-4. 无法确认的结论：改为「需对照官方文档」或删除，**不编造**。
+3. **对照主编规范做一致性抽查**（见下方「与主编规范对齐」）。
+4. **输出审查表**（见下方模板），只改事实错误，不顺手改文风。
+5. 无法确认的结论：改为「需对照官方文档」或删除，**不编造**。
 
 ## 输出模板
 
@@ -36,6 +37,22 @@ description: >-
 
 **待用户确认**：（需查官方或依赖具体版本时列出）
 ```
+
+## 与主编规范对齐（抽查）
+
+在事实校对之外，快速确认：
+
+| 检查项 | 说明 |
+| --- | --- |
+| 口述 ↔ 正文 | 口述稿中的重要结论/术语，正文是否有解释（含 Why） |
+| 模型层级 | 是否把教学直觉模型写成源码事实；该区分时是否写了「为了方便理解…更准确地说…」 |
+| 对象层级 | Element / Fiber / DOM、Render / Commit、创建 Fiber vs 创建 DOM 是否混淆 |
+| Trace | 机制示例是否「输入 → 逐步判断 → 结果」，而非跳到最终结果 |
+| 方向性 | 算法比较方向、移动判定（如 `oldIndex < lastPlacedIndex`）是否写反 |
+| 常见误区 | 深文是否覆盖绝对化、Render/Commit、启发式≠最优等易错点 |
+| 示例真实性 | Trace 表格与所述实现是否一致 |
+
+发现结构缺失（如仍有「面试定位」、缺少「常见误区」）时：**记一条建议交回 `knowledge-article-author` 流程改**，本 skill 不因文风大改全文。
 
 ## 审查维度
 
@@ -57,6 +74,7 @@ description: >-
 - 示例代码是否能在所述版本运行
 - 是否把提案/实验 API 写成已稳定
 - 手写题边界（Promise.finally、async 并行）是否遗漏
+- 源码函数名是否只罗列不解释职责（若出现，建议交回主编规范处理）
 
 ### 网络与全栈
 
@@ -73,15 +91,19 @@ description: >-
 
 | 阶段 | Skill |
 | --- | --- |
-| 撰写 | `knowledge-article-author` |
-| 校对 | `technical-accuracy-review`（本 skill） |
-| 入库导航 | `docsify-knowledge-site` + `interview-curriculum-sync` |
+| 撰写（结构/口述/原理） | `knowledge-article-author` |
+| 领域边界（全栈 / Agent） | `fullstack-knowledge-expansion` / `agent-frontend-knowledge` |
+| 校对（本 skill） | `technical-accuracy-review` |
+| 入库导航 | `docsify-knowledge-site` |
+| 复习网 | `interview-curriculum-sync` |
 
 ## 禁止
 
 - 因「听起来更高级」而添加未经核实的优化技巧
 - 用审查结果大段重写口述稿风格（除非事实绑定在口述句上）
+- 把校对变成重新写一篇不符合主编结构的新文
 
 ## 参考
 
-常见误区清单：[reference/common-pitfalls.md](reference/common-pitfalls.md)
+- 常见误区清单：[reference/common-pitfalls.md](reference/common-pitfalls.md)
+- 写作规范：`../knowledge-article-author/SKILL.md`
