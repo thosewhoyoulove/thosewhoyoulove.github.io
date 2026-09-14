@@ -18,6 +18,8 @@ const SIDEBAR = [
                     ["闭包", "/md/基础/JavaScript/闭包的理解.md"],
                     ["This", "/md/基础/JavaScript/This的理解.md"],
                     ["数据类型与拷贝", "/md/基础/JavaScript/数据类型.md"],
+                    ["原型链与继承", "/md/基础/JavaScript/原型链与继承.md"],
+                    ["防抖与节流", "/md/基础/JavaScript/防抖与节流.md"],
                 ],
             },
             {
@@ -42,6 +44,8 @@ const SIDEBAR = [
                     ["渲染原理", "/md/浏览器/浏览器的渲染原理.md"],
                     ["缓存机制", "/md/浏览器/浏览器的缓存机制.md"],
                     ["首屏优化", "/md/浏览器/加快首屏加载速度.md"],
+                    ["DOM 事件机制", "/md/浏览器/DOM事件机制.md"],
+                    ["本地存储与 Cookie", "/md/浏览器/本地存储与Cookie.md"],
                 ],
             },
         ],

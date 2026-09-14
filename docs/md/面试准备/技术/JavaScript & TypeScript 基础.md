@@ -12,6 +12,7 @@
 | --- | --- | --- |
 | P0 | 事件循环、Promise、async/await | 几乎每轮必考，常出输出顺序题 |
 | P0 | 闭包、this、箭头函数 | 结合防抖节流、组件回调、内存泄漏追问 |
+| P0 | 防抖节流、原型链基础 | 社招手写/场景题高频 |
 | P0 | TS：type vs interface、泛型、工具类型 | 业务代码和组件 props 设计日常在用 |
 | P1 | 深浅拷贝、类型判断、隐式转换 | 状态不可变、接口数据处理 |
 | P1 | unknown / never / 类型守卫 | 外部输入与穷尽检查 |
@@ -192,6 +193,8 @@ TypeScript 是 JavaScript 的超集，增加了类型系统和编译期检查。
 - [闭包](/md/基础/JavaScript/闭包的理解.md)
 - [This](/md/基础/JavaScript/This的理解.md)
 - [数据类型与拷贝](/md/基础/JavaScript/数据类型.md)
+- [原型链与继承](/md/基础/JavaScript/原型链与继承.md)
+- [防抖与节流](/md/基础/JavaScript/防抖与节流.md)
 - [Promise](/md/基础/ES6/Promise.md)
 - [浏览器事件循环](/md/浏览器/浏览器的事件循环.md)
 - [type 和 interface](/md/TypeScript/type%20和%20interface.md)
