@@ -1,8 +1,16 @@
 # Vue 和 React 的对比
 
-## 面试定位
+## 面试回答
 
-这道题常用于考察候选人是否真正理解框架差异。回答不要陷入“哪个更好”，而要围绕更新模型、响应式/不可变数据、模板/JSX、diff、性能优化和适用场景展开。
+> Vue 和 React 都在解决「数据变了怎么高效更新 UI」，差别主要在更新模型。Vue 偏响应式：读数据时收集依赖，写数据时精确通知相关组件更新，模板还能做编译期优化（patchFlag、静态提升），所以默认性能下限高、手动 memo 少。React 偏状态驱动：`setState` 后从当前组件往下重新 render，再靠 Fiber reconciliation 算差异；不自动追踪「谁用了哪个字段」，所以常用 `memo` / `useMemo` 做显式跳过，但换来 Fiber 可中断调度和更灵活的 JSX 抽象。
+>
+> Diff 上 Vue 3 乱序段偏 LIS 少搬 DOM，React 用 `lastPlacedIndex` 贪心，更贴「render 只打标、commit 再改 DOM」。逻辑复用现在都很像：Vue Composable vs React Hooks，但 React Hook 依赖调用顺序，Vue 响应式不依赖。选型上没有绝对谁更好：中后台、约束强、快速交付常偏 Vue；复杂交互、跨平台、Next 生态常偏 React。我两边都用过，会按团队和场景选，核心都是把状态变更映射到 DOM。
+
+**一句话总结：**
+
+> Vue=依赖追踪+编译优化细更新 → React=状态驱动整树 reconcile+Fiber 可中断 → 选型看场景不是谁更先进。
+
+---
 
 ## 核心原理
 
@@ -237,12 +245,6 @@ function useCounter(initial = 0) {
 | 并发特性 | 无 | Fiber + useTransition |
 | 适合场景 | 中后台、快速交付 | 复杂交互、跨平台 |
 
-## 面试回答
-
-可以这样答：
-
-> Vue 和 React 的核心差异在更新模型。Vue 是响应式驱动，数据读取时收集依赖，数据变更时能比较精确地通知依赖它的组件更新；React 是状态驱动，调用 setState 后从当前组件开始重新执行 render，再通过 Fiber reconciliation 找出需要提交的变更。Vue 模板有更多编译期优化，比如 patchFlag、静态提升、Block Tree，所以默认性能下限高；React JSX 更灵活，结合 Fiber、并发调度、memo 体系，给开发者更强的显式控制能力。项目选型上，Vue 更适合快速交付、中后台和希望约束更强的团队；React 更适合复杂交互、跨平台、SSR/Next.js 生态和需要高度灵活架构的场景。
-
 ## 高频追问
 
 ### Vue 是不是一定比 React 快？
@@ -262,3 +264,6 @@ Vue 自动依赖追踪和模板编译优化让普通开发也不容易写出很�
 - [框架开放性面试题：响应式 vs 不可变](/md/框架/框架开放性面试题.md)
 - [Vue 3 响应式原理](/md/框架/Vue/vue3响应式原理.md)
 - [React 渲染原理](/md/框架/React/React%20渲染原理.md)
+- [React Fiber 架构](/md/框架/React/Fiber架构.md)
+- [React Diff 算法](/md/框架/React/React%20Diff算法.md)
+- [Vue Diff 算法](/md/框架/Vue/Vue%20Diff算法.md)

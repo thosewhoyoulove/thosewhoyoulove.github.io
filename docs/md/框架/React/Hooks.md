@@ -92,7 +92,16 @@ function Counter() {
 }
 ```
 
-**解决方案：**
+**解决方案（不止函数式更新）：**
+
+| 方案 | 做法 | 适用 |
+| --- | --- | --- |
+| 函数式 setState | `setCount(c => c + 1)` | 下一次状态只依赖上一份 state |
+| useRef 存最新值 | 每次 render 写 `ref.current = count`，异步回调读 ref | 定时器/订阅里要**读**最新值，又不想重订阅 |
+| 补全依赖 | `useEffect(..., [count])`，靠 cleanup 重建 | 可以接受依赖变化时重绑监听 |
+| 事件处理器跟 render | 把逻辑放在 `onClick` 等当次 render 的函数里 | 不经过「长生命周期闭包」 |
+| 自定义「最新回调」ref | `fnRef.current = handler`，稳定外层函数调 `fnRef.current()` | 既要稳定引用传给子组件，又要逻辑最新 |
+| 外部 store | `useSyncExternalStore` | 数据不在 React state，而在模块/Redux |
 
 **方案一：函数式 setState（最常用）**
 
@@ -129,6 +138,18 @@ useEffect(() => {
   return () => clearInterval(timer)  // 每次 count 变都会清理旧 timer、创建新 timer
 }, [count])
 ```
+
+**方案四：稳定函数壳 + ref 最新逻辑（传给 memo 子组件时常用）**
+
+```jsx
+const handlerRef = useRef(handler)
+handlerRef.current = handler
+const stableHandler = useCallback((...args) => handlerRef.current(...args), [])
+```
+
+面试怎么答「除了函数式更新还有什么」：
+
+> 函数式更新解决的是「写回 state」时拿到最新 prev。如果只是在定时器里**读取**最新值，我会用 useRef 每轮 render 同步；如果可以接受重订阅，就把值放进 effect 依赖。需要既稳定又最新的回调时，用 ref 保存最新函数。外部数据源则用 useSyncExternalStore。
 
 ---
 
@@ -387,7 +408,7 @@ const deferredQuery = useDeferredValue(query)
 
 ### 什么是 stale closure？
 
-每次 render 都会创建新的闭包，effect 或定时器可能捕获旧 render 的 state。解决方式包括函数式更新、补全依赖、用 ref 保存最新值。
+每次 render 都会创建新的闭包，effect 或定时器可能捕获旧 render 的 state。解决方式包括函数式更新、useRef 同步最新值、补全依赖、稳定回调 ref、以及外部 store 的 `useSyncExternalStore`。
 
 ### useMemo 和 useCallback 是否应该到处用？
 
