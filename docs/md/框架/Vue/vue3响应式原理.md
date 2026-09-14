@@ -1,306 +1,231 @@
 # Vue 3 响应式原理
 
-## 面试定位
+## 面试回答
 
-Vue 3 响应式是 Vue 面试最核心的原理题。回答时要讲清 `Proxy`、依赖收集、派发更新、`effect`、`ref`、`computed`、调度队列，以及为什么 Vue 3 相比 Vue 2 更好。
+> Vue 3 响应式的核心可以压成一句：用 Proxy 拦住读写，读的时候把「当前正在跑的 effect」记到依赖图里，写的时候把订阅了这个 key 的 effect 找出来重新调度。组件渲染本身就是一个 effect，所以模板里读到的字段一变，对应组件会进入更新队列，而不是数据直接改 DOM。
+>
+> 依赖图是三层：`WeakMap<target, Map<key, Set<effect>>>`。`get` 里 `track`，`set` / `delete` 里 `trigger`；嵌套对象是惰性再包一层 Proxy，大对象初始化更友好。原始值没法被 Proxy 代理，所以用 `ref` 包一层，靠 `.value` 的访问器做同样的收集和触发。`computed` 是带 dirty 位的惰性 effect：依赖变了先标脏、通知订阅者，下次读才重算。
+>
+> 真正刷 DOM 前还有 scheduler：渲染 effect 不立刻同步重跑，而是 `queueJob` 进微任务队列，同一轮里多次改同一组件只渲染一次。这就是为什么改完数据要 `nextTick` 才能读到新 DOM。和 Vue 2 比，Proxy 能拦新增删除、`in`、`keys`、数组下标和 `length`，少了很多 `$set` 心智；边界是第三方实例要 `markRaw` / `shallowRef`，别被深代理搅乱。
+
+**一句话总结：**
+
+> Proxy 拦截 → track 收集 effect → trigger 调度 → scheduler 合并微任务 → 组件 render → patch DOM。
+
+---
 
 ## 核心原理
 
-响应式在 Vue 3 中被拆成独立包 **`@vue/reactivity`**，可脱离渲染器单独使用。核心就三件事：
+### 1. 为什么需要响应式
 
-1. **`Proxy`** 拦截读写；
-2. 读时 **`track`**（收集当前活跃 effect），写时 **`trigger`**（取出并调度 effect）；
-3. **`effect`** 把「副作用函数」和它读到的响应式数据双向绑起来，数据变就重跑。
+没有依赖追踪，框架只能「整页重算」或让你手动订阅。Vue 选的是：在跑副作用时自动记住读过哪些字段，字段变了只通知相关副作用。
 
-组件渲染本身就是一个 `effect`：render 函数里读到的字段被订阅；字段变，组件重渲染。
+组件更新单元通常是**组件的 render effect**（不是 Solid 那种逐 DOM 绑定）。说「细粒度」时，更准确是指依赖按 key 收集，触发精确到订阅了该 key 的 effect。
 
 ---
 
-## 1. 依赖图：`targetMap → depsMap → dep`
+### 2. 整体执行链路
 
-运行时全局维护一张**三层映射**：
-
+```text
+reactive / ref 创建代理
+  → 组件挂载：创建渲染 effect 并 run
+  → render 读 state.xxx → get trap → track(target, key)
+  → 写入 state.xxx → set trap → trigger
+  → effect.scheduler → queueJob
+  → 微任务 flush → effect.run → 新 VNode
+  → patch → 真实 DOM
 ```
+
+| 概念 | 一句话职责 |
+| --- | --- |
+| Proxy | 拦住读写，插入 track/trigger |
+| effect | 可重新执行的副作用，组件渲染是其中一种 |
+| track / trigger | 建边 / 通知 |
+| scheduler | 决定「怎么重跑」（常进队列） |
+| ref | 给原始值（和可整体替换的对象）做盒子 |
+
+---
+
+### 3. 依赖图：`targetMap → depsMap → dep`
+
+```text
 WeakMap<target, Map<key, Set<ReactiveEffect>>>
-   ↑              ↑          ↑
-targetMap      depsMap      dep
 ```
 
-- **`target`**：原始对象（原始值而非代理，避免循环）。  
-- **`key`**：被读的属性名；数组的下标、`length`，以及特殊的 `ITERATE_KEY` / `MAP_KEY_ITERATE_KEY` 用于 `for...in` / `Map.keys()` 这类迭代。  
-- **`dep`**：订阅该 `(target, key)` 的 effect 集合。
+| 层 | 含义 |
+| --- | --- |
+| target | **原始对象**（不用 proxy 当 key，避免环） |
+| key | 属性名；数组还有 `length`；迭代用 `ITERATE_KEY` 等 |
+| dep | 订阅了这个 `(target, key)` 的 effect 集合 |
 
-用 `WeakMap` 是为了让 `target` 被 GC 时依赖条目自动消失。
+`WeakMap`：target 可被 GC 时依赖条目一起消失。
 
 ---
 
-## 2. `Proxy` handler 做了什么
+### 4. Proxy：读收集、写通知
 
-`reactive` 返回的不是普通对象，而是一个带 handler 的 `Proxy`。关键陷阱：
-
-| trap | 触发时机 | 做的事 |
+| trap | 时机 | 行为 |
 | --- | --- | --- |
-| `get` | 读属性 | `track(target, key)`；若值是对象，**惰性**再包一层 `reactive` 返回 |
-| `set` | 赋值 | 先比较新旧值（`Object.is`），变了才 `trigger` |
-| `deleteProperty` | `delete obj.x` | 有这一项才 `trigger` |
-| `has` | `'x' in obj` | `track` |
-| `ownKeys` | `Object.keys` / `for...in` | `track(target, ITERATE_KEY)` |
+| `get` | 读属性 | `track`；对象值惰性 `reactive` |
+| `set` | 赋值 | `Object.is` 有变化才 `trigger` |
+| `deleteProperty` | `delete` | 有键才 `trigger` |
+| `has` / `ownKeys` | `in` / `keys` / `for...in` | track（迭代常挂 `ITERATE_KEY`） |
 
-**惰性代理**：只有访问到的嵌套对象才会被包装，初始化不递归整棵树，对大对象友好。
+用 `Reflect.get/set(..., receiver)`，保证访问器里的 `this` 仍走代理，依赖不丢。
 
-**`Reflect` 而非直接操作**：保证 `this` 指向代理，子类继承、访问器属性里的 `this.xxx` 才会再次命中 trap，依赖收集不丢。
-
-```js
-get(target, key, receiver) {
-  const res = Reflect.get(target, key, receiver)
-  track(target, key)
-  return isObject(res) ? reactive(res) : res
-}
-```
-
-### 集合类型单独一套 handler
-
-`Map` / `Set` / `WeakMap` / `WeakSet` 不能靠 `get/set` 拦截它们的 `add / delete / has / size`——这些是原型上的方法。Vue 为它们挂了专用的 `mutableCollectionHandlers`：把 `add`、`delete`、`get`、`has`、`size`、迭代器都**重写**成会 track/trigger 的版本。
-
----
-
-## 3. `effect`：当前活跃栈 + 依赖反向指针
-
-`ReactiveEffect` 大致长这样：
+#### Trace：一次读写
 
 ```js
-class ReactiveEffect {
-  deps = []            // 反向引用：哪些 dep 里有我
-  active = true
-  constructor(public fn, public scheduler) {}
-
-  run() {
-    activeEffect = this
-    try { return this.fn() }
-    finally { activeEffect = prevEffect }
-  }
-
-  stop() {
-    // 从每个 dep 里把自己摘掉
-    this.deps.forEach(dep => dep.delete(this))
-    this.deps.length = 0
-  }
-}
+const state = reactive({ count: 0 })
+effect(() => console.log(state.count))
+state.count++
 ```
 
-重点：
+| 步骤 | 发生什么 |
+| --- | --- |
+| effect.run | `activeEffect =` 当前 effect |
+| 读 `count` | track：把 effect 放进 `dep(count)`，effect.deps 反向记下 |
+| `count++` | set → trigger → 取出 dep → scheduler 或 run |
+| 再 run | 先清旧依赖再收集，避免条件分支残留订阅 |
 
-- **活跃 effect 用栈保存**（嵌套 effect 时外层会恢复），`track` 只往 `activeEffect` 的 dep 里塞。  
-- **双向指针**：`dep` 里有 effect，effect 的 `deps` 里也记着自己被哪些 dep 收录——这样 `stop()` 和**每次 run 前的清理**都能 O(1) 找到。  
-- **每次 run 前清空旧依赖**：避免条件分支变化后仍订阅走不到的 key（典型如 `show ? a.x : a.y`）。
-
-```js
-const e = effect(() => console.log(state.count))
-// state.count 变 → e.scheduler?.() ?? e.run()
-```
-
-传 `scheduler` 就接管「怎么重跑」——组件渲染 effect 用的就是把自己推进 **更新队列**，合并成一次微任务。
+`Map`/`Set` 等集合有专用 handler：方法在原型上，不能只靠普通 get/set。
 
 ---
 
-## 4. `track` / `trigger` 的细节
+### 5. effect：活跃栈、双向 deps、清理
 
-### track
+- `track` 只认当前 `activeEffect`（嵌套时用栈恢复外层）。
+- effect 上有 `deps[]`，方便 `stop` 和**每次 run 前清旧依赖**。
+- 组件渲染 effect 通常带 `scheduler`：把 job 推进更新队列，而不是同步 `run`。
 
-```js
-function track(target, key) {
-  if (!activeEffect) return
-  let depsMap = targetMap.get(target)
-  if (!depsMap) targetMap.set(target, (depsMap = new Map()))
-  let dep = depsMap.get(key)
-  if (!dep) depsMap.set(key, (dep = new Set()))
-  if (!dep.has(activeEffect)) {
-    dep.add(activeEffect)
-    activeEffect.deps.push(dep)
-  }
-}
+---
+
+### 6. ref / computed
+
+**ref**：Proxy 代理不了 `0`/`'x'`，用 `{ value }` 访问器做 track/trigger。对象型 ref 内部常再挂 `reactive`；模板顶层会解包 `.value`。
+
+**computed**：依赖变 → 标 `_dirty` 并 trigger 自己的订阅者 → **下次读 `.value` 才重算**。getter 应保持纯。
+
+| API | 心智 |
+| --- | --- |
+| `reactive` | 对象深代理（惰性） |
+| `ref` | 任意值盒子，可整体替换 |
+| `shallowRef` / `markRaw` | 大列表整替、第三方实例 |
+| `computed` | 缓存派生 |
+
+---
+
+### 7. 调度与 nextTick
+
+```text
+同一同步块 count++ 三次
+  → trigger 多次
+  → 同一组件 job 只入队一次
+  → Promise 微任务 flushJobs
+  → 一次 render + patch
 ```
 
-### trigger
-
-写数组 `length`、新增/删除对象属性这类变动会**连带触发多个 key**：
-
-- `ADD` 一个键 → 触发该 key + `ITERATE_KEY`（有人 `for...in` 或 `Object.keys`）；数组还要触发 `length`。  
-- `DELETE` → 同上。  
-- `SET` 且数组下标 ≥ `length` → 触发 `length`。
-
-所以 `trigger` 的真正工作是：**按操作类型收集需要通知的 dep 集合，合并去重后逐个执行**（有 scheduler 走 scheduler，否则 `effect.run()`）。
+`nextTick` ≈ 等这轮队列（及相关 DOM 更新）完成后再跑回调。`watch` 的 `flush: 'pre' | 'post' | 'sync'` 决定回调相对组件更新的位置。
 
 ---
 
-## 5. `ref`：为什么要 `.value`
+### 8. 设计取舍与边界
 
-`Proxy` 只能代理对象。原始值 `0` / `'x'` 没法拦截读写——于是 `ref` 包一层对象：
-
-```js
-class RefImpl {
-  _value
-  dep = new Set()
-  constructor(raw) {
-    this._value = isObject(raw) ? reactive(raw) : raw
-  }
-  get value() { trackEffects(this.dep); return this._value }
-  set value(v) {
-    if (!Object.is(v, this._rawValue)) {
-      this._value = isObject(v) ? reactive(v) : v
-      triggerEffects(this.dep)
-    }
-  }
-}
-```
-
-要点：
-
-- **对象型 `ref`**：`.value` 内部挂一个 `reactive`；`ref({a:1})` 和把整个对象塞进 `reactive` 语义等价，区别是 `ref` 允许**整块替换** `.value`。  
-- **模板解包**：编译产物里顶层 `ref` 访问会被加上 `.value`；但**不会递归解包**嵌套在普通对象里的 ref。  
-- **`reactive` 里的 ref**：通过 baseHandlers 里的 `unref` 分支实现 unwrap——所以 `reactive({ n: ref(0) }).n` 读出的是数字，不是 ref 对象。
-
----
-
-## 6. `computed`：带 dirty 位的惰性 effect
-
-`computed` 内部也是 `ReactiveEffect`，但带**缓存**：
-
-```js
-class ComputedRefImpl {
-  _dirty = true
-  _value
-  effect = new ReactiveEffect(getter, () => {
-    if (!this._dirty) {
-      this._dirty = true
-      triggerEffects(this.dep)
-    }
-  })
-  get value() {
-    trackEffects(this.dep)
-    if (this._dirty) {
-      this._value = this.effect.run()
-      this._dirty = false
-    }
-    return this._value
-  }
-}
-```
-
-行为：
-
-- **首次读**才算；后续依赖没变直接返回缓存。  
-- 依赖变化时**不立即重算**，只把 `_dirty` 置回 `true` 并通知自己的订阅者；下一次读 `.value` 才重新跑 getter。  
-- getter 应当是**纯函数**。在里面做副作用会违反惰性假设，调度时机也不对。
-
----
-
-## 7. 调度：把同一 tick 的多次变更合并成一次渲染
-
-组件渲染 effect 创建时传了 `scheduler`：它不直接重跑 effect，而是把一个 **job** 推进 `queue`，用微任务在本轮同步代码跑完后统一 flush。
-
-```js
-function queueJob(job) {
-  if (!queue.includes(job)) queue.push(job)
-  queueFlush()
-}
-function queueFlush() {
-  if (!isFlushing) {
-    isFlushing = true
-    Promise.resolve().then(flushJobs)
-  }
-}
-```
-
-所以：
-
-- 同一同步块里 `count++` 三次 → 只排一个 job，只渲染一次。  
-- `watch(..., { flush: 'pre' | 'post' | 'sync' })` 就是决定回调被放进 **pre 队列 / post 队列 / 同步执行**。  
-- `nextTick` = 在 flush 队列之后追加一个微任务。
-
-`pre` 在组件更新前、`post` 在组件更新后——两者的顺序相对于 DOM 补丁不同，但都在**同一个微任务链**里处理。
-
----
-
-## 8. 变体：`shallow` / `readonly` / `raw`
-
-同一套 `track / trigger` 机制，换不同 handler 即可得到不同语义：
-
-| API | 代理谁 | 写入 | 深浅 |
-| --- | --- | --- | --- |
-| `reactive` | 任意对象 | ✅ | 深 |
-| `shallowReactive` | 对象 | ✅ | 只代理顶层，内层原样返回 |
-| `readonly` | 对象 | ❌（写入警告） | 深 |
-| `shallowReadonly` | 对象 | ❌ | 顶层 |
-| `ref` / `shallowRef` | 任意值 | ✅ | `shallowRef` 内部**不** reactive |
-| `markRaw(obj)` | — | — | 打标记，`reactive` 遇到跳过包装 |
-| `toRaw(proxy)` | — | — | 取回底层原始对象 |
-
-**什么时候用 raw/shallow**：
-
-- 第三方类实例（ECharts、Three.js、富文本编辑器等）——它们自管状态，深代理会让内部 `this.xxx = ...` 的写入绕进 Vue 的调度，性能和行为都坏。`markRaw` 或 `shallowRef` 挡住。  
-- 大数组但只整体替换的场景（表格数据）——`shallowRef` 省掉整树代理成本。
-
----
-
-## 9. Proxy 不能覆盖的边界
-
-- **原始值**：靠 `ref`。  
-- **已有引用未经过代理**：同一对象 `reactive(raw)` 两次返回同一代理（内部 `reactiveMap` 缓存）；但**两个不同原始对象**互相赋值需要知道哪个是 raw、哪个是 proxy——`toRaw` 就是干这个的。  
-- **`Object.freeze`**：冻结的对象写入本就无效，Proxy 的 `set` trap 也无能为力；一般直接 `markRaw`。  
-- **部分内置对象**：如 `Date`、`RegExp`、`Promise`，Vue 默认不深代理，按值用。  
-
----
-
-## 10. 从变更到 DOM 的整条链
-
-```
-data 变
-  → set trap
-  → trigger(target, key)
-  → 取出 dep 里的 effect
-  → effect 有 scheduler → queueJob
-  → 微任务 flushJobs
-  → 渲染 effect.run()
-  → render() 产出新 VNode
-  → patch 旧 VNode / 新 VNode
-  → 真实 DOM
-```
-
-编译期的 **patchFlag / 静态提升 / block tree** 决定 `patch` 阶段只比对动态部分（展开见 [Vue 2 与 Vue 3 的区别 §5](/md/框架/Vue/vue2和3的区别.md)）；响应式这一层只负责**精确地**告诉渲染器「哪几个组件该重跑」。
-
----
-
-## 小结
-
-| 层 | 数据结构 / 机制 | 你会直接用到的 API |
+| 选择 | 得到 | 代价 / 边界 |
 | --- | --- | --- |
-| 拦截 | `Proxy` + `Reflect`；集合类型专用 handler | `reactive` / `readonly` |
-| 包装 | `RefImpl` 类，`.value` 访问器 | `ref` / `shallowRef` |
-| 依赖图 | `WeakMap<target, Map<key, Set<effect>>>` | — |
-| 订阅者 | `ReactiveEffect`，双向 deps，活跃栈 | `effect` / `watchEffect` |
-| 派生 | 带 dirty 位的 effect | `computed` |
-| 调度 | `scheduler` + 微任务队列 | `watch(..., { flush })` / `nextTick` |
-| 出口 | `markRaw` / `toRaw` / `shallowRef` | 第三方实例、只读数据 |
+| Proxy | 新增删除、迭代、数组更自然 | 不能代理原始值；部分内置对象需特殊对待 |
+| 惰性深代理 | 大对象友好 | 忘记解包 / raw 混用会踩坑 |
+| 组件级 render effect | 实现清晰 | 不是逐 DOM 细更新；大组件仍要拆 |
 
-再往下可以啃 [`packages/reactivity/src`](https://github.com/vuejs/core/tree/main/packages/reactivity/src) 的 `baseHandlers.ts`、`effect.ts`、`reactiveEffect.ts`——代码量不大，读完对上面每一条都能自己画图说明。
+---
 
-## 面试回答
+## 常见误区
 
-可以这样答：
+### ❌ Vue 3 是逐属性直接改 DOM 的极细粒度更新
 
-> Vue 3 响应式核心是 `Proxy + effect + track/trigger`。`reactive` 返回一个 Proxy，读属性时通过 `get` 拦截并执行 `track(target, key)` 收集当前活跃 effect；写属性时通过 `set/deleteProperty` 拦截并执行 `trigger(target, key)`，找到依赖这个属性的 effect 重新调度。依赖关系用 `WeakMap<target, Map<key, Set<effect>>>` 保存。组件渲染本身就是一个 effect，所以模板里读到的响应式数据变了，就会触发组件更新。`ref` 是为了解决原始值不能被 Proxy 代理的问题，用 `.value` 的 getter/setter 做依赖收集和触发。`computed` 本质是带缓存和 dirty 标记的惰性 effect。Vue 3 还通过 scheduler 把多次变更合并到同一个微任务里，避免重复渲染。
+### ✅ 更准确的说法
+
+依赖按 key 收集；常见结果是组件 render effect 重跑再 patch。
+
+### 为什么？
+
+和 Solid 模型不同，追问更新单元时容易露馅。
+
+---
+
+### ❌ 有了 Proxy 就一定比 Vue 2 全方位更快
+
+### ✅ 更准确的说法
+
+少了初始化递归劫持和 `$set` 坑；性能还取决于组件切分、列表、编译优化。
+
+### 为什么？
+
+面试要听边界，不听口号。
+
+---
+
+### ❌ `ref` 只是语法糖，和 `reactive` 完全一样
+
+### ✅ 更准确的说法
+
+`ref` 解决原始值与整体替换；`reactive` 适合稳定对象结构。解包规则也不同。
+
+---
+
+### ❌ 改完响应式数据，下一行一定能读到新 DOM
+
+### ✅ 更准确的说法
+
+更新常进微任务队列；要新 DOM 用 `nextTick` 或 flush 之后的时机。
+
+---
+
+### ❌ `computed` 依赖一变就立刻重算
+
+### ✅ 更准确的说法
+
+先标脏；下次读取才算。有人订阅时会通知，但不等于同步重跑 getter。
+
+---
 
 ## 高频追问
 
-### Vue 3 为什么用 Proxy 替代 defineProperty？
+### Vue 3 响应式一句话怎么说？
 
-`Proxy` 可以拦截新增、删除、`in`、`Object.keys`、数组下标和 `length` 等操作；`defineProperty` 只能劫持已有属性的 getter/setter，新增删除属性需要额外 API，数组也要重写方法。
+Proxy 拦截读写，track/trigger 维系 effect 依赖图，组件渲染是 effect，经 scheduler 批量更新再 patch。
+
+### 为什么用 Proxy 替代 defineProperty？
+
+能拦新增删除、迭代、数组下标与 length；Vue 2 对已有属性劫持，动态增删和数组要额外手段。
+
+### 依赖存在哪？为什么用 WeakMap？
+
+`target → key → Set<effect>`；WeakMap 让 target 可被回收。
 
 ### reactive 和 ref 怎么选？
 
-原始值用 `ref`，对象状态可以用 `reactive`。如果对象需要整体替换，例如接口返回数据，常用 `ref`；如果是一组稳定的状态字段，可以用 `reactive`。
+原始值 / 要整体替换 → ref；一组稳定字段对象 → reactive 也可。模板注意解包。
 
-### computed 为什么有缓存？
+### computed 的 dirty 是什么？
 
-`computed` 内部是惰性 effect。依赖没变时直接返回缓存；依赖变化时只把 dirty 置为 true，等下次读取时再重新计算。
+惰性缓存开关：依赖变了标脏，读时才重算。
+
+### 为什么多次修改只渲染一次？
+
+渲染 effect 走 scheduler 入队去重，微任务里 flush 一次。
+
+### markRaw / shallowRef 什么时候用？
+
+第三方实例自管状态、或大数据只整体替换时，避免深代理成本与行为干扰。
+
+---
+
+## 延伸阅读
+
+- [Vue 渲染原理](/md/框架/Vue/Vue%20渲染原理.md)
+- [nextTick 与虚拟 DOM](/md/框架/Vue/nextTick与虚拟DOM.md)
+- [模板编译流程](/md/框架/Vue/模板编译流程.md)
+- [Vue 2 和 Vue 3 区别](/md/框架/Vue/vue2和3的区别.md)
+- [Vue vs React](/md/框架/Vue%20vs%20React.md)
+- [面试速记：React & Vue](/md/面试准备/技术/React%20&%20Vue.md)

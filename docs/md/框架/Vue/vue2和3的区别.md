@@ -1,103 +1,134 @@
 # Vue 2 与 Vue 3 的核心差异
 
-## 面试定位
+## 面试回答
 
-这道题常用于判断候选人是否理解 Vue 3 的升级价值。回答不要只背 API 名称，要围绕响应式、应用实例、逻辑复用、编译优化、生态和迁移成本展开。
+> Vue 3 相对 Vue 2，我会按「机制 → 工程 → 性能」说，而不是背 API 清单。机制上，响应式从 `defineProperty` 换成 Proxy：新增删除、数组下标和 length、迭代都能更自然拦截，并且惰性代理；原始值继续用 ref。工程上，入口变成 `createApp`，插件挂在应用实例上，少全局污染；Composition API 按功能聚合逻辑，TS 更友好，Options 仍可用。模板侧有 Fragment、Teleport、Suspense，`v-model` 默认变成 `modelValue`。
+>
+> 性能上，编译期 patchFlag、静态提升、Block Tree 减少运行时比对；列表 Diff 在 Vue 3 用前后缩 + LIS 偏向少搬 DOM。生态上新项目更常 Pinia。迁移风险通常在依赖兼容、全局 API、事件总线移除、以及旧代码隐含的 Vue 2 响应式边界，而不是「背不会 Composition」。
+
+**一句话总结：**
+
+> Proxy 响应式 → createApp/Composition → 编译优化+LIS Diff → 迁移盯依赖与全局 API。
+
+---
 
 ## 核心原理
 
-侧重**原理与行为差异**，工程向细节见 [Vue 高频考点精讲](/md/框架/Vue/Vue%20高频考点精讲.md)，响应式展开见 [Vue 3 响应式原理](/md/框架/Vue/vue3响应式原理.md)。
+### 1. 为什么要升级认知，而不只背 API
+
+面试官听的是：你是否理解每个变化解决的旧痛点，以及迁移时哪里会炸。
 
 ---
 
-## 1. 响应式：从 `defineProperty` 到 `Proxy`
+### 2. 响应式
 
 | 维度 | Vue 2 | Vue 3 |
 | --- | --- | --- |
-| API | `Object.defineProperty` 劫持**已有**属性的 `get/set` | `Proxy` 拦截 `get/set/deleteProperty/ownKeys` 等 |
-| 新增 / 删除属性 | 需 `Vue.set` / `Vue.delete` | 原生支持 |
-| 数组 | 下标、长度需 **改写数组方法** 等方式间接监听 | 与对象一致，由 Proxy 处理 |
-| 性能与实现 | 初始化递归遍历 `data`；无法追踪部分动态用法 | **懒代理**（访问深层再包装）；逻辑集中在 `@vue/reactivity` |
+| 实现 | `defineProperty` 劫持已有属性 | Proxy + `@vue/reactivity` |
+| 增删属性 | `$set` / `$delete` | 原生支持 |
+| 数组 | 方法劫持等补丁 | Proxy 更统一 |
+| 初始化 | 递归遍历 data | 惰性代理 |
 
-**迁移含义**：Vue 3 少了很多「必须用 `$set`」的运维记忆；但 **Proxy 无法代理的特例**（部分内置对象、被 `freeze` 等）仍需知道边界。
-
----
-
-## 2. 应用与全局 API
-
-- Vue 2：`new Vue()` 单一根实例；`Vue.use` / `Vue.mixin` 全局副作用多。  
-- Vue 3：**`createApp`**，插件、指令、组件挂在 app 实例上，**多应用实例**互不污染。  
-- 事件总线：`$on` / `$off` / `$once` **移除**，建议用明确的 store / mitt 等。
+详解：[Vue 3 响应式原理](/md/框架/Vue/vue3响应式原理.md)。
 
 ---
 
-## 3. 组合式 API 与类型
+### 3. 应用实例与逻辑复用
 
-- Vue 3 引入 **Composition API**（`setup`、`ref`、`reactive`…），逻辑可按**功能**聚合，TS 推断优于 mixin。  
-- Options API 仍可用；大型项目常见「新模块 composition、老模块渐进迁」。
-
----
-
-## 4. 模板与内置能力
-
-- **Fragment**：可多根节点。  
-- **Teleport**：子树挂到外层 DOM（弹窗常用）。  
-- **Suspense**：异步组件 / 异步 `setup` 的占位（需正确配置）。  
-- **v-model**：组件上可多绑定，`modelValue` / `update:modelValue` 替代默认的 `value` / `input`（迁移时注意命名）。
-
----
-
-## 5. diff 与编译期优化（简述）
-
-**Vue 2**：双端 diff + `key`；比对基本在**同级子节点**。  
-
-**Vue 3**：保留双端思路；对有 `key` 的子节点列表用 **最长递增子序列（LIS）** 近似**最少移动**，减少 DOM `insertBefore` 次数。  
-
-**编译期**（Vue 3 明显更强）：
-
-- **静态提升（hoist）**：不变节点少重建。  
-- **patchFlag**：运行时只比对**动态**片段。  
-- **事件缓存 `cacheHandlers`** 等：减轻无谓子更新。
-
-二者关系：**编译信息**喂给 **runtime patch**，所以「快」不只来自 diff 算法，还来自**更少的比对工作量**。
-
----
-
-## 6. 状态与生态
-
-- 新组合：**Pinia**（推荐）替代 Vuex 在新项目中的地位。  
-- **Tree-shaking**：Vue 3 按模块引入，未用功能可打出更小包（视构建配置）。
-
----
-
-## 7. 小结表（背诵版）
-
-| 项 | Vue 2 | Vue 3 |
+| | Vue 2 | Vue 3 |
 | --- | --- | --- |
-| 响应式 | `defineProperty` + 数组补丁 | `Proxy` + `@vue/reactivity` |
 | 启动 | `new Vue` | `createApp` |
-| 逻辑复用 | mixin / HOC | Composition（+ 可选 Options） |
-| 模板 | 单根（2.x 限制） | Fragment / Teleport / Suspense |
-| 典型性能手段 | 靠运行时 | 编译标记 + runtime diff 优化 |
+| 全局 | `Vue.use` 易污染 | 挂 app，多实例隔离 |
+| 复用 | mixin 常见 | Composition 优先；Options 仍在 |
+| 事件总线 | `$on/$off` | 移除，改显式方案 |
 
-若要准备迁移题：读 [Vue2 升级 Vue3 与 TS 迁移专题](/md/框架/Vue/Vue2升级Vue3与TS迁移专题.md)，compat 细节见 [Vue 兼容包的作用](/md/面试准备/技术/vue兼容包的作用.md)，项目叙事见 [项目架构的整体升级方案](/md/面试准备/项目与架构/项目架构的整体升级方案.md)。
+---
 
-## 面试回答
+### 4. 模板与内置
 
-可以这样答：
+- Fragment 多根；Teleport 挂外层 DOM；Suspense 异步边界。
+- 组件 `v-model`：`modelValue` / `update:modelValue`。
 
-> Vue 3 相比 Vue 2 最大的变化有几类。第一是响应式从 `Object.defineProperty` 换成 `Proxy`，能天然监听新增删除属性、数组下标、`ownKeys` 等操作，并且支持惰性代理。第二是应用入口从 `new Vue` 变成 `createApp`，全局 API 变成 app 级别，多个应用实例之间不容易污染。第三是 Composition API，让逻辑可以按功能聚合，类型推断也更好。第四是模板能力增强，支持 Fragment、Teleport、Suspense。第五是性能优化，Vue 3 有 patchFlag、静态提升、Block Tree，加上 keyed diff 中的 LIS，运行时比对更少。迁移时要关注第三方依赖、全局 API、事件总线、v-model 和生命周期差异。
+---
+
+### 5. Diff 与编译
+
+| | Vue 2 | Vue 3 |
+| --- | --- | --- |
+| 列表 | 双端 diff | 前后缩 + LIS |
+| 编译 | 弱 | patchFlag / 提升 / Block |
+
+「快」= **更少比对** + **更少移动**，不只换算法。见 [Vue Diff](/md/框架/Vue/Vue%20Diff算法.md)、[模板编译](/md/框架/Vue/模板编译流程.md)。
+
+---
+
+### 6. 生态与包体
+
+Pinia 更常见；Tree-shaking 友好（视构建）。迁移专题：[Vue2 升级 Vue3 与 TS 迁移](/md/框架/Vue/Vue2升级Vue3与TS迁移专题.md)、[兼容包](/md/面试准备/技术/vue兼容包的作用.md)。
+
+---
+
+### 7. 设计取舍
+
+Vue 3 用现代语言能力与编译换开发体验和默认性能；代价是生态迁移动作与心智升级（Proxy 边界、Composition 风格）。
+
+---
+
+## 常见误区
+
+### ❌ Vue 3 废弃了 Options API
+
+### ✅ 更准确的说法
+
+仍支持；Composition 更适合复杂复用与 TS。
+
+---
+
+### ❌ 上了 Vue 3 就一定明显更快
+
+### ✅ 更准确的说法
+
+机制更好；真实收益还看组件切分、列表、是否吃到编译优化。
+
+---
+
+### ❌ 迁移只要把 `new Vue` 改成 `createApp`
+
+### ✅ 更准确的说法
+
+依赖、全局 API、事件总线、v-model、过滤器和隐性响应式假设才是大头。
+
+---
 
 ## 高频追问
 
-### Vue 3 是否完全替代 Options API？
+### Vue 3 最大的几项变化？
 
-没有。Options API 仍然可用。Composition API 更适合复杂逻辑复用和 TypeScript，大型项目可以渐进式迁移。
+响应式 Proxy、createApp、Composition、编译优化与 Diff、内置能力与生态。
 
-### Vue 3 为什么更适合 TypeScript？
+### 为什么更适合 TypeScript？
 
-Composition API 本质是函数组合，类型推断路径更直接；Vue 2 的 mixin、this 注入和 Options 合并对 TS 不友好。
+函数式组合推断路径更直接；mixin/`this` 合并对 TS 不友好。
 
-### Vue 2 迁移 Vue 3 最大风险是什么？
+### 迁移最大风险？
 
-通常是依赖兼容、全局 API、事件总线移除、v-model 语义变化，以及项目里隐式依赖 Vue 2 响应式边界的代码。
+第三方兼容与隐藏的 Vue 2 写法假设，其次才是语法迁移。
+
+### Composition 和 React Hooks 像不像？
+
+复用形态像；Vue 不依赖调用顺序，状态活在响应式对象上。
+
+### Options 还要不要学？
+
+要。存量与部分团队规范仍用；能读能改即可，新复杂逻辑可 Composition。
+
+---
+
+## 延伸阅读
+
+- [Vue 3 响应式原理](/md/框架/Vue/vue3响应式原理.md)
+- [Vue Diff 算法](/md/框架/Vue/Vue%20Diff算法.md)
+- [模板编译流程](/md/框架/Vue/模板编译流程.md)
+- [Vue2 升级 Vue3 与 TS 迁移](/md/框架/Vue/Vue2升级Vue3与TS迁移专题.md)
+- [Vue vs React](/md/框架/Vue%20vs%20React.md)
+- [面试速记：React & Vue](/md/面试准备/技术/React%20&%20Vue.md)

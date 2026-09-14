@@ -1,366 +1,197 @@
 # Vue 渲染原理
 
-## 面试定位
-
-Vue 渲染原理是把响应式、模板编译、虚拟 DOM、Diff、调度队列串起来的综合题。回答重点不是背源码细节，而是讲清楚：**模板如何变成 render 函数，render 如何生成 VNode，响应式数据变化后如何触发组件重新渲染，最后如何通过 patch 更新真实 DOM**。
-
 ## 面试回答
 
-可以这样答：
+> Vue 渲染可以串成一条链：模板先编译成 render 函数；执行 render 得到 VNode；首次 `patch(null, vnode)` 挂载真实 DOM。组件渲染被包成响应式 effect，render 里读到的数据会被 track；数据一变，trigger 把更新推进 scheduler 队列，微任务里再跑 render，拿新旧 VNode 做 patch / Diff，最后才改 DOM。
+>
+> 所以不是「改 data 等于改 DOM」，而是「改 data → 通知组件 effect → 重新描述 UI → 对齐 DOM」。Vue 3 还把大量工作前移到编译期：静态提升、patchFlag、Block Tree 等，让运行时尽量只碰动态节点。`nextTick` 则是等这轮队列和 DOM 更新完成后再读页面。和 React 比，Vue 默认靠依赖追踪缩小「谁该更新」；React 更靠显式状态更新加 Fiber 调度。面试把这条链说顺，再按追问下钻响应式、Diff 或编译即可。
 
-> Vue 的渲染流程分为编译、挂载和更新。编译阶段会把 template 解析成 AST，再生成 render 函数；运行时执行 render 函数得到 VNode，也就是用 JavaScript 对象描述的 UI 树。首次渲染时，Vue 会根据 VNode 创建真实 DOM 并插入页面。组件渲染本身会被包装成一个响应式 effect，render 过程中读取到的响应式数据会被 track 收集依赖。当数据变化时，trigger 会通知对应组件更新，但 Vue 不会立即同步更新 DOM，而是通过 scheduler 把更新任务放到队列里，在微任务中批量执行。更新时会重新执行 render 得到新的 VNode，再通过 patch 对比新旧 VNode，复用相同节点，只更新变化的 props、文本或子节点。Vue 3 还通过 patchFlag、静态提升、事件缓存、Block Tree 等编译优化减少运行时 diff 的范围。它的核心思想是把一部分运行时工作提前到编译阶段完成：编译阶段会标记动态节点、提升静态节点；运行时更新时，Vue 就可以跳过大量不会变化的内容，直接定位动态节点，只对动态部分做 diff 和 patch，从而提高渲染性能。
+**一句话总结：**
 
-一句话总结：
-
-> Vue 渲染原理 = 模板编译成 render，render 生成 VNode，响应式触发 render 重跑，patch / diff 负责把 VNode 的变化同步到真实 DOM。
-
-## 核心原理
-
-Vue 的渲染流程可以概括成一句话：
-
-> 模板编译成 render 函数，render 执行后生成 VNode，数据变化触发渲染 effect 重新执行，生成新的 VNode，再通过 patch / diff 把变化更新到真实 DOM。
-
-完整链路如下：
-
-```
-template
-  → compiler 编译
-  → render 函数
-  → 执行 render
-  → 生成 VNode
-  → mount / patch
-  → 真实 DOM
-  → 响应式数据变化
-  → scheduler 调度组件更新
-  → 重新执行 render
-  → 新旧 VNode diff
-  → 更新真实 DOM
-```
+> template→render→VNode → effect+track → trigger→队列 → 再 render → patch/Diff → DOM。
 
 ---
 
-## 1. 模板不是直接变成 DOM
+## 核心原理
 
-我们写的模板：
+### 1. 为什么要这条链
+
+模板不能直接给浏览器执行；直接改 DOM 难批量、难跨平台、难复用。中间的 VNode + patch 把「描述 UI」和「操作宿主」分开；响应式 effect 则把「数据变了」接到「哪棵子树该重算」。
+
+---
+
+### 2. 整体执行链路
+
+```text
+template
+  → compile：AST → transform → render 函数
+挂载：
+  → setup / 创建渲染 effect
+  → render() → VNode（subTree）
+  → patch(null, subTree) → 真实 DOM
+更新：
+  → 写响应式数据 → trigger
+  → queueJob（微任务批量）
+  → render() → 新 VNode
+  → patch(old, new) → Diff / 更新 DOM
+  → nextTick 回调可安全读 DOM
+```
+
+| 对象 | 白话 |
+| --- | --- |
+| render 函数 | 运行时真正执行的 UI 工厂 |
+| VNode | 用 JS 对象描述的 UI 节点 |
+| 渲染 effect | 连接响应式与组件更新的副作用 |
+| patch | 把 VNode 差异落到宿主（DOM） |
+
+响应式细节见 [Vue 3 响应式原理](/md/框架/Vue/vue3响应式原理.md)；孩子对齐见 [Vue Diff](/md/框架/Vue/Vue%20Diff算法.md)；编译优化见 [模板编译流程](/md/框架/Vue/模板编译流程.md)。
+
+---
+
+### 3. 编译：模板不是 DOM
 
 ```vue
 <template>
   <div class="user">
     <h2>{{ name }}</h2>
-    <p>{{ age }}</p>
   </div>
 </template>
 ```
 
-浏览器并不认识 Vue 模板。Vue 会先经过编译阶段，把模板解析成 AST，再基于 AST 生成渲染函数。
-
-大致过程：
-
-```
-template
-  → parse：解析成 AST
-  → transform：标记动态节点、静态提升、生成优化信息
-  → codegen：生成 render 函数字符串
-```
-
-编译后的 render 函数大致类似：
-
-```js
-function render(ctx) {
-  return h('div', { class: 'user' }, [
-    h('h2', null, ctx.name),
-    h('p', null, ctx.age)
-  ])
-}
-```
-
-所以 Vue 的模板本质上只是更适合人写的声明式语法，真正运行时执行的是 `render` 函数。
+大致变成执行 `h('div', …)` 的 render。编译期可标记动态点、提升静态节点，减少更新时 Diff 范围。
 
 ---
 
-## 2. render 函数生成 VNode
+### 4. VNode 与 mount
 
-`render` 函数执行后不会直接创建真实 DOM，而是先生成 VNode。
+VNode 统一描述元素、文本、组件、Fragment 等。首次无旧树：
 
-VNode 是一个普通 JavaScript 对象，用来描述真实 DOM 或组件：
-
-```js
-const vnode = {
-  type: 'div',
-  props: {
-    class: 'user'
-  },
-  children: [
-    { type: 'h2', children: 'Tungee' },
-    { type: 'p', children: '18' }
-  ]
-}
+```text
+patch(null, vnode) → mountElement / mountComponent …
 ```
 
-VNode 的价值：
-
-- 用对象描述 UI，创建和比较成本低于直接操作 DOM。
-- 统一描述元素、组件、文本、Fragment 等不同节点。
-- 让同一套渲染逻辑可以对接不同平台，例如浏览器 DOM、小程序、自定义渲染器。
-
-Vue 运行时真正操作页面时，会根据 VNode 创建真实 DOM，或者拿新旧 VNode 做对比后复用已有 DOM。
+元素路径直觉：创建 DOM → 挂 props → 挂 children → 插入容器。
 
 ---
 
-## 3. 首次渲染：mount
-
-组件首次渲染时，没有旧 VNode，所以走的是 mount 流程：
-
-```
-setup / data 初始化
-  → 创建组件渲染 effect
-  → 执行 render
-  → 得到 subTree
-  → patch(null, subTree, container)
-  → 创建真实 DOM
-  → 插入页面
-```
-
-`patch(null, vnode, container)` 中的 `null` 表示旧节点不存在，因此 Vue 会根据 VNode 类型创建节点。
-
-例如元素节点会走 `mountElement`：
+### 5. 组件更新 = effect + 队列 + patch
 
 ```js
-function mountElement(vnode, container) {
-  const el = document.createElement(vnode.type)
-  patchProps(el, null, vnode.props)
-  mountChildren(vnode.children, el)
-  container.appendChild(el)
-}
-```
-
-真实源码会复杂很多，需要处理组件、指令、事件、生命周期、Teleport、Suspense 等，但主线就是：**VNode 描述什么，运行时就创建什么 DOM**。
-
----
-
-## 4. 组件渲染本身是一个 effect
-
-Vue 3 中，组件更新和响应式系统连接的关键是 `effect`。
-
-组件挂载时，Vue 会把组件的渲染逻辑包装成一个响应式副作用：
-
-```js
+// 心智模型（非源码逐字）
 effect(() => {
   const subTree = render()
-  patch(prevTree, subTree, container)
-  prevTree = subTree
-})
+  patch(prev, subTree, container)
+  prev = subTree
+}, { scheduler: queueJob })
 ```
 
-当 render 执行时，如果读取了响应式数据：
+#### Trace：连续三次自增
 
-```vue
-<h2>{{ name }}</h2>
-```
-
-就等价于在 render 中访问了 `state.name`。这个读取会触发 `track`，把当前组件的渲染 effect 收集起来。
-
-当后续执行：
-
-```js
-state.name = 'new name'
-```
-
-写操作会触发 `trigger`，找到依赖 `name` 的渲染 effect，通知组件更新。
-
-这也是为什么说：
-
-> Vue 不是数据直接改 DOM，而是数据变化触发组件重新 render，render 产出新的 VNode，再由 patch 更新 DOM。
+| 步骤 | 结果 |
+| --- | --- |
+| `count++` ×3（同步） | trigger 多次，同一 job 只留一份 |
+| 同步代码结束 | 微任务 flush |
+| render + patch 一次 | DOM 从旧值到最终值 |
+| 若中途读 `el.textContent` | 可能仍是旧 DOM → 需 `nextTick` |
 
 ---
 
-## 5. 更新不是立即同步刷 DOM
+### 6. patch 在流水线中的位置
 
-响应式数据变化后，Vue 通常不会立刻同步执行 DOM 更新，而是通过 scheduler 把组件更新任务放进队列。
+`patch(n1, n2)`：类型不同则卸旧挂新；同类型再比 props / children。列表 Diff、key、LIS 是 children 路径上的细节，不是整条渲染的全部。
 
-```js
-state.count++
-state.count++
-state.count++
-```
-
-同一个同步任务里多次修改同一个组件依赖的数据，Vue 会合并成一次组件更新，避免重复 render 和重复 patch。
-
-大致逻辑：
-
-```js
-function queueJob(job) {
-  if (!queue.includes(job)) {
-    queue.push(job)
-  }
-  Promise.resolve().then(flushJobs)
-}
-```
-
-所以修改数据后立刻读 DOM，可能读到旧 DOM：
-
-```js
-count.value++
-console.log(el.textContent) // 可能还是旧值
-
-await nextTick()
-console.log(el.textContent) // 更新后的值
-```
-
-`nextTick` 的作用就是等待当前更新队列 flush 完成。
+Vue 3 运行时还能吃编译产物：`patchFlag` 提示哪些 props/文本动了，Block 把动态子节点收成列表，更新时直达动态点。
 
 ---
 
-## 6. 更新渲染：patch
+### 7. 与 React 的对照（点到为止）
 
-当组件重新渲染时，Vue 会再次执行 render，得到新的 VNode：
-
-```
-oldVNode: <p>Hello</p>
-newVNode: <p>Hi</p>
-```
-
-然后进入 patch：
-
-```js
-patch(oldVNode, newVNode, container)
-```
-
-patch 的基本判断：
-
-```js
-function patch(n1, n2, container) {
-  if (n1 && !sameVNode(n1, n2)) {
-    unmount(n1)
-    n1 = null
-  }
-
-  const { type } = n2
-
-  if (typeof type === 'string') {
-    processElement(n1, n2, container)
-  } else if (isComponent(type)) {
-    processComponent(n1, n2, container)
-  }
-}
-```
-
-如果新旧节点 `type` 和 `key` 不同，Vue 会认为不是同一个节点，直接卸载旧节点并挂载新节点。
-
-如果是同一个节点，就尽量复用旧 DOM，只更新变化的部分：
-
-```js
-function patchElement(n1, n2) {
-  const el = n2.el = n1.el
-  patchProps(el, n1.props, n2.props)
-  patchChildren(n1, n2, el)
-}
-```
-
----
-
-## 7. 子节点更新：文本、数组与 key
-
-元素的 children 常见有三种情况：
-
-- 文本：`<p>{{ msg }}</p>`
-- 数组：`<ul><li v-for="item in list"></li></ul>`
-- 空节点：条件渲染后没有内容
-
-文本更新最简单：
-
-```js
-if (oldChildren !== newChildren) {
-  el.textContent = newChildren
-}
-```
-
-数组子节点才会进入列表 diff。对于有 `key` 的列表，Vue 会根据 `key` 判断节点身份：
-
-```vue
-<li v-for="item in list" :key="item.id">
-  {{ item.name }}
-</li>
-```
-
-`key` 的作用是告诉 Vue：这个节点在新旧列表中是不是同一个节点。
-
-- 没有 `key`：Vue 倾向于按位置就地复用。
-- 用 `index` 做 `key`：插入、删除、排序时容易造成错误复用。
-- 用业务唯一 ID：可以稳定识别节点，减少状态错乱和无意义更新。
-
-列表 diff 的细节可以继续展开 Vue 2 双端 diff、Vue 3 最长递增子序列，见 [Vue Diff 算法](/md/框架/Vue/Vue%20Diff算法.md)。
-
----
-
-## 8. Vue 3 的编译优化
-
-Vue 3 渲染性能提升不只来自运行时 diff，也来自编译期优化。编译器会提前分析模板，把静态信息和动态信息标出来，让运行时少做判断。
-
-### 静态提升
-
-> 静态提升是 Vue 3 编译阶段的优化。编译器会把不会变化的静态节点或静态属性提升到 render 函数外部。这样组件重新渲染时，这些静态内容不需要重复创建，可以直接复用，从而减少 VNode 创建和内存开销。
-
-不会变化的节点会被提到 render 函数外面：
-
-```vue
-<div>
-  <h1>固定标题</h1>
-  <p>{{ msg }}</p>
-</div>
-```
-
-`h1` 不依赖响应式数据，不需要每次更新都重新创建 VNode，也不需要参与 diff。
-
-### patchFlag
-
-> atchFlag 是 Vue 3 编译阶段给动态节点打的更新标记。它告诉运行时这个 VNode 哪些部分是动态的，比如文本、class、style、props。更新时 Vue 就不用完整 diff 整个节点，而是根据 patchFlag 做靶向更新。
-
-### Block Tree
-
-> Block Tree 是 Vue 3 为了减少全量递归 diff 做的优化。编译器会以 Block 为单位收集动态子节点，生成 dynamicChildren。更新时 Vue 不需要遍历整个子树，而是直接遍历 block 里的动态节点，再结合 patchFlag 做靶向更新。patchFlag 解决“节点哪里变了”，Block Tree 解决“快速找到哪些节点需要更新”。
-
-### 事件缓存
-
-> 事件缓存是 Vue 3 针对事件处理函数的编译优化。对于一些内联事件处理函数，编译器会把它缓存到 _cache 数组里。首次渲染时创建函数，后续更新时直接复用缓存的函数引用，避免每次 render 都创建新函数，也减少不必要的事件 patch。
-
----
-
-## 9. Vue 2 和 Vue 3 渲染差异
-
-| 维度 | Vue 2 | Vue 3 |
+| | Vue | React |
 | --- | --- | --- |
-| 响应式基础 | `Object.defineProperty` | `Proxy` |
-| 模板编译优化 | 相对有限 | patchFlag、Block Tree、静态提升 |
-| 根节点 | 单根组件 | 支持 Fragment 多根 |
-| diff | 双端 diff | 快速 diff + LIS |
-| 调度 | watcher 队列 | effect scheduler + job queue |
-| 静态节点 | 有静态标记 | 静态提升更彻底 |
+| 谁该更新 | 依赖追踪到组件 effect | 从 setState 触发点向子树再 render |
+| 中间描述 | VNode | Element → Fiber |
+| 调度 | 多为队列批量，组件更新偏同步跑完 | Fiber 可中断 Render |
+| 优化重心 | 编译 + 响应式 | 结构 / memo / 优先级 |
 
-Vue 2 的核心链路也是「数据变化 → watcher 更新 → render → VNode → patch」，只是响应式实现、编译优化和 diff 策略不如 Vue 3 精细。
+---
+
+### 8. 设计取舍
+
+| 选择 | 得到 | 代价 |
+| --- | --- | --- |
+| 模板 + 编译 | 静态分析、少手动 memo | 表达力受模板约束（仍可用 render/JSX） |
+| 异步队列更新 | 合并渲染 | 同步读 DOM 要 nextTick |
+| 组件级 effect | 实现清晰 | 大组件要拆分 |
+
+---
+
+## 常见误区
+
+### ❌ 改 data 就会同步立刻改 DOM
+
+### ✅ 更准确的说法
+
+先 trigger → 入队 → flush 后 render/patch；同步代码里常读到旧 DOM。
+
+---
+
+### ❌ VNode 就是真实 DOM
+
+### ✅ 更准确的说法
+
+VNode 是描述；DOM 是宿主节点，由 patch 创建或更新。
+
+---
+
+### ❌ Diff 等于整条渲染原理
+
+### ✅ 更准确的说法
+
+Diff 是 patch 子节点时的对齐策略；渲染还包括编译、effect、调度。
+
+---
+
+### ❌ Vue 更新一定比 React 可中断
+
+### ✅ 更准确的说法
+
+Vue 默认组件更新路径更偏同步完成；可中断是 React Fiber 强项。Vue 强在依赖与编译减负。
 
 ---
 
 ## 高频追问
 
-### Vue 是数据变化后直接更新 DOM 吗？
+### Vue 一次更新的主链路？
 
-不是。数据变化会触发组件的渲染 effect 重新执行，生成新的 VNode，然后通过 patch 对比新旧 VNode，最后更新真实 DOM。
+写数据 → trigger → queueJob → flush → render 出新 VNode → patch → DOM。
 
-### 为什么 Vue 要使用虚拟 DOM？
+### 为什么组件渲染是 effect？
 
-虚拟 DOM 用普通对象描述 UI，方便跨平台、组件化和统一 diff。它不是一定比手写 DOM 快，而是让复杂 UI 的更新过程更可控，并且可以结合编译优化减少真实 DOM 操作。
+render 读数据时 track，写数据时才能精确找到该组件的更新函数。
 
-### nextTick 为什么能拿到更新后的 DOM？
+### nextTick 解决什么？
 
-Vue 会把组件更新放入异步队列，在当前同步代码执行完后统一 flush。`nextTick` 等待这轮更新队列执行完成，所以回调里能读到更新后的 DOM。
+等本轮更新队列（及 DOM patch）完成后再读最新 DOM 或接后续逻辑。
 
-### Vue 3 为什么比 Vue 2 渲染更快？
+### 编译优化如何减少 Diff？
 
-Vue 3 不只是 diff 算法升级，还依赖编译期优化：静态提升减少重复创建 VNode，patchFlag 精确标记动态字段，Block Tree 跳过稳定静态结构，让运行时只关注真正会变化的节点。
+静态提升、patchFlag、Block Tree 等让运行时少走无相关节点。
+
+### mount 和 patch 差别？
+
+无旧 VNode 时挂载创建；有旧树时对齐复用并改差异。
+
+### 和 React 渲染最大不同？
+
+Vue 自动追踪依赖并善用编译；React 显式触发更新并强调可调度运行时。
+
+---
 
 ## 延伸阅读
 
-- 响应式如何收集依赖：[Vue 3 响应式原理](/md/框架/Vue/vue3响应式原理.md)
-- 子节点如何更新：[Vue Diff 算法](/md/框架/Vue/Vue%20Diff算法.md)
-- Vue 2 / Vue 3 差异：[Vue 2 和 Vue 3 区别](/md/框架/Vue/vue2和3的区别.md)
+- [Vue 3 响应式原理](/md/框架/Vue/vue3响应式原理.md)
+- [Vue Diff 算法](/md/框架/Vue/Vue%20Diff算法.md)
+- [模板编译流程](/md/框架/Vue/模板编译流程.md)
+- [nextTick 与虚拟 DOM](/md/框架/Vue/nextTick与虚拟DOM.md)
+- [React 渲染原理](/md/框架/React/React%20渲染原理.md)
+- [Vue vs React](/md/框架/Vue%20vs%20React.md)

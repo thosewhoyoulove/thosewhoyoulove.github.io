@@ -28,12 +28,12 @@ React 和 Vue 的框架题重点不是“API 会不会用”，而是能不能�
 
 | 题目 | 必背结论 | 深文 |
 | --- | --- | --- |
-| 响应式原理 | Proxy 拦截读写，track 收集，trigger 触发 | [Vue 3 响应式原理](/md/框架/Vue/vue3响应式原理.md) |
-| 模板编译 | template -> AST -> transform -> render 函数 | [模板编译流程](/md/框架/Vue/模板编译流程.md) |
-| nextTick | 等待批量 DOM 更新完成后执行回调 | [nextTick 与虚拟 DOM](/md/框架/Vue/nextTick与虚拟DOM.md) |
-| 虚拟 DOM | render 生成 VNode，patch 同步到真实 DOM | [Vue 渲染原理](/md/框架/Vue/Vue%20渲染原理.md) |
-| Diff 算法 | 同层比较，key 帮助节点复用和移动 | [Vue Diff 算法](/md/框架/Vue/Vue%20Diff算法.md) |
-| Vue 2 vs Vue 3 | 响应式、Composition API、编译优化和性能差异 | [Vue 2 和 Vue 3 区别](/md/框架/Vue/vue2和3的区别.md) |
+| 响应式原理 | Proxy + track/trigger + effect；scheduler 合并；ref/computed | [Vue 3 响应式原理](/md/框架/Vue/vue3响应式原理.md) |
+| 模板编译 | template→AST→transform（patchFlag/提升/Block）→render | [模板编译流程](/md/框架/Vue/模板编译流程.md) |
+| nextTick | 数据已变；等队列 flush + DOM patch 后再读 | [nextTick 与虚拟 DOM](/md/框架/Vue/nextTick与虚拟DOM.md) |
+| 虚拟 DOM | render→VNode→patch；编译减负 | [Vue 渲染原理](/md/框架/Vue/Vue%20渲染原理.md) |
+| Diff 算法 | 前后缩 + 增删快路径 + 中间 LIS；编译减少进 Diff 节点 | [Vue Diff 算法](/md/框架/Vue/Vue%20Diff算法.md) |
+| Vue 2 vs Vue 3 | Proxy、createApp、Composition、编译优化+LIS；迁移盯依赖 | [Vue 2 和 Vue 3 区别](/md/框架/Vue/vue2和3的区别.md) |
 | Vue2→3 / JS→TS 迁移 | 分阶段 + compat + 回归指标；TS 渐进 | [Vue2 升级 Vue3 与 TS 迁移](/md/框架/Vue/Vue2升级Vue3与TS迁移专题.md) |
 
 ## 框架对比
@@ -66,11 +66,11 @@ Vue：依赖追踪 + 模板编译优化，默认组件级更新、少手动 memo
 
 ### Vue 3 为什么用 Proxy？
 
-Proxy 可以更自然地拦截新增属性、删除属性、数组和对象操作，不需要像 Vue 2 那样递归 defineProperty 初始化。
+能拦截新增删除、迭代、数组下标与 length；配合惰性代理。依赖图是 target→key→effect；组件渲染是 effect，经 scheduler 批量更新。详见 [Vue 3 响应式原理](/md/框架/Vue/vue3响应式原理.md)。
 
 ### nextTick 解决什么问题？
 
-Vue DOM 更新是异步批量执行的。状态变了不代表 DOM 立刻更新，`nextTick` 用来等待本轮 DOM patch 完成后再读取最新 DOM。
+响应式赋值时数据已变；DOM 更新在队列 flush 之后。`nextTick` 等 patch 完成后再读 DOM，不是用来「触发」数据更新。
 
 ### SSR 和 CSR 核心差别是什么？Hydration / RSC 怎么答？
 
