@@ -2,268 +2,235 @@
 
 ## 面试回答
 
-> Vue 和 React 都在解决「数据变了怎么高效更新 UI」，差别主要在更新模型。Vue 偏响应式：读数据时收集依赖，写数据时精确通知相关组件更新，模板还能做编译期优化（patchFlag、静态提升），所以默认性能下限高、手动 memo 少。React 偏状态驱动：`setState` 后从当前组件往下重新 render，再靠 Fiber reconciliation 算差异；不自动追踪「谁用了哪个字段」，所以常用 `memo` / `useMemo` 做显式跳过，但换来 Fiber 可中断调度和更灵活的 JSX 抽象。
+> Vue 和 React 都在解决同一件事：数据变了，怎么高效、可预期地更新 UI。差别主要在**更新模型**，不是谁更先进。
 >
-> Diff 上 Vue 3 乱序段偏 LIS 少搬 DOM，React 用 `lastPlacedIndex` 贪心，更贴「render 只打标、commit 再改 DOM」。逻辑复用现在都很像：Vue Composable vs React Hooks，但 React Hook 依赖调用顺序，Vue 响应式不依赖。选型上没有绝对谁更好：中后台、约束强、快速交付常偏 Vue；复杂交互、跨平台、Next 生态常偏 React。我两边都用过，会按团队和场景选，核心都是把状态变更映射到 DOM。
+> Vue 偏响应式：渲染过程中读到的数据会收集依赖，写入时 `trigger` 通知相关组件的更新 effect。再叠加模板编译（静态提升、patchFlag、Block Tree），运行时要比对的动态节点更少，所以日常开发里手动 memo 少，性能下限比较稳。更准确地说，默认仍是**组件级**重新渲染为主，不是 Solid 那种逐 DOM 绑定的极细粒度；细的是「依赖收集到哪个组件 effect」。
+>
+> React 偏状态驱动：`setState` 之后从触发点往下再算 UI，用 Fiber reconciliation（含 Diff）找差异。它不自动追踪「哪个字段被谁读了」，换来的是统一的运行时模型，以及 Fiber + Scheduler + Lane 上的可中断渲染、`startTransition` 这类优先级能力。控制渲染范围通常靠状态下沉、`memo`、稳定引用等显式手段。
+>
+> Diff 上 Vue 3 乱序中段更常走 LIS，偏向少搬 DOM；React 用 `lastPlacedIndex` 贪心，和「Render 只打标、Commit 再改 DOM」一致。逻辑复用现在都很像：Composable vs Hooks，但 Hooks 依赖调用顺序，Vue 的响应式不依赖。选型看团队与场景：中后台、约束清晰、快速交付常偏 Vue；复杂交互、跨平台、Next 生态常偏 React。我两边都用过，会按问题选工具。
 
 **一句话总结：**
 
-> Vue=依赖追踪+编译优化细更新 → React=状态驱动整树 reconcile+Fiber 可中断 → 选型看场景不是谁更先进。
+> Vue=依赖追踪+编译优化（组件级更新）→ React=状态驱动+Fiber 可中断 → Diff/复用路径不同 → 选型看场景。
 
 ---
 
 ## 核心原理
 
-Vue 和 React 都在解决同一个问题：数据变化后如何高效更新 UI。Vue 更偏响应式依赖追踪，框架能自动知道哪些组件依赖了哪些数据；React 更偏状态驱动和不可变数据，状态变化后从触发点重新 render，再通过 reconciliation 找出变更。
+### 1. 为什么要对比「更新模型」
+
+面试官很少要你背 API 清单，而是看你能否说清：
+
+```text
+数据怎么变
+  → 框架怎么知道要更新谁
+  → 怎么算差异
+  → 怎么落到 DOM
+  → 开发者要补什么优化
+```
+
+两条路径都能做成大应用；差异在默认成本与控制点。
 
 ---
 
-## 问题：Vue 和 React 最本质的区别是什么？
+### 2. 整体对照链路
 
-一句话：**Vue 是响应式驱动的细粒度更新，React 是状态驱动的整树 reconcile。**
-
-### Vue 的思路
-
-数据变了 → 精确知道哪些组件依赖了这个数据 → 只更新那几个组件。
-
-Vue 通过 Proxy 拦截数据的读写，在读的时候收集"谁在用这个数据"（依赖收集），写的时候通知"用了这个数据的组件去更新"（派发更新）。所以 Vue **天然知道该更新谁**，不需要开发者手动优化。
-
-### React 的思路
-
-状态变了 → 从当前组件开始，整棵子树重新执行 render → 通过 diff（reconciliation）找出 DOM 差异 → 更新 DOM。
-
-React 不追踪数据和组件的依赖关系，它的策略是"有变化就从上往下重新渲染，然后靠 diff 算法找出最小变更"。所以 React 需要开发者用 `React.memo`、`useMemo`、`useCallback` 来手动告诉框架"这个组件/值没变，跳过"。
+| 步骤 | Vue | React |
+| --- | --- | --- |
+| 触发 | 改响应式数据 → trigger | `setState` / props / context |
+| 知道更新谁 | 依赖收集到组件 render effect | 从触发 Fiber 向子树再 render（可 bailout） |
+| 算差异 | VNode patch（常带编译提示） | Fiber reconcile + Diff |
+| 提交 | patch 到 DOM | Commit 消费 flags |
+| 调度 | job queue（多为同步组件更新） | Scheduler + Lane，Render 可中断 |
 
 ---
 
-## 问题：响应式 vs 不可变数据，具体有什么影响？
+### 3. 响应式 vs 状态驱动
 
-### Vue：可变数据 + 自动追踪
+**Vue（可变 + 自动追踪）**
 
 ```js
-const state = reactive({ count: 0 })
-state.count++  // 直接修改，Vue 自动知道要更新
+state.count++ // 写入触发依赖了 count 的 effect
 ```
 
-- 写法直观，像操作普通对象
-- 不需要手动优化，框架自动做细粒度更新
-- 代价：Proxy 有运行时开销，大对象深度代理有性能成本
-
-### React：不可变数据 + 手动触发
+**React（不可变习惯 + 显式触发）**
 
 ```jsx
-const [state, setState] = useState({ count: 0 })
-setState({ ...state, count: state.count + 1 })  // 必须创建新对象
+setState(prev => ({ ...prev, count: prev.count + 1 }))
 ```
-
-- 数据不可变，状态变更可追溯（时间旅行调试）
-- 需要手动优化（memo、useCallback），否则子树无意义重渲染
-- 代价：每次更新都要创建新对象，深层嵌套时写法繁琐
-
-### 面试怎么说
-
-> "Vue 的响应式让开发者不用关心'谁需要更新'，框架自动追踪依赖；React 把控制权交给开发者，通过不可变数据和 memo 体系手动优化。Vue 的下限高（不优化也不会太差），React 的上限高（精细控制可以做到极致）。"
-
----
-
-## 问题：模板 vs JSX，各有什么优劣？
-
-### Vue：模板（Template）
-
-```vue
-<template>
-  <div v-if="show" :class="{ active: isActive }" @click="handleClick">
-    <span v-for="item in list" :key="item.id">{{ item.name }}</span>
-  </div>
-</template>
-```
-
-**优势**：
-- 编译器能做静态分析（patchFlag、静态提升、Block Tree），运行时 diff 工作量更少
-- 语法约束强，团队代码风格统一
-- 对设计师/初学者友好，接近 HTML
-
-**劣势**：
-- 表达能力有限，复杂逻辑需要绕（多层 v-if 嵌套可读性差）
-- 动态组件、高阶抽象不如 JSX 灵活
-
-### React：JSX
-
-```jsx
-function App() {
-  return (
-    <div className={isActive ? 'active' : ''} onClick={handleClick}>
-      {show && list.map(item => <span key={item.id}>{item.name}</span>)}
-    </div>
-  )
-}
-```
-
-**优势**：
-- 就是 JavaScript，表达能力无限
-- 动态组合、高阶组件、render props 写起来自然
-- 类型推断完整（TypeScript 原生支持）
-
-**劣势**：
-- 编译器能做的优化有限（无法静态分析哪些部分是动态的）
-- 灵活度高意味着团队代码风格差异大
-- 需要手动优化（memo），否则性能不如 Vue 的自动追踪
-
----
-
-## 问题：Diff 算法有什么区别？
-
-| 维度 | Vue 3 | React |
-| --- | --- | --- |
-| 子节点对比 | 前后缩 + 最长递增子序列（LIS） | `ChildReconciler`：按下标试探，对不上再 Map；移动用 `lastPlacedIndex` 贪心 |
-| 目标 | 最少 DOM 移动 | 找出变更，不保证最少移动 |
-| 编译辅助 | patchFlag / Block Tree / 静态提升 | 无（JSX 难以静态分析） |
-| 更新粒度 | 精确到组件（响应式追踪） | 从触发点往下整棵子树 |
-
-**Vue 的优势**：编译器 + 响应式让进入 diff 的节点更少，diff 本身也用 LIS 保证最少移动。
-
-**React 的优势**：Fiber 架构让 diff 可中断，配合优先级调度（useTransition），长列表更新不阻塞用户交互。
-
-完整控制流见 [React Diff 算法](/md/框架/React/React%20Diff算法.md) 和 [Vue Diff 算法](/md/框架/Vue/Vue%20Diff算法.md)。
-
----
-
-## 问题：组件复用逻辑的方式有什么区别？
 
 | | Vue | React |
 | --- | --- | --- |
-| 主流方式 | Composable（组合式函数） | Custom Hook |
-| 旧方式 | Mixin（已不推荐） | HOC / Render Props |
-| 本质 | 函数里调用响应式 API | 函数里调用 Hook API |
+| 「谁要更新」 | 框架大致知道 | 开发者用结构 / memo 收缩 |
+| 默认手感 | 下限稳 | 更可预测的「显式数据流」 |
+| 典型代价 | 代理与追踪成本；大对象要 shallow / markRaw | 子树易连带渲染；要会拆状态 |
 
-两者现在的主流方式其实很像：
+面试可用但不绝对的概括：
 
-**Vue Composable**：
-```js
-function useCounter(initial = 0) {
-  const count = ref(initial)
-  const increment = () => count.value++
-  return { count, increment }
-}
-```
-
-**React Custom Hook**：
-```js
-function useCounter(initial = 0) {
-  const [count, setCount] = useState(initial)
-  const increment = () => setCount(c => c + 1)
-  return { count, increment }
-}
-```
-
-**区别**：
-- Vue 的 composable 返回的是响应式引用，组件自动追踪依赖
-- React 的 hook 返回的是快照值，每次 render 都是新的闭包
-- Vue 没有"Hook 规则"（不能写在 if 里），因为响应式不依赖调用顺序
-- React 的 Hook 必须顶层调用，因为依赖链表顺序
+> Vue 下限高；React 上限与控制力高——前提是团队真的会管渲染范围。
 
 ---
 
-## 问题：状态管理有什么区别？
+### 4. 模板 vs JSX
 
-| | Vue（Pinia） | React（Zustand / Redux） |
+| | Vue 模板 | React JSX |
 | --- | --- | --- |
-| 响应式 | 天然响应式，store 变了自动更新 | 需要 selector 或 useSyncExternalStore |
-| 更新粒度 | 细粒度，只有用到的字段变了才更新 | 需要手动做 selector 优化 |
-| 写法 | 直接修改 `store.count++` | 不可变更新 `setState(prev => ({...prev}))` |
-| DevTools | Vue DevTools 集成 | Redux DevTools / 各库自带 |
+| 优化 | 编译期可静态分析 | 主要靠运行时 + 人工 memo（编译器优化在演进，但心智仍偏运行时） |
+| 表达力 | 约束强、风格统一 | 就是 JS，组合灵活 |
+| 类型 | 很好，但路径与 JSX 不同 | TS 与 JSX 结合成熟 |
+
+不是「模板落后」：约束换来了编译信息。也不是「JSX 一定更快」：灵活意味着优化责任更多在人。
 
 ---
 
-## 问题：性能优化的思路有什么区别？
+### 5. Diff 差异（点到关键因果）
 
-### Vue：大部分情况不需要手动优化
-
-- 响应式自动追踪，只有依赖变了的组件才更新
-- 编译器自动做静态提升、patchFlag
-- 需要手动优化的场景：大列表（虚拟滚动）、第三方实例（markRaw/shallowRef）、`v-memo`
-
-### React：需要主动优化
-
-- 默认行为是子树全部重渲染
-- `React.memo`：跳过 props 没变的组件
-- `useMemo` / `useCallback`：稳定引用
-- `useTransition`：标记低优先级更新
-- 虚拟列表、代码分割等
-
-### 面试怎么说
-
-> "Vue 的优化是'默认就好'，框架帮你做了大部分事情，开发者只需要在极端场景（大列表、第三方实例）做针对性处理。React 的优化是'显式控制'，开发者需要主动告诉框架哪些东西没变，但换来的是更精细的控制力和更可预测的行为。"
-
----
-
-## 问题：生态和工程化有什么区别？
-
-| 维度 | Vue | React |
+| 维度 | Vue 3 | React |
 | --- | --- | --- |
-| 官方工具链 | Vue Router、Pinia、Vite、Vue DevTools 官方维护 | 只有核心库，路由/状态管理靠社区 |
-| 选择成本 | 低（官方推荐方案明确） | 高（路由、状态管理、样式方案都有多种选择） |
-| SSR 框架 | Nuxt | Next.js |
-| 移动端 | uni-app（国内生态强） | React Native（跨平台成熟） |
-| 社区规模 | 国内主流 | 全球主流 |
-| 招聘市场 | 国内中小公司多 | 大厂、外企多 |
+| 乱序中段 | 常用 LIS，偏向少 DOM 移动 | `lastPlacedIndex` 贪心，不保证最少移动 |
+| 与架构关系 | 多在同步 patch 路径 | Diff 在可中断 Render，只打 flags |
+| 前置过滤 | patchFlag 等减少进 Diff 的工作 | 靠 bailout / memo 少进子树 |
+
+完整 Trace 见 [Vue Diff](/md/框架/Vue/Vue%20Diff算法.md)、[React Diff](/md/框架/React/React%20Diff算法.md)。
 
 ---
 
-## 问题：什么时候选 Vue，什么时候选 React？
+### 6. 逻辑复用：Composable vs Hooks
 
-**选 Vue 的场景**：
-- 团队以中前端为主，希望上手快、约束强
-- 中后台管理系统（Element Plus / Ant Design Vue 生态成熟）
-- 国内业务，需要对接微信/钉钉/uni-app 等国内生态
-- 希望"开箱即用"，不想在工具链选型上花太多时间
+写法很像，机制不同：
 
-**选 React 的场景**：
-- 团队技术能力强，需要高度灵活的架构
-- 复杂交互的 C 端产品（动画、拖拽、实时协作）
-- 需要跨平台（React Native）
-- 外企或国际化团队
-- 需要 SSR/ISR 等高级渲染策略（Next.js 生态领先）
-
-**面试怎么说**：
-> "没有绝对的好坏，看团队和场景。Vue 的优势是开发效率和下限保障，React 的优势是灵活性和生态广度。我两个都用过，Vue 做中后台效率很高，React 做复杂交互和跨平台更有优势。核心原理是相通的——都在解决'如何把数据变更高效映射到 DOM'这个问题，只是路径不同。"
-
----
-
-## 总结对比表
-
-| 维度 | Vue | React |
+| | Vue Composable | React Hook |
 | --- | --- | --- |
-| 核心理念 | 响应式 + 模板编译 | 函数式 UI + 不可变数据 |
-| 更新策略 | 细粒度依赖追踪，精确更新 | 整树 reconcile，靠 memo 优化 |
-| 模板/视图 | Template（可选 JSX） | JSX |
-| 编译优化 | 强（patchFlag / Block / 静态提升） | 弱（JSX 难静态分析） |
-| 逻辑复用 | Composable | Custom Hook |
-| 状态管理 | Pinia（官方） | Zustand / Redux / Jotai（社区） |
-| 学习曲线 | 低 → 中 | 中 → 高 |
-| 手动优化 | 少（框架兜底） | 多（需要 memo 体系） |
-| 并发特性 | 无 | Fiber + useTransition |
-| 适合场景 | 中后台、快速交付 | 复杂交互、跨平台 |
+| 状态载体 | `ref` / `reactive` | Hook 链表上的快照 state |
+| 能否放进 if | 可以（仍要注意 effect 生命周期） | **顶层调用**，依赖顺序 |
+| 心智 | 依赖自动追踪 | 每轮 render 新闭包 |
+
+---
+
+### 7. 状态管理与性能优化思路
+
+| | Vue（如 Pinia） | React（Redux / Zustand） |
+| --- | --- | --- |
+| 订阅 | 天然贴近响应式 | selector / `useSyncExternalStore` |
+| 写法 | 常直接改 store 字段 | 不可变更新更常见 |
+
+优化：
+
+- Vue：多数场景少手动优化；大列表、第三方实例、极端热路径再处理。
+- React：先问渲染范围（状态下沉、拆组件），再 `memo` / 稳定引用，再用 transition；不要一上来包满 `useMemo`。
+
+---
+
+### 8. 选型与设计取舍
+
+| 更偏 Vue | 更偏 React |
+| --- | --- |
+| 中后台、强约定、快速交付 | 复杂交互、跨平台、RN / Next |
+| 希望官方全家桶路径清晰 | 接受社区选型换灵活度 |
+| 国内小程序 / uni-app 等 | 国际化团队与 React 生态岗 |
+
+取舍一句话：Vue 把更多「谁该更新」收进框架；React 把更多控制权留给运行时调度与显式结构。
+
+---
+
+## 常见误区
+
+### ❌ Vue 一定比 React 快 / React 一定更先进
+
+### ✅ 更准确的说法
+
+默认成本曲线不同；真实瓶颈常在业务与列表策略。先进与否看问题匹配。
+
+### 为什么？
+
+绝对化是面试减分项。
+
+---
+
+### ❌ Vue 是逐属性改 DOM 的极细粒度更新
+
+### ✅ 更准确的说法
+
+依赖按属性收集，但常见结果是组件 render effect 重跑再 patch；不是 Solid 模型。
+
+### 为什么？
+
+「细粒度」说满了，追问组件更新单元时容易崩。
+
+---
+
+### ❌ React 每次 setState 必然整页 Diff
+
+### ✅ 更准确的说法
+
+从触发点向子树再 render；可通过 bailout、`memo`、状态下沉缩小范围。Diff 也在子节点层，不是无脑整站。
+
+### 为什么？
+
+和渲染原理专文一致，避免恐吓式表述。
+
+---
+
+### ❌ Hooks 和 Composable 完全一样
+
+### ✅ 更准确的说法
+
+复用形态像；React 有调用顺序规则与快照闭包，Vue 靠响应式。
+
+### 为什么？
+
+这是对比题里最容易露出「只背过表」的点。
+
+---
+
+### ❌ 有 Fiber 的 React 就不需要 memo
+
+### ✅ 更准确的说法
+
+Fiber 解决可中断与优先级，不自动追踪字段依赖；范围控制仍常要显式做。
+
+### 为什么？
+
+调度 ≠ 依赖追踪。
+
+---
 
 ## 高频追问
 
-### Vue 是不是一定比 React 快？
+### Vue 和 React 最本质的区别是什么？
 
-不是。Vue 默认依赖追踪和编译优化让普通场景下少做很多无效工作，但 React 通过 memo、虚拟列表、状态拆分、Transition 等也能优化到很好。真实项目瓶颈更多来自业务代码。
+更新模型：Vue 用依赖追踪驱动组件更新并善用编译优化；React 用显式状态更新驱动再 reconcile，并强调可调度运行时。
 
-### React 为什么更强调不可变数据？
+### 为什么说 Vue 下限高、React 上限高？
 
-React 通过引用变化判断状态是否变化，不可变更新能让变化可追踪，配合浅比较和 memo 做性能优化。
+Vue 默认少做无效工作；React 显式控制空间大，但也更容易因结构不当导致多余渲染——上限取决于团队能力。
 
-### Vue 为什么说下限高，React 为什么说上限高？
+### Diff 有何不同？为什么 React 不追求最少移动？
 
-Vue 自动依赖追踪和模板编译优化让普通开发也不容易写出很差的更新性能。React 需要开发者显式控制 memo、状态位置和引用稳定性，但也给了更灵活的架构空间。
+Vue 3 中段常 LIS；React 贪心打 Placement，优先简单与可中断 Render 模型。目标是常见 UI 下接近线性复用，不是通用最小编辑距离。
+
+### 为什么 React Hook 不能进 if，Vue composable 可以？
+
+Hook 身份=调用顺序；Vue 状态活在响应式对象上，不靠「第几次调用 useState」。
+
+### 什么时候选谁？
+
+看团队栈、交付节奏、交互复杂度、跨平台与生态，而不是论坛战队。
+
+### React 18 并发能抹平和 Vue 的性能观感差吗？
+
+能改善「大更新堵输入」，不自动消灭多余子树渲染；该拆状态、该虚拟列表仍要做。
+
+---
 
 ## 延伸阅读
 
-- [框架开放性面试题：响应式 vs 不可变](/md/框架/框架开放性面试题.md)
 - [Vue 3 响应式原理](/md/框架/Vue/vue3响应式原理.md)
+- [Vue 渲染原理](/md/框架/Vue/Vue%20渲染原理.md)
 - [React 渲染原理](/md/框架/React/React%20渲染原理.md)
 - [React Fiber 架构](/md/框架/React/Fiber架构.md)
 - [React Diff 算法](/md/框架/React/React%20Diff算法.md)
 - [Vue Diff 算法](/md/框架/Vue/Vue%20Diff算法.md)
+- [框架开放性面试题](/md/框架/框架开放性面试题.md)
+- [面试速记：React & Vue](/md/面试准备/技术/React%20&%20Vue.md)

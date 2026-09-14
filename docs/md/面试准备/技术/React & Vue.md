@@ -16,13 +16,13 @@ React 和 Vue 的框架题重点不是“API 会不会用”，而是能不能�
 
 | 题目 | 必背结论 | 深文 |
 | --- | --- | --- |
-| Hooks 原理 | Fiber.memoizedState 存链表；首次 mount，更新按调用顺序复用 | [React Hooks](/md/框架/React/Hooks.md) |
-| Fiber 架构 | 把递归更新拆成可中断、可调度工作单元 | [Fiber 架构](/md/框架/React/Fiber架构.md) |
-| Diff 算法 | 同层比较；单节点扫链表，数组先按下标再 Map；移动用 lastPlacedIndex 贪心，不是 LIS | [React Diff 算法](/md/框架/React/React%20Diff算法.md) |
-| 渲染原理 | render 阶段计算差异，commit 阶段提交 DOM | [React 渲染原理](/md/框架/React/React%20渲染原理.md) |
-| SSR / Hydration | 服务端出 HTML，客户端复用 DOM 挂交互；RSC ≠ 传统 SSR | [SSR 与 Hydration](/md/框架/React/SSR与Hydration.md) |
-| 状态管理 | 先看状态作用域，再选 Redux / Zustand / Recoil | [React 状态管理](/md/框架/React/状态管理.md) |
-| 组件设计 | 职责单一、状态归属清晰、API 可组合 | [组件设计能力](/md/框架/React/组件设计能力.md) |
+| Hooks 原理 | 调用顺序对齐 Hook 链表 → 快照 + effect cleanup → memo/transition 按需 | [React Hooks](/md/框架/React/Hooks.md) |
+| Fiber 架构 | Fiber 管拆分与现场，Scheduler 管何时，Lane 管优先级；Render 可中断 / Commit 同步 | [Fiber 架构](/md/框架/React/Fiber架构.md) |
+| Diff 算法 | 同层比较；下标试探再 Map；lastPlacedIndex 贪心；Render 打标 / Commit 改 DOM | [React Diff 算法](/md/框架/React/React%20Diff算法.md) |
+| 渲染原理 | setState→调度→Render 打 flags→Commit 改 DOM→layout/passive effect | [React 渲染原理](/md/框架/React/React%20渲染原理.md) |
+| SSR / Hydration | 服务端出 HTML → hydrate 复用 DOM；RSC ≠ 传统 SSR | [SSR 与 Hydration](/md/框架/React/SSR与Hydration.md) |
+| 状态管理 | 按作用域选型；Context 低频；高频用 store+selector | [React 状态管理](/md/框架/React/状态管理.md) |
+| 组件设计 | 职责与状态归属 → API 可组合 → 边界完整 → 测量后再 memo | [组件设计能力](/md/框架/React/组件设计能力.md) |
 
 ## Vue 次主流题
 
@@ -54,7 +54,11 @@ Hooks 依赖调用顺序保存状态：首次 `mountWorkInProgressHook` 建链�
 
 ### Fiber 解决了什么问题？
 
-Fiber 把不可中断的递归更新拆成可保存进度的工作单元，让 render 阶段可以按优先级暂停、恢复或丢掉未提交的树。更新还在队列里；挂太久会过期，强制纳入本轮，防止饿死。详见 [Fiber 架构](/md/框架/React/Fiber架构.md)。
+Fiber 把难中断的同步递归协调拆成可保存进度的工作单元：Render 可暂停/丢弃 wip，Commit 同步改 DOM。Scheduler 管何时做，Lane 管先做谁；更新仍在队列，lane 过期防饿死。详见 [Fiber 架构](/md/框架/React/Fiber架构.md)。
+
+### Vue 和 React 更新模型差在哪？
+
+Vue：依赖追踪 + 模板编译优化，默认组件级更新、少手动 memo。React：显式 setState 驱动再 reconcile，换 Fiber 可中断调度，范围靠结构/memo 收缩。详见 [Vue vs React](/md/框架/Vue%20vs%20React.md)。
 
 ### React 列表 Diff 和 Vue 3 有什么差别？
 
