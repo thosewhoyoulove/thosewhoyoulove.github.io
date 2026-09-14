@@ -333,7 +333,7 @@ C 的 `oldIndex` 为 2，可就地留下，锚点变成 2；B 的 `oldIndex` 为
 
 - [React Fiber 架构](/md/框架/React/Fiber架构.md)
 - [React 渲染原理](/md/框架/React/React%20渲染原理.md)
-- [React 高频考点](/md/框架/React/React%20高频考点精讲.md)
+- [React 考点索引](/md/框架/React/React%20高频考点精讲.md)
 - [Vue Diff 算法](/md/框架/Vue/Vue%20Diff算法.md)
 - [Vue vs React](/md/框架/Vue%20vs%20React.md)
 - [面试速记：React & Vue](/md/面试准备/技术/React%20&%20Vue.md)

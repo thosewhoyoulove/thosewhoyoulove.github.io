@@ -50,7 +50,7 @@ React 和 Vue 的框架题重点不是“API 会不会用”，而是能不能�
 
 ### React Hooks 为什么不能写在条件语句里？
 
-Hooks 依赖调用顺序保存状态：首次 `mountWorkInProgressHook` 建链表，更新时 `updateWorkInProgressHook` 按 `next` 对齐。如果条件分支导致某次 render 少调用一个 Hook，后面的 Hook 状态会错位。原理展开见 [Hooks 底层原理](/md/框架/React/React%20高频考点精讲.md#react-hooks-的底层原理是什么)。
+Hooks 依赖调用顺序保存状态：首次 `mountWorkInProgressHook` 建链表，更新时 `updateWorkInProgressHook` 按 `next` 对齐。如果条件分支导致某次 render 少调用一个 Hook，后面的 Hook 状态会错位。原理展开见 [Hooks 原理](/md/框架/React/Hooks.md)。
 
 ### Fiber 解决了什么问题？
 

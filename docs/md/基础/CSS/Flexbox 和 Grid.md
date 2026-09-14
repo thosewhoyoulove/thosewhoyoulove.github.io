@@ -128,4 +128,3 @@ Grid 可以直接定义二维结构：
 ## 相关链接
 
 - [Position](/md/基础/CSS/Position.md)
-- [样式兼容性](/md/基础/CSS/样式兼容性.md)

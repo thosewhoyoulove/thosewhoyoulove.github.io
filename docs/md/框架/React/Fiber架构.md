@@ -53,7 +53,7 @@ commit 阶段会真正修改 DOM、执行 ref、layout effect 等副作用。如
 
 不会无限挂着。被丢掉的是未 commit 的 workInProgress 树，update 还在队列里。React 18 用 lane 的过期时间：工作循环前 `markStarvedLanesAsExpired` 把超时的 pending lane 标进 `expiredLanes`，`getNextLanes` 必须带上它们；过期工作通常不再时间切片让路，尽快 commit。Idle / Offscreen 一类可以不过期。React 16/17 用 `expirationTime` 表达同一件事。超时数值以源码为准（交互约 250ms，默认/transition 约 5s）。
 
-展开见 [React 高频考点 · 低优先级更新会不会饿死](/md/框架/React/React%20高频考点精讲.md#低优先级更新一直被打断会饿死吗)。
+展开见上文「低优先级渲染一直被高优先级打断」一节；总览见 [React 考点索引](/md/框架/React/React%20高频考点精讲.md)。
 
 ## 延伸阅读
 

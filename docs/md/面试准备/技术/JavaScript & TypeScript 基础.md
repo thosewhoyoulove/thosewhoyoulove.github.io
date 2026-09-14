@@ -186,12 +186,21 @@ TypeScript 是 JavaScript 的超集，增加了类型系统和编译期检查。
 
 ## 相关链接
 
+默背主链：
+
 - [浏览器与性能速记](/md/面试准备/技术/浏览器面试速记.md)
-- [数据类型](/md/基础/JavaScript/数据类型.md)
-- [This 的理解](/md/基础/JavaScript/This的理解.md)
-- [闭包的理解](/md/基础/JavaScript/闭包的理解.md)
+- [闭包](/md/基础/JavaScript/闭包的理解.md)
+- [This](/md/基础/JavaScript/This的理解.md)
+- [数据类型与拷贝](/md/基础/JavaScript/数据类型.md)
 - [Promise](/md/基础/ES6/Promise.md)
 - [浏览器事件循环](/md/浏览器/浏览器的事件循环.md)
+- [type 和 interface](/md/TypeScript/type%20和%20interface.md)
+- [泛型](/md/TypeScript/泛型.md)
+- [工具类型](/md/TypeScript/工具类型.md)
+- [类型守卫与收窄](/md/TypeScript/类型守卫与类型收窄.md)
+
+加分（答稳 P0 后再看，侧栏已不挂）：
+
+- [call / apply / bind](/md/基础/JavaScript/函数的call,apply和bind方法.md)
+- [手写 Promise](/md/基础/ES6/手写Promise.md)
 - [TypeScript 基础类型](/md/TypeScript/基础类型.md)
-- [TypeScript 泛型](/md/TypeScript/泛型.md)
-- [类型守卫与类型收窄](/md/TypeScript/类型守卫与类型收窄.md)

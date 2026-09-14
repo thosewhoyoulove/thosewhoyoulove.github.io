@@ -2,57 +2,46 @@ const fs = require("fs");
 const path = require("path");
 
 /**
- * 面试导向侧边栏。
+ * 面试导向侧边栏（目标：约 3 年 Vue / React 前端）。
  *
- * 文章仍保留在原目录，侧边栏按面试复习场景重新编排，避免为一次导航优化大规模移动文件。
+ * 默背：速记 → 专题深文。手写 Promise、V8 高阶、call/apply 专文等移出默认导航（文件保留）。
  */
 const SIDEBAR = [
     {
         title: "JavaScript 与浏览器",
         children: [
-            ["速记：JS & TS 基础", "/md/面试准备/技术/JavaScript%20&%20TypeScript%20基础.md"],
+            ["速记：JS & TS", "/md/面试准备/技术/JavaScript%20&%20TypeScript%20基础.md"],
             ["速记：浏览器与性能", "/md/面试准备/技术/浏览器面试速记.md"],
             {
-                title: "JavaScript 语言",
+                title: "JavaScript 运行时",
                 children: [
-                    ["数据类型", "/md/基础/JavaScript/数据类型.md"],
                     ["闭包", "/md/基础/JavaScript/闭包的理解.md"],
                     ["This", "/md/基础/JavaScript/This的理解.md"],
-                    ["call / apply / bind", "/md/基础/JavaScript/函数的call,apply和bind方法.md"],
-                    ["编程范式", "/md/基础/JavaScript/编程范式.md"],
+                    ["数据类型与拷贝", "/md/基础/JavaScript/数据类型.md"],
                 ],
             },
             {
                 title: "异步与事件循环",
                 children: [
                     ["Promise", "/md/基础/ES6/Promise.md"],
-                    ["手写 Promise", "/md/基础/ES6/手写Promise.md"],
                     ["浏览器事件循环", "/md/浏览器/浏览器的事件循环.md"],
                 ],
             },
             {
                 title: "TypeScript",
                 children: [
-                    ["基础类型", "/md/TypeScript/基础类型.md"],
                     ["type 和 interface", "/md/TypeScript/type%20和%20interface.md"],
                     ["泛型", "/md/TypeScript/泛型.md"],
-                    ["类型守卫与收窄", "/md/TypeScript/类型守卫与类型收窄.md"],
                     ["工具类型", "/md/TypeScript/工具类型.md"],
+                    ["类型守卫与收窄", "/md/TypeScript/类型守卫与类型收窄.md"],
                 ],
             },
             {
-                title: "浏览器原理",
+                title: "浏览器与性能",
                 children: [
                     ["渲染原理", "/md/浏览器/浏览器的渲染原理.md"],
                     ["缓存机制", "/md/浏览器/浏览器的缓存机制.md"],
-                    ["浏览器高阶（进程 / V8）", "/md/浏览器/高阶知识点.md"],
-                ],
-            },
-            {
-                title: "性能与 Web API",
-                children: [
                     ["首屏优化", "/md/浏览器/加快首屏加载速度.md"],
-                    ["Web Worker", "/md/浏览器/Web%20Worker.md"],
                 ],
             },
         ],
@@ -60,7 +49,7 @@ const SIDEBAR = [
     {
         title: "网络与安全",
         children: [
-            ["速记：三年岗复习路线", "/md/面试准备/技术/网络与安全.md"],
+            ["速记：网络与安全", "/md/面试准备/技术/网络与安全.md"],
             {
                 title: "全链路与加密",
                 children: [
@@ -75,7 +64,6 @@ const SIDEBAR = [
                 children: [
                     ["HTTP", "/md/网络/HTTP.md"],
                     ["HTTP 状态码", "/md/网络/HTTP状态码.md"],
-                    ["浏览器缓存机制", "/md/浏览器/浏览器的缓存机制.md"],
                 ],
             },
             {
@@ -107,14 +95,12 @@ const SIDEBAR = [
                 title: "框架对比",
                 children: [
                     ["Vue vs React", "/md/框架/Vue%20vs%20React.md"],
-                    ["前端框架原理对比", "/md/框架/前端框架原理对比.md"],
                 ],
             },
             {
-                title: "React 常见题",
+                title: "React 专题",
                 children: [
-                    ["React 高频考点", "/md/框架/React/React%20高频考点精讲.md"],
-                    ["React 进阶高频考点", "/md/框架/React/React%20进阶高频考点精讲.md"],
+                    ["React 考点索引", "/md/框架/React/React%20高频考点精讲.md"],
                     ["Hooks 原理", "/md/框架/React/Hooks.md"],
                     ["Fiber 架构", "/md/框架/React/Fiber架构.md"],
                     ["React Diff 算法", "/md/框架/React/React%20Diff算法.md"],
@@ -125,11 +111,10 @@ const SIDEBAR = [
                 ],
             },
             {
-                title: "Vue 次主流题",
+                title: "Vue 专题",
                 children: [
-                    ["Vue 高频考点", "/md/框架/Vue/Vue%20高频考点精讲.md"],
+                    ["Vue 考点索引", "/md/框架/Vue/Vue%20高频考点精讲.md"],
                     ["Vue 2 和 Vue 3 区别", "/md/框架/Vue/vue2和3的区别.md"],
-                    ["Vue2 升级 Vue3 与 TS 迁移", "/md/框架/Vue/Vue2升级Vue3与TS迁移专题.md"],
                     ["响应式原理（Proxy）", "/md/框架/Vue/vue3响应式原理.md"],
                     ["模板编译流程", "/md/框架/Vue/模板编译流程.md"],
                     ["nextTick 与虚拟 DOM", "/md/框架/Vue/nextTick与虚拟DOM.md"],
@@ -140,7 +125,7 @@ const SIDEBAR = [
             {
                 title: "开放性题目",
                 children: [
-                    ["响应式 vs 不可变（第 1 题）", "/md/框架/框架开放性面试题.md"],
+                    ["响应式 vs 不可变", "/md/框架/框架开放性面试题.md"],
                 ],
             },
         ],
@@ -149,38 +134,13 @@ const SIDEBAR = [
         title: "AI Agent",
         children: [
             ["面试速记：AI Agent", "/md/面试准备/技术/AI%20Agent.md"],
-            {
-                title: "核心概念",
-                children: [
-                    ["LLM 与 Prompt Engineering", "/md/Agent/LLM与PromptEngineering.md"],
-                    ["Agent 与 Skill 体系", "/md/Agent/Agent与Skill体系.md"],
-                    ["MCP 与工具调用概念", "/md/Agent/MCP与工具调用概念.md"],
-                ],
-            },
-            {
-                title: "Agent 产品前端",
-                children: [
-                    ["对话界面架构", "/md/Agent/对话界面架构.md"],
-                    ["流式渲染与 SSE", "/md/Agent/流式渲染与SSE.md"],
-                    ["工具调用与结果展示", "/md/Agent/工具调用与结果展示.md"],
-                    ["生成式 UI 与动态组件协议", "/md/Agent/生成式UI与动态组件协议.md"],
-                    ["不确定性下的前端状态机", "/md/Agent/不确定性下的前端状态机.md"],
-                    ["人机协同与主动式交互", "/md/Agent/人机协同与主动式交互.md"],
-                    ["RAG 与检索增强体验", "/md/Agent/RAG与检索增强体验.md"],
-                    ["上下文与 Token 体验", "/md/Agent/上下文与Token体验.md"],
-                    ["安全与合规（前端）", "/md/Agent/安全与合规（前端）.md"],
-                    ["可观测性与 Debug 体验", "/md/Agent/可观测性与Debug体验.md"],
-                    ["AI 输出 Eval 与质量体系", "/md/Agent/AI输出Eval与质量体系.md"],
-                ],
-            },
-            {
-                title: "AI Native 研发效能",
-                children: [
-                    ["平时工作怎么使用 AI", "/md/面试准备/综合/平时工作怎么使用AI.md"],
-                    ["Cursor / Copilot 与 AI Coding", "/md/Agent/Cursor与Copilot与AICoding.md"],
-                    ["AI 应用岗位冲刺地图", "/md/面试准备/技术/AI应用岗位冲刺地图.md"],
-                ],
-            },
+            ["LLM 与 Prompt Engineering", "/md/Agent/LLM与PromptEngineering.md"],
+            ["Agent 与 Skill 体系", "/md/Agent/Agent与Skill体系.md"],
+            ["MCP 与工具调用概念", "/md/Agent/MCP与工具调用概念.md"],
+            ["对话界面架构", "/md/Agent/对话界面架构.md"],
+            ["流式渲染与 SSE", "/md/Agent/流式渲染与SSE.md"],
+            ["工具调用与结果展示", "/md/Agent/工具调用与结果展示.md"],
+            ["平时工作怎么使用 AI", "/md/面试准备/综合/平时工作怎么使用AI.md"],
         ],
     },
     {
@@ -194,11 +154,12 @@ const SIDEBAR = [
                 ],
             },
             {
-                title: "工程化体系",
+                title: "工程化主线",
                 children: [
                     ["工程化体系", "/md/工程化/体系与实践/工程化体系.md"],
-                    ["前端工程化落地", "/md/工程化/体系与实践/前端工程化.md"],
                     ["打包优化面试专题", "/md/工程化/体系与实践/打包优化面试专题.md"],
+                    ["CI/CD", "/md/工程化/体系与实践/CI&CD.md"],
+                    ["Monorepo", "/md/工程化/体系与实践/Monorepo.md"],
                 ],
             },
             {
@@ -206,10 +167,6 @@ const SIDEBAR = [
                 children: [
                     ["构建流程", "/md/工程化/Webpack/构建流程.md"],
                     ["Loader 与 Plugin", "/md/工程化/Webpack/Loader与Plugin.md"],
-                    ["Loader 执行顺序", "/md/工程化/Webpack/Loader执行顺序.md"],
-                    ["Tapable", "/md/工程化/Webpack/Tapable.md"],
-                    ["Compiler 和 Compilation", "/md/工程化/Webpack/Compiler和Compilation.md"],
-                    ["Plugin", "/md/工程化/Webpack/Plugin.md"],
                     ["常见优化手段", "/md/工程化/Webpack/常见优化手段.md"],
                 ],
             },
@@ -217,10 +174,8 @@ const SIDEBAR = [
                 title: "Vite",
                 children: [
                     ["为什么 Vite 快", "/md/工程化/Vite/为什么Vite快.md"],
-                    ["Dev Server 拦截 Import", "/md/工程化/Vite/DevServer拦截Import.md"],
                     ["依赖预构建", "/md/工程化/Vite/依赖预构建.md"],
                     ["开发与生产打包差异", "/md/工程化/Vite/开发环境与生产环境打包差异.md"],
-                    ["常见配置", "/md/工程化/Vite/常见配置.md"],
                 ],
             },
             {
@@ -228,22 +183,7 @@ const SIDEBAR = [
                 children: [
                     ["Tree Shaking 原理", "/md/工程化/构建优化/TreeShaking原理.md"],
                     ["HMR 热更新原理", "/md/工程化/构建优化/HMR热更新原理.md"],
-                    ["Source Map", "/md/工程化/构建优化/SourceMap.md"],
                     ["分包策略", "/md/工程化/构建优化/分包策略.md"],
-                ],
-            },
-            {
-                title: "运行时性能",
-                children: [
-                    ["首屏加载优化", "/md/浏览器/加快首屏加载速度.md"],
-                    ["首屏优化与代码分包", "/md/面试准备/技术/首屏优化以及代码分包.md"],
-                ],
-            },
-            {
-                title: "质量与协作",
-                children: [
-                    ["CI/CD", "/md/工程化/体系与实践/CI&CD.md"],
-                    ["Monorepo", "/md/工程化/体系与实践/Monorepo.md"],
                 ],
             },
         ],
@@ -253,27 +193,17 @@ const SIDEBAR = [
         children: [
             ["项目经历表达", "/md/面试准备/项目与架构/你的项目经历（重点）.md"],
             ["探迹多产品 Agent 前端", "/md/面试准备/项目与架构/探迹多产品Agent前端.md"],
-            ["架构升级方案", "/md/面试准备/项目与架构/项目架构的整体升级方案.md"],
-            ["高级筛选系统", "/md/面试准备/项目与架构/高级筛选系统.md"],
-            ["智慧大屏数据可视化", "/md/面试准备/项目与架构/智慧大屏数据可视化.md"],
-            ["WebRTC 会议室项目", "/md/面试准备/项目与架构/WebRTC%20会议室项目.md"],
             ["云呼 SDK", "/md/面试准备/项目与架构/云呼SDK.md"],
             ["Node.js 与全栈", "/md/面试准备/技术/NodeJs%20&%20全栈开发.md"],
-            ["可视化：SVG vs Canvas", "/md/可视化/Svg%20Vs%20Canvas.md"],
-            ["可视化：ZRender", "/md/可视化/Z-render.md"],
         ],
     },
     {
         title: "协作与加分项",
         children: [
             ["团队协作与主导能力", "/md/面试准备/综合/团队协作与主导能力.md"],
-            ["综合能力与团队合作", "/md/面试准备/综合/综合能力%20&%20团队合作.md"],
-            ["平时工作怎么使用 AI", "/md/面试准备/综合/平时工作怎么使用AI.md"],
             ["Git 解决冲突", "/md/Git/解决冲突.md"],
             ["Git Rebase 和 Merge", "/md/Git/rebase和merge的区别.md"],
             ["Pull Request", "/md/Git/Pull%20Request.md"],
-            ["算法：Trie", "/md/算法/trie.md"],
-            ["新技术", "/md/面试准备/技术/新技术.md"],
         ],
     },
 ];

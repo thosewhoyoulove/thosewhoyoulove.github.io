@@ -317,7 +317,7 @@ render 阶段负责计算新 Fiber 树和差异，不操作真实 DOM，可以�
 
 ### Fiber 是什么？
 
-Fiber 是 React 的运行时工作单元。它用链表结构描述组件树，保存状态、props、DOM、更新优先级和副作用标记，让 React 可以把渲染拆成可中断的小任务。低优先级一直被打断时，靠 lane 过期强制纳入本轮，不会无限饿死。详见 [Fiber 架构](/md/框架/React/Fiber架构.md)、[低优先级更新会不会饿死](/md/框架/React/React%20高频考点精讲.md#低优先级更新一直被打断会饿死吗)。
+Fiber 是 React 的运行时工作单元。它用链表结构描述组件树，保存状态、props、DOM、更新优先级和副作用标记，让 React 可以把渲染拆成可中断的小任务。低优先级一直被打断时，靠 lane 过期强制纳入本轮，不会无限饿死。详见 [Fiber 架构](/md/框架/React/Fiber架构.md)。
 
 ### key 的作用是什么？
 
@@ -329,7 +329,7 @@ key 用来在同层列表中标识新旧节点是否是同一个。稳定 key �
 
 ## 延伸阅读
 
-- React 核心考点：[React 高频考点](/md/框架/React/React%20高频考点精讲.md)
+- React 考点索引：[React 考点索引](/md/框架/React/React%20高频考点精讲.md)
 - 子节点调和：[React Diff 算法](/md/框架/React/React%20Diff算法.md)
 - Fiber 工作单元：[React Fiber 架构](/md/框架/React/Fiber架构.md)
 - Hooks 更新模型：[React Hooks](/md/框架/React/Hooks.md)
