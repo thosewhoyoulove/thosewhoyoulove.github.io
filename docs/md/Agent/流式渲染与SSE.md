@@ -8,7 +8,7 @@
 
 可以这样答：
 
-> 对客聊天我优先用 HTTP 流：SSE 或 fetch + ReadableStream。它们天然适合服务端单向推送 token，鉴权可复用常规 HTTP Header，中间层也好做。WebSocket 更适合强双向、频繁交互的场景，但运维和重连语义更重。前端用 AbortController 取消生成；按事件类型更新消息，而不是把整个 body 当纯文本。渲染上要对未闭合的 Markdown 代码块做容错，并用 rAF 或分片合并减少每个 token 都 setState 的抖动。断线时可带 last-event-id 或 runId 续传，续不上就提示重试并保留已生成内容。验证看首 token 时间、完整回复时间、取消后服务端是否真停、弱网是否会重复追加。
+> 对客聊天我通常优先选 HTTP 流：简单 GET 推送可用 EventSource，需要 POST、自定义 Header 或更细控制时用 fetch + ReadableStream；只有强双向、高频上行才优先考虑 WebSocket。传输层不能把每个网络 chunk 当成一条消息，因为 UTF-8 字符和 SSE event 都可能跨 chunk；要用流式 TextDecoder 保存残片，按空行组装事件，并支持多行 `data`。业务层再按 `runId、eventId、seq` 去重和检测断档。渲染层把 token 先写入 buffer，每帧或每 16～32ms 合并更新，结束后再完整解析 Markdown。AbortController 只是取消客户端读取，还要让服务端停止模型与工具执行。断线后用游标续传，无法续传则拉快照重建。验证除了首 token 和完成耗时，还要覆盖拆包、重复包、乱序、代理缓冲和取消后继续计费。
 
 一句话总结：
 
@@ -88,6 +88,15 @@ controller.abort()
   → 按序号去重追加
   → 无法续传则提示“网络中断，可重试”
 ```
+
+SSE 解析边界也要答准确：
+
+- 一个 `read()` 得到的是字节块，不保证对应一个 token 或一个 SSE 事件。
+- `TextDecoder.decode(chunk, { stream: true })` 用来处理跨块 UTF-8 字符；解析器还要保留未完成行。
+- SSE 以空行结束一个事件，同一事件可以有多行 `data:`；`id:` 和 `retry:` 也有协议语义。
+- 原生 EventSource 会管理 `Last-Event-ID`；fetch 读流时，游标、重连、去重都要由应用自己实现。
+
+所谓背压要分两层：ReadableStream 的读取速度属于传输背压，rAF/定时合并属于 UI 降频。后者只能减少 React 重渲染，并不会自动让上游模型少生成数据。
 
 **场景（示例）**：官网文档助手用 BFF 聚合模型流，前端 fetch 解析 SSE；用户点停止后同时 abort 与调用 `POST /runs/:id/cancel`。
 
