@@ -14,13 +14,13 @@
 
 | 主题 | 深文 | 典型追问 |
 | --- | --- | --- |
-| Hooks | [Hooks 原理](/md/框架/React/Hooks.md) | useState / useEffect / 为何不能写在 if；闭包陷阱 |
-| Fiber | [Fiber 架构](/md/框架/React/Fiber架构.md) | 可中断渲染、优先级、双缓冲、饿死 |
+| Hooks | [Hooks 原理](/md/框架/React/Hooks.md) | Hook 链表、update queue、Effect 同步模型、闭包陷阱 |
+| Fiber | [Fiber 架构](/md/框架/React/Fiber架构.md) | 工作循环、可中断 Render、Lane、双缓冲、bailout |
 | Diff | [React Diff 算法](/md/框架/React/React%20Diff算法.md) | 同层、key、lastPlacedIndex、Placement vs Commit |
 | 渲染 | [React 渲染原理](/md/框架/React/React%20渲染原理.md) | Render / Commit、Element vs Fiber、批处理 |
-| SSR | [SSR 与 Hydration](/md/框架/React/SSR与Hydration.md) | Hydration 失败、RSC 边界、CSR 取舍 |
-| 状态 | [状态管理](/md/框架/React/状态管理.md) | Context 性能、何时上库、Redux/Zustand |
-| 组件 | [组件设计能力](/md/框架/React/组件设计能力.md) | 封装边界、受控/非受控、组合 |
+| SSR | [SSR 与 Hydration](/md/框架/React/SSR与Hydration.md) | Streaming/Suspense、mismatch 治理、RSC 边界 |
+| 状态 | [状态管理](/md/框架/React/状态管理.md) | 状态分类、Context、selector、外部 Store 一致性 |
+| 组件 | [组件设计能力](/md/框架/React/组件设计能力.md) | 状态建模、受控/非受控、组合、错误与 a11y |
 
 ## 题单 → 深文
 
@@ -32,15 +32,14 @@
 
 ### Hooks / useEffect
 
-- Hooks 链表、不能写在条件里、自定义 Hook → [Hooks](/md/框架/React/Hooks.md)
-- useEffect vs useLayoutEffect、依赖、清理函数、闭包陷阱 → [Hooks](/md/框架/React/Hooks.md)
+- `renderWithHooks`、Hook 链表、update queue、调用顺序 → [Hooks](/md/框架/React/Hooks.md)
+- Effect 是否必要、依赖、cleanup、Strict Mode、闭包陷阱 → [Hooks](/md/框架/React/Hooks.md)
 - useMemo / useCallback / useRef / useReducer / useContext → [Hooks](/md/框架/React/Hooks.md)、[状态管理](/md/框架/React/状态管理.md)
 
-### Fiber / Diff / 合成事件 / 性能
+### Fiber / Diff / 性能
 
-- Fiber、时间切片、lanes、饿死 → [Fiber](/md/框架/React/Fiber架构.md)
+- Fiber 工作循环、时间切片、Lane、双缓冲、bailout → [Fiber](/md/框架/React/Fiber架构.md)
 - Diff O(n)、同层、Placement → [Diff](/md/框架/React/React%20Diff算法.md)
-- 合成事件（委托与版本差异）→ [渲染原理](/md/框架/React/React%20渲染原理.md)（事件与更新同属运行时模型）
 - memo、列表虚拟化、避免无效渲染 → [组件设计](/md/框架/React/组件设计能力.md)、[性能速记](/md/面试准备/技术/前端性能优化.md)
 
 ## 延伸阅读

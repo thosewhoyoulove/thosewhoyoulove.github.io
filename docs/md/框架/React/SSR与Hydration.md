@@ -4,11 +4,15 @@
 
 > CSR 是浏览器先拿几乎空的 HTML，再下 JS，在客户端把组件树渲成 DOM，首屏可见往往等 JS 跑完。SSR 是服务端先跑一遍组件树，返回带内容的 HTML，用户更快看见页面，爬虫也能直接读正文。React 里可以用 `renderToString` 同步序列化成 HTML，生产更常见流式 API；这段 HTML **不挂事件**。浏览器展示后还要下客户端 JS，用 `hydrateRoot` 做 hydration：复用已有 DOM，挂上事件和更新能力，而不是拆掉重画。
 >
-> SEO 受益是因为响应里已经有可读结构和文案，而不是 SSR「自带排名」。要注意 hydration mismatch：服务端和客户端第一次渲染结果必须一致，`Date.now()`、乱读 `window`、数据两边不一致都会炸。React Server Components 和传统 SSR 不是一层事：SSR 回答「首屏 HTML 谁生成」；RSC 回答「哪些组件代码可以留在服务端、少下发 JS」。选型看 SEO、首屏指标、服务器成本和 hydration 复杂度——纯内部后台不必为 SEO 硬上 SSR。
+> 流式 SSR 会配合 Suspense 先发送可以完成的 shell 和 fallback，后续内容就绪后继续注入；客户端也可以按 Suspense 边界逐步 hydration，而不必等整棵树全部准备好。这样优化的是内容到达与可交互的顺序，但不能消除客户端 JavaScript、数据序列化和 hydration 成本。
+>
+> Hydration 最重要的约束是服务端 HTML 与客户端首次 Render 一致。`Date.now()`、`Math.random()`、只在一端读取 `window`、数据快照不同或非法 HTML 嵌套都可能产生 mismatch。不能把 `suppressHydrationWarning` 当通用修复，它只适合明确且不可避免的局部差异；生产还应通过服务端流的 `onError` 和客户端 `onRecoverableError` 做监控。
+>
+> React Server Components 和传统 SSR 不是一层能力：SSR 回答「HTML 在哪里生成」，RSC 回答「组件在哪里执行、哪些代码不进入客户端 bundle」。它们经常和 Streaming、Suspense 一起使用。选型时要同时看 SEO、TTFB/LCP、交互延迟、缓存命中率、服务器成本和 hydration 复杂度，而不是只看“首屏更快”。
 
 **一句话总结：**
 
-> SSR 服务端出 HTML → Hydration 复用 DOM 挂交互 → 防 mismatch → RSC 管组件执行位置 ≠ 传统 SSR。
+> 服务端以 string 或 stream 输出 HTML → 浏览器先展示 shell → 客户端按边界 hydration 并接上事件/Fiber → 保证两端首屏一致并监控可恢复错误；RSC 决定组件执行位置，不等同于 SSR。
 
 ---
 
@@ -52,7 +56,19 @@ SSG / ISR 是同光谱变体：构建期或按需生成，用 CDN 降每次渲�
 | `renderToPipeableStream` | Node 流，可边算边推 |
 | `renderToReadableStream` | Web Streams / Edge |
 
-流式 + Suspense：先推骨架与就绪块，改善 TTFB / LCP。
+#### 流式 + Suspense 的执行方式
+
+```text
+服务端先完成 App Shell
+  → onShellReady：开始 pipe HTML
+  → 未完成的 Suspense 边界先输出 fallback
+  → 数据就绪后继续发送该边界内容
+  → onAllReady：所有边界完成
+```
+
+`onShellReady` 适合尽快给普通用户返回 shell；`onAllReady` 可以用于需要完整 HTML 后再输出的静态生成或特定爬虫路径。Shell 自身失败和边界内部失败要分别处理：前者通常返回整页兜底，后者可以先保留 Suspense fallback，再由客户端尝试恢复。
+
+流式通常改善 TTFB 和内容渐进到达，但 LCP 是否改善仍取决于关键内容位于哪个边界、数据速度、CSS/字体/图片和客户端资源优先级，不能简单等同于“用了 stream，LCP 一定更好”。
 
 ---
 
@@ -71,6 +87,22 @@ hydrateRoot(document.getElementById('root'), <App />)
 
 **Mismatch 常见因：** `Date.now()` / `Math.random()`、只在一端有的数据、扩展改 DOM、非法 HTML 被浏览器改结构。处理：首屏只用两端一致的数据；浏览器独有逻辑进 `useEffect`；必须客户端-only 的明确划界。
 
+#### Hydration 不是一次性全页开关
+
+React 可以结合 Suspense 边界逐步 hydration。用户与尚未完成 hydration 的区域交互时，React 会尝试优先处理相关边界，并在边界可用后接上交互。它解决的是“先激活哪一块”，不等于完全不需要下载和执行对应客户端代码。
+
+#### mismatch 怎么治理
+
+| 层级 | 做法 |
+| --- | --- |
+| 根因 | 两端使用相同数据快照、locale、时区和确定性输出 |
+| 浏览器专属逻辑 | 首次输出保持一致，提交后再读取浏览器能力 |
+| 不可避免的小范围差异 | 谨慎使用 `suppressHydrationWarning`，只作用于明确节点 |
+| 监控 | `hydrateRoot` 配置 `onRecoverableError`，上报组件栈与页面信息 |
+| 服务端错误 | 流式 API 使用 `onError` / `onShellError`，区分边界恢复和 shell 崩溃 |
+
+Hydration mismatch 不是普通 warning 可以长期忽略：它可能让 React 放弃部分服务端结果并转为客户端渲染，也可能造成属性、文本或事件对应关系异常。
+
 ---
 
 ### 5. RSC vs 传统 SSR
@@ -87,10 +119,15 @@ RSC 不能在服务端组件用 `useState` / `useEffect`；传给 Client 的 pro
 
 ### 6. 设计取舍
 
-| 选 SSR/SSG | 继续 CSR |
-| --- | --- |
-| SEO、分享卡片、内容首屏 | 强交互后台、登录后系统 |
-| 能接受 Node/缓存/错配成本 | 要简单部署与更小服务器责任 |
+| 维度 | SSR / Streaming | CSR |
+| --- | --- | --- |
+| 内容到达 | HTML 可直接携带内容 | 通常等 JS 和客户端数据 |
+| 交互 | 仍需 hydration，可能出现交互空窗 | 初始化完成后直接交互 |
+| SEO / 分享 | 更容易稳定输出正文与 meta | 依赖爬虫执行能力或额外预渲染 |
+| 基础设施 | 服务端渲染、缓存、流式错误治理 | 静态托管简单 |
+| 一致性 | 两端首屏必须确定性一致 | 没有 hydration mismatch |
+
+实时个性化内容可以 SSR；更新少且可提前生成的内容优先 SSG；大量页面可缓存、允许一定陈旧度时考虑 ISR。登录后的强交互后台通常不必只为“技术先进”引入 SSR。
 
 ---
 
@@ -158,9 +195,17 @@ RSC 管执行位置与包体；HTML 是否服务端输出仍看框架是否做 S
 
 两端第一次渲染树不一致，或浏览器改写了 HTML 结构。
 
+### Streaming SSR 和传统 `renderToString` 有什么区别？
+
+`renderToString` 同步等待整棵树形成字符串；Streaming 可以先发 shell 和 Suspense fallback，后续边界就绪后继续输出，并允许客户端按边界逐步 hydration。
+
 ### 「看得见点不了」怎么解释？
 
 HTML 先到，事件要等 hydration；优化减客户端工作量。
+
+### `suppressHydrationWarning` 能解决 mismatch 吗？
+
+它只压制明确节点的一层警告，不会修复错误的数据流，也不应递归当逃生舱。应先保证两端数据与结构一致，并通过 `onRecoverableError` 监控剩余问题。
 
 ### SSR / SSG / ISR 怎么选？
 
