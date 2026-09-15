@@ -4,7 +4,9 @@
 
 > 改响应式数据时，数据本身已经变了，但 DOM 通常不会同步改完。组件更新会进 scheduler 队列，当前同步代码跑完后用微任务批量 flush：再 render 出新 VNode，patch 到真实 DOM。`nextTick` 等的就是这批更新做完之后的时机，方便你读最新 DOM 或接后续逻辑——它不是「让数据更新」的 API。
 >
-> 虚拟 DOM 这边：render 的结果是 VNode，用 JS 对象描述 UI。patch 对比新旧 VNode，复用节点并改差异。模板编译还能带上 patchFlag 等，减少运行时比对。所以 nextTick 管「何时能看见更新后的 DOM」，VNode 管「如何描述并对齐 DOM」。
+> 更新队列内部还要区分顺序：pre-flush watcher 通常在组件 DOM 更新前执行；组件 job 按一定顺序更新；post-flush watcher 和生命周期回调在 patch 后执行。`nextTick` 本质上等待当前这轮 flush Promise，所以它解决的是“Vue 何时完成本轮更新”，不等于等待浏览器完成 layout、paint，也不应该被当成通用延时工具。
+>
+> 虚拟 DOM 这边：render 的结果是 VNode，用 JS 对象描述 UI。patch 对比新旧 VNode，复用节点并改差异。模板编译还能带上 patchFlag 等，减少运行时比对。所以 nextTick 管「何时能读到本轮 patch 后的 DOM」，VNode 管「如何描述并对齐宿主视图」。
 
 **一句话总结：**
 
@@ -46,6 +48,21 @@ console.log(el.textContent) // 已新
 | 常用微任务（如 Promise）衔接 | 宏任务 `setTimeout(0)` 的精确等价（实现可选降级） |
 
 `watch` 的 `flush: 'post'` 与「更新后读 DOM」场景相近；`sync` 则同步执行，慎用。
+
+#### 一轮 flush 的相对顺序
+
+```text
+响应式数据变化
+  → 默认 pre watcher（在所属组件 DOM 更新前）
+  → 组件更新 jobs（通常父组件先于子组件，render + patch）
+  → post-flush callbacks（flush: 'post'、部分更新后逻辑）
+  → currentFlushPromise 完成
+  → nextTick 后续代码
+```
+
+这是便于面试理解的相对顺序，具体队列实现会随版本演进。组件 job 还会去重和排序，使父组件通常先于子组件处理；若父更新过程中卸载了子组件，子任务可被跳过。
+
+`nextTick` 完成只说明 Vue 本轮队列已经 flush。若目标是等待浏览器真正绘制下一帧，应根据场景使用 `requestAnimationFrame`，两者不要混为一谈。
 
 ---
 
@@ -110,6 +127,10 @@ nextTick 建立在 queue flush 之上；说不清队列就说不清它等的是�
 ### nextTick 为什么常用微任务？
 
 同步结束后尽快跑，且通常早于下一帧绘制，适合合并更新。
+
+### `nextTick`、`flush: 'post'` 和 `requestAnimationFrame` 怎么选？
+
+组件逻辑要在自身更新后响应数据变化，可用 post watcher；命令式流程要等整轮 Vue patch 完成，可 `await nextTick()`；要等浏览器进入下一帧绘制阶段，则考虑 `requestAnimationFrame`。
 
 ### VNode 和真实 DOM 什么关系？
 

@@ -4,7 +4,9 @@
 
 > Vue 渲染可以串成一条链：模板先编译成 render 函数；执行 render 得到 VNode；首次 `patch(null, vnode)` 挂载真实 DOM。组件渲染被包成响应式 effect，render 里读到的数据会被 track；数据一变，trigger 把更新推进 scheduler 队列，微任务里再跑 render，拿新旧 VNode 做 patch / Diff，最后才改 DOM。
 >
-> 所以不是「改 data 等于改 DOM」，而是「改 data → 通知组件 effect → 重新描述 UI → 对齐 DOM」。Vue 3 还把大量工作前移到编译期：静态提升、patchFlag、Block Tree 等，让运行时尽量只碰动态节点。`nextTick` 则是等这轮队列和 DOM 更新完成后再读页面。和 React 比，Vue 默认靠依赖追踪缩小「谁该更新」；React 更靠显式状态更新加 Fiber 调度。面试把这条链说顺，再按追问下钻响应式、Diff 或编译即可。
+> 所以不是「改 data 等于改 DOM」，而是「改数据 → 通知订阅它的组件 effect → scheduler 去重排序 → 重新描述组件子树 → patch 宿主视图」。父组件更新也不意味着所有子组件都一定执行更新：运行时会结合稳定 props、动态插槽等条件判断子组件是否需要更新；编译器又通过静态提升、patchFlag 和 Block Tree，把更新范围进一步收缩到动态节点。
+>
+> 调度阶段不仅为了批处理，还要保证父组件通常先于子组件更新、已卸载组件的任务可以跳过，并协调 pre-flush watcher、组件 job 和 post-flush callback。`nextTick` 等的是当前 flush Promise，因此适合在本轮 patch 完成后读 DOM，但不代表浏览器已经完成下一帧绘制。
 
 **一句话总结：**
 
@@ -94,6 +96,12 @@ effect(() => {
 | render + patch 一次 | DOM 从旧值到最终值 |
 | 若中途读 `el.textContent` | 可能仍是旧 DOM → 需 `nextTick` |
 
+#### 父组件更新，子组件一定更新吗
+
+不一定。父组件重新执行 render 会生成新的子组件 VNode，但运行时仍会判断子组件是否需要进入更新。稳定 props、没有需要强制更新的动态插槽时，子组件可以跳过；反过来，如果父组件把每次新建的对象、数组或函数作为 prop 传下去，就更容易让子组件进入更新。
+
+编译器生成的 `patchFlag` 还能告诉运行时具体是哪类动态信息变化，例如文本、class、style 或某组 props，从而避免全量比较所有属性。
+
 ---
 
 ### 6. patch 在流水线中的位置
@@ -176,6 +184,10 @@ render 读数据时 track，写数据时才能精确找到该组件的更新函�
 ### 编译优化如何减少 Diff？
 
 静态提升、patchFlag、Block Tree 等让运行时少走无相关节点。
+
+### 父组件更新，子组件一定重新渲染吗？
+
+不一定。父 render 会产生子 VNode，但 Vue 会结合 props 稳定性、动态插槽和编译标记判断是否需要更新子组件。保持传入 props 稳定可以缩小更新范围。
 
 ### mount 和 patch 差别？
 

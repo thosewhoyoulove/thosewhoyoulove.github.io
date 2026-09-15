@@ -7,6 +7,8 @@
 > 依赖图是三层：`WeakMap<target, Map<key, Set<effect>>>`。`get` 里 `track`，`set` / `delete` 里 `trigger`；嵌套对象是惰性再包一层 Proxy，大对象初始化更友好。原始值没法被 Proxy 代理，所以用 `ref` 包一层，靠 `.value` 的访问器做同样的收集和触发。`computed` 是带 dirty 位的惰性 effect：依赖变了先标脏、通知订阅者，下次读才重算。
 >
 > 真正刷 DOM 前还有 scheduler：渲染 effect 不立刻同步重跑，而是 `queueJob` 进微任务队列，同一轮里多次改同一组件只渲染一次。这就是为什么改完数据要 `nextTick` 才能读到新 DOM。和 Vue 2 比，Proxy 能拦新增删除、`in`、`keys`、数组下标和 `length`，少了很多 `$set` 心智；边界是第三方实例要 `markRaw` / `shallowRef`，别被深代理搅乱。
+>
+> 追问边界时我还会补两点：第一，收集依赖的是一次执行中真正读到的分支，effect 重新执行时要更新依赖关系，否则条件切换后会残留无效订阅；第二，`reactive` 返回的是 Proxy，直接解构基本类型属性或绕过 Proxy 修改原对象都会断开这次属性访问的响应式连接。需要解构传递时用 `toRef` / `toRefs`，外部实例或大块不可变数据再考虑浅响应式逃生舱。
 
 **一句话总结：**
 
@@ -98,6 +100,18 @@ state.count++
 - effect 上有 `deps[]`，方便 `stop` 和**每次 run 前清旧依赖**。
 - 组件渲染 effect 通常带 `scheduler`：把 job 推进更新队列，而不是同步 `run`。
 
+#### 为什么依赖必须动态更新
+
+```js
+effect(() => {
+  console.log(ok ? text : 'hidden')
+})
+```
+
+第一次 `ok === true` 时会读取 `ok` 和 `text`；之后 `ok === false`，本轮只应依赖 `ok`。如果旧的 `text` 订阅不被清理，继续修改 `text` 仍会触发无意义执行。因此依赖关系不是初始化时固定下来，而要随着每次 effect 实际访问的分支更新。
+
+触发时也不能只通知当前 key：新增或删除对象属性会影响 `Object.keys` / `for...in` 的迭代依赖；数组新增下标可能影响 `length`；`Map` / `Set` 的 add、delete、clear 也有相应迭代依赖。这是 `TriggerOpTypes` 和 `ITERATE_KEY` 一类内部标识存在的原因。
+
 ---
 
 ### 6. ref / computed
@@ -136,6 +150,20 @@ state.count++
 | Proxy | 新增删除、迭代、数组更自然 | 不能代理原始值；部分内置对象需特殊对待 |
 | 惰性深代理 | 大对象友好 | 忘记解包 / raw 混用会踩坑 |
 | 组件级 render effect | 实现清晰 | 不是逐 DOM 细更新；大组件仍要拆 |
+
+#### 常见响应式断链
+
+```js
+const state = reactive({ count: 0 })
+let { count } = state
+count++ // 只是修改局部变量，不再经过 state.count 的 Proxy trap
+
+const raw = {}
+const proxy = reactive(raw)
+raw.value = 1 // 绕过 proxy，不会触发依赖 proxy.value 的 effect
+```
+
+Proxy 和原对象身份也不同：`proxy !== raw`。业务代码应尽量统一使用代理对象；需要保留属性响应式地解构时使用 `toRef` / `toRefs`。
 
 ---
 
@@ -218,6 +246,10 @@ Proxy 拦截读写，track/trigger 维系 effect 依赖图，组件渲染是 eff
 ### markRaw / shallowRef 什么时候用？
 
 第三方实例自管状态、或大数据只整体替换时，避免深代理成本与行为干扰。
+
+### reactive 解构为什么可能丢响应式？
+
+把基本类型属性解构到局部变量后，后续读写不再经过原对象的 Proxy trap。需要保持连接时使用 `toRef` / `toRefs`，或继续通过代理对象访问。
 
 ---
 
