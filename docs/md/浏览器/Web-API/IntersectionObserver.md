@@ -48,6 +48,8 @@ observer.observe(target);
 
 `threshold: 0.5` 表示目标元素可见比例达到 50% 附近时触发回调。
 
+更准确地说，回调会在交叉状态跨过某个 threshold 时被异步安排，并不保证每经过一个像素都触发。`entry.intersectionRatio` 表示交叉比例，`entry.boundingClientRect`、`rootBounds` 和 `intersectionRect` 可用于解释这次结果。
+
 ## 图片懒加载
 
 ```html
@@ -117,6 +119,8 @@ IntersectionObserver 由浏览器统一调度，回调异步触发，通常更�
 - 旧浏览器可能需要 polyfill。
 - 观察大量元素时仍要及时 `unobserve` 或 `disconnect`。
 - 曝光统计要结合可见时长，不能只看进入视口瞬间。
+- `isIntersecting` 只说明几何相交，默认不保证元素没有被其他内容遮挡，也不等价于用户真的看见。
+- 回调应保持轻量；大量 entries 的业务处理仍可能形成主线程长任务。
 
 ```javascript
 observer.disconnect();
@@ -141,6 +145,14 @@ observer.disconnect();
 ### 它能完全替代 scroll 吗？
 
 不能。它适合可见性观察，不适合需要连续滚动位置、滚动进度条、复杂视差动画这类需要高频精确位置的场景。
+
+### 回调为什么不是每次滚动都执行？
+
+Observer 关注的是交叉状态是否跨过配置的阈值，由浏览器异步批量通知；它不是滚动事件的逐帧替代品。
+
+### `isIntersecting` 能代表真实曝光吗？
+
+不能完全代表。它主要是几何相交信号，曝光还应结合比例、持续时间、页面可见性以及业务去重；遮挡情况也不能仅靠默认配置判断。
 
 ## 相关链接
 

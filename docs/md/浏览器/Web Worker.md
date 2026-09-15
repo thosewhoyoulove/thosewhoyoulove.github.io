@@ -18,6 +18,8 @@ Web Worker 可以在主线程之外运行 JavaScript，把耗时计算移出主�
 
 Worker 和主线程不共享普通对象内存，传递数据时通常会发生结构化克隆。对于大二进制数据，可以用 Transferable 转移所有权，减少拷贝成本。
 
+Worker 有自己的全局作用域和事件循环，但它不是“免费的 CPU”：创建线程、加载脚本、序列化消息和维护额外内存都有成本。优化前应先在 Performance 中确认瓶颈确实是可拆出的 CPU 长任务。
+
 ## 基本使用
 
 Worker 文件：
@@ -116,6 +118,16 @@ worker.postMessage(buffer, [buffer]);
 
 转移后，主线程里的 `buffer` 会不可用，所有权交给 Worker。这适合大文件、二进制数据处理。
 
+结构化克隆能处理很多内建类型，但不能传函数、DOM 节点等对象；Transferable 不是复制，而是把底层资源的所有权移交。需要真正共享内存时可以使用 `SharedArrayBuffer` + `Atomics`，但它需要跨源隔离等安全条件，并会引入并发同步复杂度。
+
+## 工程化边界
+
+- 长期复用的计算可维护 Worker 池，避免每次任务都创建线程。
+- 为消息设计 `id/type/payload/error` 协议，支持并发任务关联、取消和超时。
+- 主线程仍负责把结果应用到 UI；Worker 算得快不代表大量 DOM patch 会变快。
+- 捕获 `error` / `messageerror`，组件卸载或任务结束时终止 Worker。
+- 模块 Worker、CSP、跨域脚本和构建产物路径要在真实部署环境验证。
+
 ## 面试回答
 
 可以这样答：
@@ -135,6 +147,10 @@ worker.postMessage(buffer, [buffer]);
 ### Worker 为什么不能操作 DOM？
 
 为了避免多线程同时修改 DOM 导致竞态和同步成本。DOM 操作集中在主线程，Worker 只负责计算，再把结果发回主线程更新 UI。
+
+### 结构化克隆和 Transferable 有什么区别？
+
+结构化克隆复制出独立数据；Transferable 把 `ArrayBuffer` 等资源的所有权转交，原线程中的对象会被 detach，适合大二进制数据。
 
 ## 相关链接
 
