@@ -23,21 +23,26 @@
       - [本地存储与 Cookie](/md/浏览器/本地存储与Cookie.md)
   - 网络与安全
     - [速记：网络与安全](/md/面试准备/技术/网络与安全.md)
-    - 全链路与加密
+    - 请求全链路
       - [从输入 URL 到页面展示](/md/网络/URL解析流程.md)
+      - [DNS 与 CDN](/md/网络/DNS与CDN.md)
       - [HTTPS](/md/网络/HTTPS.md)
-      - [TCP 三次握手](/md/网络/TCP三次握手.md)
-      - [TCP 四次挥手](/md/网络/TCP四次挥手.md)
     - HTTP 协议
-      - [HTTP](/md/网络/HTTP.md)
+      - [HTTP 核心机制](/md/网络/HTTP.md)
+      - [HTTP/1.1、HTTP/2 与 HTTP/3](/md/网络/HTTP版本演进.md)
       - [HTTP 状态码](/md/网络/HTTP状态码.md)
-    - 跨域与 CORS
-      - [OPTIONS 预检请求](/md/网络/OPTIONS预检请求.md)
+      - [HTTP 缓存](/md/浏览器/浏览器的缓存机制.md)
+    - 跨域与会话安全
+      - [同源策略与 CORS](/md/网络/CORS跨域.md)
+      - [Cookie 与本地存储](/md/浏览器/本地存储与Cookie.md)
+      - [CSRF](/md/安全/CSRF的理解.md)
     - 实时通信
       - [WebSocket](/md/网络/WebSocket.md)
-    - Web 安全
+      - [SSE 与流式传输](/md/Agent/流式渲染与SSE.md)
+    - TCP 与安全追问
+      - [TCP 三次握手](/md/网络/TCP三次握手.md)
+      - [TCP 四次挥手](/md/网络/TCP四次挥手.md)
       - [XSS](/md/安全/XSS的理解.md)
-      - [CSRF](/md/安全/CSRF的理解.md)
   - 框架：Vue / React
     - [面试速记：React & Vue](/md/面试准备/技术/React%20&%20Vue.md)
     - 框架对比
