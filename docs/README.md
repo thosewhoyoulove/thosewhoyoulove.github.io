@@ -37,4 +37,17 @@
 
 有疏漏、建议或希望交流，欢迎联系：[a18773507481@gmail.com](mailto:a18773507481@gmail.com)
 
-在本地可执行 `pnpm dev` 或 `npm run dev`（在 `docs` 目录）预览。
+## 本地维护
+
+在 `docs` 目录执行：
+
+```bash
+npm run dev               # 本地预览
+npm run generate-sidebar  # 根据唯一菜单配置生成 _sidebar.md
+npm run check             # 检查菜单漂移、链接、标题、代码围栏和敏感信息
+npm run audit:content     # 额外列出未进入主侧边栏的文章
+```
+
+提交前至少运行一次 `npm run check`。GitHub Actions 会在推送到 `master` 或创建 Pull Request 时执行同一套检查。
+
+评论功能暂时关闭。若重新启用，需要使用可信 OAuth Proxy，不能把 OAuth Client Secret 写入浏览器代码。

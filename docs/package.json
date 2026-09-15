@@ -1,7 +1,11 @@
 {
     "scripts": {
         "dev": "docsify serve .",
-        "generate-sidebar": "node scripts/generateSidebar.js"
+        "generate-sidebar": "node scripts/generateSidebar.js",
+        "check:sidebar": "node scripts/generateSidebar.js --check",
+        "check:content": "node scripts/checkContent.js",
+        "audit:content": "node scripts/checkContent.js --verbose",
+        "check": "npm run check:sidebar && npm run check:content"
     },
     "dependencies": {
         "docsify-cli": "^4.4.4"

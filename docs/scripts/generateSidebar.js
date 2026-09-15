@@ -55,38 +55,43 @@ const SIDEBAR = [
         children: [
             ["速记：网络与安全", "/md/面试准备/技术/网络与安全.md"],
             {
-                title: "全链路与加密",
+                title: "请求全链路",
                 children: [
                     ["从输入 URL 到页面展示", "/md/网络/URL解析流程.md"],
+                    ["DNS 与 CDN", "/md/网络/DNS与CDN.md"],
                     ["HTTPS", "/md/网络/HTTPS.md"],
-                    ["TCP 三次握手", "/md/网络/TCP三次握手.md"],
-                    ["TCP 四次挥手", "/md/网络/TCP四次挥手.md"],
                 ],
             },
             {
                 title: "HTTP 协议",
                 children: [
-                    ["HTTP", "/md/网络/HTTP.md"],
+                    ["HTTP 核心机制", "/md/网络/HTTP.md"],
+                    ["HTTP/1.1、HTTP/2 与 HTTP/3", "/md/网络/HTTP版本演进.md"],
                     ["HTTP 状态码", "/md/网络/HTTP状态码.md"],
+                    ["HTTP 缓存", "/md/浏览器/浏览器的缓存机制.md"],
                 ],
             },
             {
-                title: "跨域与 CORS",
+                title: "跨域与会话安全",
                 children: [
-                    ["OPTIONS 预检请求", "/md/网络/OPTIONS预检请求.md"],
+                    ["同源策略与 CORS", "/md/网络/CORS跨域.md"],
+                    ["Cookie 与本地存储", "/md/浏览器/本地存储与Cookie.md"],
+                    ["CSRF", "/md/安全/CSRF的理解.md"],
                 ],
             },
             {
                 title: "实时通信",
                 children: [
                     ["WebSocket", "/md/网络/WebSocket.md"],
+                    ["SSE 与流式传输", "/md/Agent/流式渲染与SSE.md"],
                 ],
             },
             {
-                title: "Web 安全",
+                title: "TCP 与安全追问",
                 children: [
+                    ["TCP 三次握手", "/md/网络/TCP三次握手.md"],
+                    ["TCP 四次挥手", "/md/网络/TCP四次挥手.md"],
                     ["XSS", "/md/安全/XSS的理解.md"],
-                    ["CSRF", "/md/安全/CSRF的理解.md"],
                 ],
             },
         ],
@@ -231,6 +236,20 @@ function renderItem(item, depth) {
 function main() {
     const sidebarPath = path.join(__dirname, "../_sidebar.md");
     const sidebarContent = SIDEBAR.map((item) => renderItem(item, 1)).join("");
+
+    if (process.argv.includes("--check")) {
+        const currentContent = fs.existsSync(sidebarPath)
+            ? fs.readFileSync(sidebarPath, "utf-8")
+            : "";
+        if (currentContent !== sidebarContent) {
+            console.error("_sidebar.md 与 generateSidebar.js 不一致，请运行 npm run generate-sidebar。");
+            process.exitCode = 1;
+            return;
+        }
+        console.log("_sidebar.md 与菜单配置一致。");
+        return;
+    }
+
     fs.writeFileSync(sidebarPath, sidebarContent, "utf-8");
     console.log(sidebarPath);
     console.log("面试导向侧边栏已更新！");
