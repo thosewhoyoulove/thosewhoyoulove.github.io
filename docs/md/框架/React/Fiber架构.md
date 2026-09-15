@@ -4,17 +4,17 @@
 
 > Fiber 解决的核心问题，是 React 15 那种「一旦开始协调就很难停」的同步递归模型。大组件树更新时，主线程会被长时间占满，输入和动画就会卡。React 16 引入 Fiber，本质是把协调改成「可拆分、可保存现场」的工作循环。
 >
-> 为了方便理解，可以说 Fiber 把组件树变成了可逐个处理的工作单元。更准确地说：UI 在逻辑上仍是树，每个 Fiber 用 `child` / `sibling` / `return` 指针表达父子兄弟关系；工作循环按这些指针迭代推进，做完一个单元就能检查要不要让出主线程。所以它不是「树消失、只剩一条链表」，而是「用链表指针把树的遍历改成可中断的迭代」。
+> Fiber 可以理解为组件在 React 运行时对应的工作单元。UI 在逻辑上仍然是树，每个 Fiber 通过 `child`、`sibling`、`return` 指针表达父子兄弟关系，同时保存 state、更新队列、优先级和副作用标记等信息。因此 Fiber 不是简单的虚拟 DOM，也不是把整棵树拍平成一条链表，而是用可持久化的数据结构表示组件树和执行现场。
 >
-> 这里要分清三件事：Fiber 负责工作如何拆分、如何挂状态和副作用、如何保存执行现场；Scheduler 负责这段工作什么时候跑、有没有时间继续；Lane 负责这次更新相对其他更新的优先级。一句话记：Fiber 管「怎么拆和怎么存」，Scheduler 管「何时做」，Lane 管「先做谁」。
+> 真正执行时，React 不再依靠一次递归调用完成整棵树，而是通过工作循环逐个处理 Fiber。`performUnitOfWork` 调用 `beginWork` 向下处理组件并返回 child；没有 child 后，`completeUnitOfWork` 会调用 `completeWork` 向上归并，再寻找 sibling 或继续返回 parent。下一个待处理节点保存在 Fiber 指针和 `workInProgress` 变量中，而不是只能依赖 JS 调用栈，所以并发 Render 可以在工作单元之间检查是否应该让出主线程，之后继续执行；如果更高优先级更新到来，也可能放弃未提交结果并重新计算。
 >
-> 运行时还有双缓冲：`current` 树对应已上屏结果，`workInProgress` 是正在算的下一棵。Render 阶段只构建 / 复用 Fiber、打 flags，可以暂停、恢复，甚至丢掉未提交的 wip，再从 update 队列重来；Commit 阶段才改真实 DOM，必须同步推进，否则界面会不一致。所以 Fiber 让「计算」可中断，不是让「DOM 突变」可中断。低优先级一直被打断也不会无限饿死：update 还在队列里，lane 过期后会强制纳入本轮。
+> Fiber 还通过双缓冲保证中断安全：`current` Tree 对应当前已提交的页面，`workInProgress` Tree 是正在计算的下一版。Render 在 workInProgress 上进行，可以暂停、继续、重做或丢弃；用户仍然看到 current 对应的完整界面。Render 完成后得到 `finishedWork`，Commit 再把变更同步到宿主视图，并将 `root.current` 切换到新树。因此可中断的是计算过程，不是已经开始的用户可见提交。
 >
-> 总结一句：Fiber 是可调度协调的底座——树形关系用指针表达，工作按单元推进，配合 Scheduler 和 Lane，才有时间切片、`startTransition`、并发更新这些能力。
+> 这里还要分清三者的职责：Fiber 决定「工作怎么拆、现场存在哪」，Lane 决定「哪些更新更优先、哪些进入本轮」，Scheduler 决定「任务何时获得执行机会、时间片用完是否让出」。Fiber 配合 Lane 和 Scheduler，才为时间切片、`startTransition` 和并发更新提供基础；但同步更新、`flushSync` 或过期工作仍可能一次完成，并不是有了 Fiber，所有更新就都会异步或被切片。
 
 **一句话总结：**
 
-> 同步递归卡顿 → Fiber 工作单元保存现场 → Scheduler 决定何时做 → Lane 决定先做谁 → Render 可中断 / Commit 同步提交。
+> Fiber 把同步递归协调改造成可保存现场的工作循环：`beginWork` 向下、`completeWork` 向上，Lane 选择本轮更新，Scheduler 协调执行时机，双缓冲保证 Render 可中断而已提交界面保持一致。
 
 ---
 
@@ -48,24 +48,31 @@ Fiber 要同时回答三件事：
 | --- | --- |
 | React Element | 这次 UI 描述成什么样（不可变） |
 | Fiber | 这个节点的工作单元：关系、state、更新队列、flags、lanes |
-| DOM Node | 浏览器真实节点（Commit 才动） |
+| DOM Node | 浏览器真实节点；Render 可准备实例，已提交页面主要在 Commit 修改 |
 | Scheduler | 这段工作何时执行、是否让出主线程 |
 | Lane | 哪个更新集合更优先、会不会过期 |
 
 主链路：
 
 ```text
-setState / props / context
-  → 创建 update，写入 Fiber.updateQueue
-  → 给相关 Fiber 标 lanes，冒泡到根
-  → Scheduler 调度回调
+setState / dispatch
+  → 创建 update 并分配 Lane
+  → 将 Lane 沿 Fiber 路径标记到 FiberRoot
+  → Root 选择下一批 Lanes
+  → 同步执行，或通过 Scheduler 安排并发任务
   → Render：从根构建 / 复用 workInProgress Fiber
-       ├─ beginWork：处理当前 Fiber，reconcile children
-       └─ completeWork：回溯，合并 flags
-  →（可中断：没时间 / 有更高优 → 暂停或丢弃 wip）
-  → Commit：同步按 flags 改 DOM，跑 layout / passive effect
-  → current 指针切到新树
+       ├─ performUnitOfWork
+       ├─ beginWork：向下处理组件，reconcile children
+       └─ completeUnitOfWork / completeWork：向上归并 flags
+  → 没时间时让出；高优先级到来时可能重做或丢弃未提交 wip
+  → Render 完成，得到 finishedWork
+  → Commit：同步修改用户可见视图
+       → root.current 切换到新树
+       → 处理 layout 相关逻辑
+  → passive effect 在提交后另行处理
 ```
+
+父组件带来的 props 变化、Context 传播等同样可能让 Fiber 进入本轮 Render，但不宜全部简化成「都像 `setState` 一样创建 update」。
 
 读者定位口诀：
 
@@ -134,14 +141,44 @@ App（begin）
 
 ---
 
-### 4. 双缓冲：`current` 与 `workInProgress`
+### 4. 工作循环：Fiber 为什么能够中断
+
+Fiber 解决的不是「递归语法性能差」，而是递归调用栈不适合作为一份可由 React 自主管理的执行现场。旧模型一旦进入深层递归，React 很难在任意组件边界暂停，把控制权还给浏览器，再从原位置继续。
+
+Fiber 把遍历改造成 React 自己控制的循环。概念链路可以记成：
+
+```text
+workLoopConcurrent
+  → performUnitOfWork(workInProgress)
+      → beginWork：处理当前 Fiber
+      → 有 child：child 成为下一个 workInProgress
+      → 没有 child：completeUnitOfWork
+          → completeWork：完成并向上归并
+          → 有 sibling：转向 sibling
+          → 没有 sibling：继续 return 到 parent
+```
+
+并发工作循环会在 Fiber 单元之间检查是否应该让出执行权。让出时，当前节点和已经完成的结果仍保存在堆上的 Fiber 结构及相关变量中，JS 调用栈可以退出；后续获得执行机会时再从尚未完成的位置推进。
+
+这里的「中断」至少有两种情况：
+
+| 情况 | 后续处理 |
+| --- | --- |
+| 当前时间片用完，主动让出 | 通常保留当前进度，之后继续 |
+| 更高优先级更新到来 | 当前结果可能失效，从合适的位置重算或放弃未提交 wip |
+
+因此不要把「可恢复」理解成每次都保证从完全相同的指令位置继续。React 保存的是可重新推进的 Fiber 工作现场，不是冻结整个 JavaScript 调用栈。
+
+---
+
+### 5. 双缓冲：`current` 与 `workInProgress`
 
 | 树 | 含义 |
 | --- | --- |
 | `current` | 上次 Commit 成功、与当前屏幕一致的 Fiber 树 |
 | `workInProgress`（wip） | 本轮正在计算的下一棵树 |
 
-`fiber.alternate` 指向另一棵上的对偶节点。Render 在 wip 上算；成功 Commit 后，根上的 `current` 指针切换，上一棵变成下次的对照基线。
+`fiber.alternate` 指向另一棵上的对偶节点。Render 在 wip 上计算；完成后得到 `finishedWork`。Commit 修改宿主视图，并通过 `root.current = finishedWork` 让新树成为 current；旧树的节点可在下一次更新中作为 alternate 被复用。
 
 这对「可中断」很关键：
 
@@ -153,7 +190,7 @@ App（begin）
 
 ---
 
-### 5. Scheduler 与 Lane：和 Fiber 如何分工
+### 6. Scheduler 与 Lane：和 Fiber 如何分工
 
 面试里最容易混的是「Fiber 自己就会调度」。
 
@@ -167,6 +204,16 @@ App（begin）
 
 > Fiber 提供可暂停的工作单元；Scheduler 决定现在是否执行这些单元；Lane 决定执行时带上哪些更新。
 
+一次更新获得 Lane 后，Lane 会从源 Fiber 向祖先路径传播，最终让 FiberRoot 知道整棵树还有哪些待处理工作。Root 根据 `pendingLanes` 选择下一批 Lanes，再决定走同步路径，还是为并发工作安排 Scheduler 回调。
+
+```text
+Update 获得 Lane
+  → Fiber.lanes / 祖先 childLanes 被标记
+  → FiberRoot.pendingLanes 汇总待处理工作
+  → 选择 nextLanes
+  → 同步执行，或安排 / 调整 Scheduler callback
+```
+
 React 18 用 lane 位掩码表达优先级集合。交互更新通常更「急」；`startTransition` 打上的更新更「可打断」。若低优先级一直被高优先级打断：
 
 1. 丢掉的是未 Commit 的 wip 树；
@@ -178,23 +225,40 @@ React 18 用 lane 位掩码表达优先级集合。交互更新通常更「急�
 
 ---
 
-### 6. 为什么 Render 可中断、Commit 不行
+### 7. Bailout：有 Fiber 不等于每次遍历整棵树
+
+React 开始一轮 Render，不代表一定无条件执行所有后代组件。若一个 Fiber 的 props、state、context 没有需要处理的变化，并且它和子树的 Lane 不属于本轮工作，React 可以 bailout，复用已有结果并跳过不相关部分。
+
+这里 `lanes` 和 `childLanes` 的作用不同：
+
+| 字段 | 表示什么 |
+| --- | --- |
+| `lanes` | 当前 Fiber 自己还有哪些优先级的更新 |
+| `childLanes` | 后代子树中还有哪些优先级的更新 |
+
+即使当前组件自身可以复用，只要 `childLanes` 命中本轮 Lane，React 仍需要继续进入对应子树。反过来，如果当前节点和子树都没有本轮工作，就可以更大范围地跳过。
+
+需要注意，bailout 是否成立还会受 props 引用、Context、组件类型、`memo` 等因素影响；不能简化成「有 Fiber 就自动只更新一个节点」。
+
+---
+
+### 8. 为什么 Render 可中断、Commit 不行
 
 | 阶段 | 做什么 | 能否中断 |
 | --- | --- | --- |
-| Render | 跑组件、Hooks、Diff，生成 / 复用 Fiber，打 flags | 可以暂停 / 丢弃重来 |
+| Render | 跑组件、Hooks、Diff，生成 / 复用 Fiber，打 flags | 并发路径可暂停 / 继续 / 丢弃重来 |
 | Commit | 按 flags 改 DOM，执行 layout 相关副作用等 | 对用户可见的提交路径需同步完成 |
 
-原因不是「Commit 代码写死不能停」，而是产品约束：真实 DOM 改到一半再让出，用户会看到撕裂、错位的 UI。Render 只动内存里的 Fiber 和标记，停下来是安全的。
+原因不是「Commit 代码写死不能停」，而是一致性约束：真实 DOM 改到一半再长时间让出，用户可能看到撕裂、错位的 UI，DOM、current Tree 和生命周期观察到的状态也可能不一致。Render 可以创建或准备宿主实例，但不会把半成品变化应用到当前已提交页面，因此停下来是安全的。
 
 因此：
 
 - 组件 render 路径应保持纯：别在函数体里乱写副作用。
-- `useLayoutEffect` 在 paint 前同步跑，仍属「提交相关」；`useEffect` 更靠后，调度语义不同，但都不是「Render 中断」的同义词。
+- `useLayoutEffect` 在 paint 前同步跑，属于提交期 layout 工作；`useEffect` 在提交后被安排，通常在 paint 后处理。两者都不是 Render 可中断的一部分。
 
 ---
 
-### 7. 设计取舍与边界
+### 9. 设计取舍与边界
 
 | 选择 | 换到了什么 | 代价 / 边界 |
 | --- | --- | --- |
@@ -279,6 +343,10 @@ Lane 描述更新优先级集合；Scheduler 管任务时机；flags 是 Render 
 
 递归依赖调用栈，栈帧不方便在任意子节点边界把主线程还给浏览器。指针迭代可以每完成一个 Fiber 就检查调度条件，并把「下一个要做的单元」存在 `nextUnitOfWork` 这类变量里。
 
+### Fiber 工作循环具体怎么走？
+
+工作循环反复调用 `performUnitOfWork`。`beginWork` 处理当前 Fiber 并优先返回 child；没有 child 时进入 `completeUnitOfWork`，调用 `completeWork` 向上归并。如果存在 sibling 就转向 sibling，否则继续沿 `return` 回到父节点。并发循环可以在单元之间通过 `shouldYield` 一类判断让出执行权。
+
 ### Fiber、Scheduler、Lane 分别做什么？
 
 Fiber：拆分工作、保存现场、挂 state / flags。Scheduler：何时跑、是否让出。Lane：哪些更新优先、是否过期。三者一起才构成「可调度的更新」。
@@ -286,6 +354,10 @@ Fiber：拆分工作、保存现场、挂 state / flags。Scheduler：何时跑�
 ### 什么是双缓冲？中断时为什么能丢 wip？
 
 `current` 对应当前屏幕；`wip` 是草稿。未 Commit 的草稿丢掉不影响已上屏树；update 仍在队列，可重新开一轮 Render。
+
+### React 有 Fiber 后，每次更新还会遍历整棵树吗？
+
+不一定。若当前 Fiber 没有本轮 Lane 对应的更新，props、state、context 等也允许复用，并且 `childLanes` 表明子树没有本轮工作，React 可以 bailout。若当前节点自身能复用但 `childLanes` 命中，仍要继续进入相关子树。
 
 ### 为什么 Render 可中断、Commit 不行？
 

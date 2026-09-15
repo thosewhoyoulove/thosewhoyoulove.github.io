@@ -2,17 +2,27 @@
 
 ## 面试回答
 
-> React 渲染的核心不是 `setState` 直接改 DOM，而是：创建更新 → 调度 → Render 算差异 → Commit 提交到屏幕。
+> 调用 `setState` 或 Hooks 的 `dispatch` 后，React 不会直接操作 DOM，而是先创建一次 update，并为它分配一个 Lane。Lane 表示这次更新所属的优先级集合，不同更新并不只是按「谁先调用谁先执行」来处理。
 >
-> 触发更新时，React 会给对应 Fiber 挂上 update、标上 lane，再交给 Scheduler 决定何时开工。Render 阶段从根（或仍有效的工作起点）构建 `workInProgress` Fiber 树：跑组件函数拿到新的 React Element，再做 reconciliation——其中子节点对齐就是 Diff——给 Fiber 打上 Placement、Update、ChildDeletion 这类 flags。这一阶段只动内存里的 Fiber 和标记，不改已上屏 DOM，所以可以暂停、恢复，甚至丢掉未提交的树再重来。也正因为可能执行多次，组件函数要尽量保持纯，副作用放进事件或 effect。
+> React 会把 Lane 标记到触发更新的 Fiber，并沿 `return` 链向上合并到祖先的 `childLanes`，最终找到 `FiberRoot`。Root 汇总整棵树的待处理 Lane，再选择下一批工作：同步执行，或者通过 Scheduler 安排一个具有相应优先级的任务。这里要分清：Lane 决定「哪些更新更优先」，Scheduler 协调「任务何时获得执行机会」，Fiber 则提供「工作如何拆分和保存现场」的结构。
 >
-> Commit 阶段消费这些 flags：同步改 DOM，再按阶段跑 layout 相关逻辑；`useLayoutEffect` 在 paint 前，`useEffect` 通常在 paint 后。DOM 一旦开始改就不能改到一半停，否则界面会不一致。
+> 真正开始工作后进入 Render Phase。它的核心目标不是直接改 DOM，而是**基于 current Fiber Tree 计算下一棵 workInProgress Fiber Tree**。React 以 Fiber 为工作单元，通过 `beginWork` 向下遍历：处理 update、计算新 state、执行函数组件和 Hooks，得到新的 React Element，再进入 `reconcileChildren`。
 >
-> 和 Fiber、Diff 的关系可以记成：渲染原理讲整条流水线；Fiber 解释工作为何能拆、现场存在哪；Diff 解释孩子如何复用和移动。React 18 还会把同一事件循环里的多次 `setState` 自动批成一次 Render，必要时才用 `flushSync` 打破。
+> Reconciliation 是新旧两棵 React 树的整个协调过程，Diff 是其中对子节点进行匹配的一部分。React 会结合 `key`、`type` 和位置判断旧 Fiber 能否复用；新增、移动、删除或属性变化不会立刻反映到页面，而是先在 Fiber 上记录 `Placement`、`Update`、`ChildDeletion` 等 flags。
+>
+> `beginWork` 一路向下，到叶子节点后通过 `completeWork` 向上归并，完成 Host Component 的相关处理，并把子树的 flags 汇总到父节点。最终得到完整的 `workInProgress` 树，也就是本轮的 `finishedWork`，Render Phase 到此结束。
+>
+> Render Phase 不会修改当前已经提交、用户正在看到的宿主视图。因为并发渲染下 Render 可能暂停、继续、重新执行，甚至丢弃尚未提交的 workInProgress；如果此时直接修改页面 DOM，用户就可能看到不一致的中间状态。这也是 React 要把「计算变化」和「应用变化」分开的原因。
+>
+> 接下来进入 Commit Phase。Render 可以被打断，而 Commit 的用户可见提交路径需要同步完成。Commit 大致分为 Before Mutation、Mutation 和 Layout：Before Mutation 读取更新前的 DOM 信息；Mutation 根据 flags 真正插入、更新和删除 DOM；随后 `root.current = finishedWork`，本轮 workInProgress 正式成为新的 current Tree；Layout 阶段执行 `useLayoutEffect`、`componentDidMount`、`componentDidUpdate` 等需要访问最新 DOM 的逻辑。
+>
+> 浏览器随后进行绘制，Passive Effect，也就是 `useEffect`，通常在绘制后异步处理。因此如果把一次更新压缩成一句话：**更新先进入 Lane 优先级体系并调度；Render Phase 基于 current Tree，通过 Reconciliation 计算出 workInProgress Tree 并记录 flags；Commit Phase 再一次性把这些变化同步到 DOM，并处理 Layout 和 Passive Effects。**
+>
+> Fiber 真正重要的并不是「链表结构」本身，而是它把原本难以中断的递归更新拆成了一个个可以调度、可以保存现场的工作单元，从而让 Render 具备暂停、继续、重做和按优先级处理的基础。
 
 **一句话总结：**
 
-> setState 建 update → Scheduler/Lane 调度 → Render 建 wip 打 flags → Commit 改 DOM → layout/passive effect。
+> dispatch 创建 update 并分配 Lane → 向上标记到 FiberRoot → 选择 Lane 并安排工作 → Render 用 `beginWork` 向下协调、`completeWork` 向上归并，得到 `finishedWork` → Commit 消费 flags、切换 current Tree 并更新 DOM → Layout Effect → paint → Passive Effect。
 
 ---
 
@@ -48,24 +58,32 @@
 | DOM Node | 浏览器真实节点，主要在 Commit 修改 |
 
 ```text
-setState / props / context
-  → 创建 update，写入 Fiber.updateQueue
-  → 标记 lanes，冒泡到根
-  → Scheduler 调度
-  → Render：beginWork → 跑组件 → reconcileChildren（含 Diff）
-       → completeWork，合并 flags
-  →（可中断 / 可丢弃 wip）
-  → Commit：
-       before mutation → mutation（改 DOM）→ layout（含 useLayoutEffect）
+setState / dispatch
+  → 创建 Update，并分配 Lane
+  → 将 Lane 从源 Fiber 向上标记到 FiberRoot
+  → Root 选择下一批要处理的 Lanes
+  → 同步执行，或通过 Scheduler 安排任务
+  → Render Phase（可暂停 / 继续 / 重做）
+       beginWork：向下处理组件和 update
+         → 执行函数组件 / Hooks
+         → reconcileChildren（其中包含 Diff）
+         → 复用或创建 child Fiber，记录 flags
+       completeWork：向上完成节点并汇总 subtreeFlags
+       → 得到 finishedWork
+  → Commit Phase（用户可见提交同步完成）
+       Before Mutation
+       → Mutation：根据 flags 修改 DOM
+       → root.current = finishedWork
+       → Layout：useLayoutEffect / didMount / didUpdate
   → 浏览器 paint
-  → passive effect（useEffect）
+  → Passive Effect：useEffect（通常在 paint 后）
 ```
 
 细节底座见 [Fiber 架构](/md/框架/React/Fiber架构.md)；孩子如何对齐见 [React Diff 算法](/md/框架/React/React%20Diff算法.md)。本文盯住**端到端流水线**。
 
 ---
 
-### 3. 触发更新：`setState` 做了什么
+### 3. 触发更新：Update、Lane 与 Root 调度
 
 ```jsx
 setCount(count + 1)
@@ -77,11 +95,26 @@ setCount(count + 1)
 
 ```text
 setCount
-  → 创建 update（可能带 lane）
-  → 挂到该函数组件 Fiber 的 updateQueue
-  → 从当前 Fiber 向上标记，确保根知道有活
-  → scheduleUpdateOnFiber → Scheduler
+  → requestUpdateLane：选择 Lane
+  → 创建 update，加入对应的更新队列
+  → 将 Lane 标记到源 Fiber
+  → 沿 return 链合并到祖先 childLanes
+  → 找到 FiberRoot
+  → scheduleUpdateOnFiber
+  → ensureRootIsScheduled：比较并安排 Root 的下一批工作
 ```
+
+需要注意，函数组件 Hook 有自己的更新队列，不能简单理解成所有 update 都直接放在 `Fiber.updateQueue` 字段中。面试时说「update 被加入对应 Fiber/Hooks 的更新队列」更稳妥。
+
+#### Fiber、Lane、Scheduler 分别负责什么
+
+| 概念 | 核心职责 | 不负责什么 |
+| --- | --- | --- |
+| Fiber | 把组件树表示成可逐单元处理的工作树，并保存 state、队列、flags 等现场 | 不直接表示任务优先级策略 |
+| Lane | 表示更新优先级集合，决定哪些更新进入本轮 | 不负责占用或让出浏览器时间片 |
+| Scheduler | 按任务优先级和时间预算协调执行机会 | 不负责 React 子节点 Diff |
+
+Root 会根据 `pendingLanes` 选择下一批 Lane。同步更新可能直接进入同步工作路径；可并发更新则可以交给 Scheduler 安排。因此不要把所有更新都概括成「setState 后异步交给 Scheduler」。
 
 #### Trace：一次点击里的三次 setState
 
@@ -104,11 +137,43 @@ React 18 默认自动批处理：Promise、`setTimeout`、原生事件里的多�
 
 ---
 
-### 4. Render：只计算，不改已上屏 DOM
+### 4. Render：计算下一棵 Fiber Tree
 
-Render（常与 reconciliation 连用）核心产出是新的 `workInProgress` 树和 flags。
+Render 的核心产出是新的 `workInProgress` 树和 flags；完成后，这棵树会成为本轮的 `finishedWork`。
 
-对函数组件：调用组件函数 → 得到 Element 树 → `reconcileChildren` 对齐旧 child Fiber。
+#### `beginWork`：向下展开
+
+对函数组件，`beginWork` 会处理更新队列、得到本轮 state、调用组件函数和 Hooks，产生新的 React Element，然后通过 `reconcileChildren` 与 current Fiber 的 children 对齐。
+
+```text
+beginWork(current, workInProgress)
+  → 处理本轮 Update / state
+  → 执行函数组件与 Hooks
+  → 得到新的 React Element
+  → reconcileChildren
+  → 返回下一个 child Fiber
+```
+
+#### Reconciliation 和 Diff 的关系
+
+- **Reconciliation**：React 根据新 Element 计算下一棵 Fiber Tree 的整个协调过程；
+- **Diff**：Reconciliation 中比较新旧子节点、判断复用/新增/移动/删除的算法环节；
+- **flags**：Render 对未来 Commit 记下的变更账单，不代表 DOM 已经修改。
+
+#### `completeWork`：向上归并
+
+当一个节点没有更多 child 后，React 开始执行 `completeWork` 并沿父节点返回：
+
+```text
+叶子 Fiber
+  → completeWork：完成 Host 节点相关工作
+  → 汇总 children 的 subtreeFlags
+  → 回到 sibling 或 parent
+  → Root 完成
+  → workInProgress 成为 finishedWork
+```
+
+首次挂载时，`completeWork` 可能创建尚未挂到页面上的 DOM 实例；但 Render 不会修改当前已提交、用户正在看到的宿主视图。真正把变更应用到页面发生在 Commit。
 
 | Render 会做 | Render 不会做 |
 | --- | --- |
@@ -130,7 +195,7 @@ function App() {
 
 ---
 
-### 5. Commit：把 flags 变成 DOM 与副作用
+### 5. Commit：消费 flags 并切换 current Tree
 
 Commit 同步推进用户可见的提交路径，大致三段：
 
@@ -139,6 +204,14 @@ Commit 同步推进用户可见的提交路径，大致三段：
 | before mutation | 读 DOM 快照等（如 `getSnapshotBeforeUpdate`） |
 | mutation | 插删改 DOM、更新文本与属性、处理部分 ref |
 | layout | DOM 已更新、paint 前：`useLayoutEffect`、类组件 didMount/Update |
+
+Mutation 完成后会发生关键切换：
+
+```js
+root.current = finishedWork
+```
+
+这表示本轮算出的 workInProgress Tree 正式成为新的 current Tree。下一次更新会以它为 current，并复用另一棵树作为新的 workInProgress，这就是 Fiber 双缓冲机制在提交阶段的落点。
 
 时机关系：
 
@@ -152,13 +225,23 @@ Commit mutation 改 DOM
 | Hook | 时机 | 适合 |
 | --- | --- | --- |
 | `useLayoutEffect` | DOM 更新后、paint 前 | 测量布局、避免闪烁的同步调整 |
-| `useEffect` | paint 后 | 请求、订阅、日志等非同步视觉必需 |
+| `useEffect` | 通常在 paint 后 | 请求、订阅、日志等非同步视觉必需 |
 
 能 `useEffect` 就不要上 `useLayoutEffect`。
 
 ---
 
-### 6. Diff 在流水线中的位置
+### 6. 为什么 Render 可中断，Commit 必须完成
+
+Render 处理的是尚未提交的 workInProgress。React 可以在 Fiber 工作单元之间让出执行权，之后继续，也可以在出现更高优先级工作时重新计算或丢弃未提交结果。用户此时仍看到 current Tree 对应的页面。
+
+Commit 已经开始修改用户可见的宿主视图。如果只提交一部分就长期让出，Fiber current Tree、DOM 和生命周期观察到的状态可能互相不一致。因此，Commit 的用户可见提交路径要同步完成。
+
+这也是为什么组件 Render 逻辑必须尽量保持纯：Render 可能不止执行一次，但只有成功进入 Commit 的结果才真正生效。
+
+---
+
+### 7. Diff 在流水线中的位置
 
 Diff 不是整条渲染的全部，只是 Render 里「把新 children 对齐成 child Fiber 并打 flags」的那一步。
 
@@ -174,7 +257,7 @@ Diff 不是整条渲染的全部，只是 Render 里「把新 children 对齐成
 
 ---
 
-### 7. 与 Vue 更新模型的对照（点到为止）
+### 8. 与 Vue 更新模型的对照（点到为止）
 
 | 维度 | React | Vue |
 | --- | --- | --- |
@@ -187,7 +270,7 @@ Diff 不是整条渲染的全部，只是 Render 里「把新 children 对齐成
 
 ---
 
-### 8. 设计取舍
+### 9. 设计取舍
 
 | 选择 | 得到 | 代价 |
 | --- | --- | --- |
@@ -263,7 +346,7 @@ effect 在 Commit 之后；`useEffect` 通常在 paint 后。首次也会跑，�
 
 ### React 一次更新的主链路是什么？
 
-触发建 update → 标 lane → 调度 → Render 建 wip、Diff、打 flags → Commit 改 DOM → layout / passive effect。
+dispatch 创建 update 并分配 Lane，Lane 沿 Fiber 向上标记到 Root；Root 选择下一批 Lane 并安排执行。Render 中 `beginWork` 向下协调、`completeWork` 向上归并，得到带有 flags 的 `finishedWork`；Commit 再消费 flags、切换 current Tree、更新 DOM，并处理 Layout 与 Passive Effects。
 
 ### Render 和 Commit 有什么区别？
 
