@@ -183,7 +183,7 @@ TypeScript 是 JavaScript 的超集，增加了类型系统和编译期检查。
 
 ### type 和 interface 怎么选？
 
-对象形状两者都可；需要联合类型、映射类型、条件类型时用 type；需要声明合并（如扩展第三方）时用 interface。
+对象、函数、索引签名、泛型两者都能写。对象形状、`extends` 和声明合并用 `interface`；联合、元组、条件类型、映射类型用 `type`。属性冲突时 `extends` 在声明处报错，`&` 可能把该属性收成 `never`。
 
 ## 相关链接
 
