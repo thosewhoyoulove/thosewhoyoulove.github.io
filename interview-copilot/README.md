@@ -17,7 +17,18 @@ npm run dev
 
 要调用真实模型，在服务端环境设 `COPILOT_MODE=openai`、`OPENAI_API_KEY` 和 `OPENAI_MODEL`。浏览器构建只允许使用 `VITE_COPILOT_API_URL` 指向公开 API 基址，绝不能把密钥放在 `VITE_` 变量中。若前后端跨域，服务端设置 `COPILOT_ORIGIN` 为博客的精确 Origin。GitHub Pages 只托管静态文件，真实模式需要另外部署持久运行的 Node 服务；公开部署前还需要加访问控制和请求限流。
 
-本地打开 Docsify 页面时，Widget 会自动连接 `http://127.0.0.1:8787`；后端默认允许 Docsify 的 3000 端口和 Vite 的 5173 端口。生产构建时应设置 `VITE_COPILOT_API_URL` 为实际 API 地址，服务端设置 `COPILOT_ORIGIN` 为博客的精确 Origin。
+本地打开 Docsify 页面时，Widget 会自动连接 `http://127.0.0.1:8787`；后端默认允许 Docsify 的 3000 端口和 Vite 的 5173 端口。若前后端分开部署，构建时设置 `VITE_COPILOT_API_URL` 为实际 API 地址，服务端设置 `COPILOT_ORIGIN` 为博客的精确 Origin。
+
+## 部署到 Vercel（博客和 Agent 同域）
+
+仓库根目录的 `vercel.json` 会执行根目录 `npm run build`、发布 `docs/`，并把 `/api/copilot/chat` 和 `/api/copilot/health` 构建为 Vercel Functions。函数会读取随部署打包的 `docs/md/` 原始文章。原来的本地 `src/server.ts` 继续用于本地开发，线上无需启动常驻进程。
+
+1. 在 Vercel 导入此 GitHub 仓库；**Root Directory 设为仓库根目录 `.`**，不要设成 `docs` 或 `interview-copilot`。框架设为 **Other**。仓库的 `vercel.json` 已指定 Build Command 和 Output Directory；若控制台有旧的项目级设置，检查它们是否与仓库配置冲突。
+2. 在 Vercel Project Settings → Environment Variables 中为 Production（需要预览时也为 Preview）设置：`COPILOT_MODE=openai`、`OPENAI_API_KEY=你的服务端密钥`、`OPENAI_MODEL=gpt-4.1-mini`。API Key 不要写进代码、Git 或以 `VITE_` 开头的变量。未设置模式时 Vercel 也会选择真实模型模式，并在缺少 Key 或模型名时让健康检查返回 503。
+3. `VITE_COPILOT_API_URL` **留空**，Widget 会请求同一 Vercel 域名下的 `/api/copilot/chat`，不需要配置跨域。设置完变量后重新部署。
+4. 先访问 `https://你的域名/api/copilot/health`，确认 `ok: true`、`mode: openai` 和文章数，再在博客页面问一个需要检索的问题，观察 `search_articles`、`read_article` 事件及文章引用。
+
+Vercel 项目必须从仓库根目录部署，否则读不到根目录的 `vercel.json` 和 `api/` 函数。GitHub Pages 仍可发布静态博客，但它不能运行这里的 API。公开开放真实模型前，请在 Vercel 配置访问控制或限流，避免匿名请求消耗 API 额度。
 
 ## API 与事件
 

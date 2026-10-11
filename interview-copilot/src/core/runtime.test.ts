@@ -1,10 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { ArticleIndex, registerArticleTools } from './articles.js';
-import { MockModel, type ModelAdapter } from './model.js';
+import { MockModel, OpenAIModel, type ModelAdapter } from './model.js';
 import { AgentRuntime } from './runtime.js';
 import { ToolRegistry } from './tools.js';
 import type { AgentEvent } from '../shared.js';
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe('article tools', () => {
   it('searches the repository and reads a real article with its Docsify URL', async () => {
@@ -57,5 +59,24 @@ describe('agent loop', () => {
     const pending = new AgentRuntime(model, registry).run([{ role: 'user', content: 'test' }], event => events.push(event), abort.signal);
     abort.abort(); await pending;
     expect(events.at(-1)).toEqual({ type: 'done', reason: 'cancelled' });
+  });
+});
+
+describe('real model adapter', () => {
+  it('sends server-side credentials and parses model tool calls', async () => {
+    const fetchMock = vi.fn(async (_url: string, options: RequestInit) => {
+      expect(options.headers).toMatchObject({ authorization: 'Bearer server-secret' });
+      const request = JSON.parse(options.body as string);
+      expect(request.model).toBe('test-model');
+      expect(request.tools[0].function.name).toBe('search_articles');
+      expect(request.tool_choice).toEqual({ type: 'function', function: { name: 'search_articles' } });
+      return new Response(JSON.stringify({ choices: [{ message: { tool_calls: [{ id: 'call-1', function: { name: 'search_articles', arguments: '{"query":"React Hooks"}' } }] } }] }), { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const index = new ArticleIndex(); await index.load();
+    const registry = new ToolRegistry(); registerArticleTools(registry, index);
+    const decision = await new OpenAIModel('server-secret', 'test-model').decide([{ role: 'user', content: 'React Hooks' }], registry.list(), new AbortController().signal);
+    expect(decision).toEqual({ kind: 'tools', calls: [{ id: 'call-1', name: 'search_articles', arguments: { query: 'React Hooks' } }] });
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 });

@@ -1,0 +1,17 @@
+{
+  "name": "interview-copilot-site",
+  "private": true,
+  "type": "module",
+  "workspaces": ["interview-copilot"],
+  "scripts": {
+    "build": "tsc --noEmit -p tsconfig.api.json && npm run build --workspace interview-copilot",
+    "test": "npm run test --workspace interview-copilot && node --import tsx --test tests/vercel-chat.test.ts"
+  },
+  "dependencies": { "zod": "^4.0.0" },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": { "node": ">=22" }
+}
