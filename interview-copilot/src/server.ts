@@ -1,8 +1,7 @@
 import { createServer } from 'node:http';
 import { z } from 'zod';
 import { ArticleIndex, registerArticleTools } from './core/articles.js';
-import { createModel } from './core/model.js';
-import { AgentRuntime } from './core/runtime.js';
+import { createRuntime } from './core/runtimeFactory.js';
 import { ToolRegistry } from './core/tools.js';
 import type { AgentEvent } from './shared.js';
 
@@ -13,8 +12,7 @@ const index = new ArticleIndex();
 await index.load();
 const registry = new ToolRegistry();
 registerArticleTools(registry, index);
-const { mode, model } = createModel();
-const runtime = new AgentRuntime(model, registry);
+const { mode, runtime } = createRuntime(registry);
 const port = Number(process.env.PORT ?? 8787);
 const allowedOrigin = process.env.COPILOT_ORIGIN;
 const localOrigins = new Set(['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:5173', 'http://127.0.0.1:5173']);

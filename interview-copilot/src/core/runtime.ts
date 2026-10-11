@@ -3,6 +3,9 @@ import type { ModelAdapter, ModelMessage } from './model.js';
 import { ToolRegistry } from './tools.js';
 
 export type RuntimeOptions = { maxToolCalls?: number; timeoutMs?: number };
+export interface AgentRunner {
+  run(history: ChatTurn[], emit: (event: AgentEvent) => void, requestSignal?: AbortSignal): Promise<void>;
+}
 
 export class AgentRuntime {
   constructor(private readonly model: ModelAdapter, private readonly registry: ToolRegistry, private readonly options: RuntimeOptions = {}) {}

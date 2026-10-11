@@ -64,8 +64,8 @@ export class OpenAIModel implements ModelAdapter {
         invalid_api_key: '模型 API Key 无效，请检查服务端环境变量。',
         model_not_found: '模型不存在或当前 API 项目没有访问权限。',
       };
-      const hint = typeof code === 'string' && Object.hasOwn(hints, code) ? hints[code]
-        : typeof type === 'string' && Object.hasOwn(hints, type) ? hints[type] : '';
+      const hint = typeof code === 'string' && Object.prototype.hasOwnProperty.call(hints, code) ? hints[code]
+        : typeof type === 'string' && Object.prototype.hasOwnProperty.call(hints, type) ? hints[type] : '';
       const safeCode = typeof code === 'string' && /^[a-z_]{1,80}$/.test(code) ? code : '';
       throw new Error(`Model API returned ${response.status}${hint ? `: ${hint}` : ''}${safeCode ? ` (${safeCode})` : ''}`);
     }

@@ -4,7 +4,7 @@
 
 ## 运行
 
-要求 Node.js 22+。
+要求 Node.js 22.13+（Cursor SDK 的最低要求）。
 
 ```bash
 cd interview-copilot
@@ -46,6 +46,28 @@ LLM_MODEL=该服务商支持工具调用的模型名称
 新变量优先；未填写 `LLM_BASE_URL` 时默认连接 OpenAI，并兼容原有 `OPENAI_API_KEY`、`OPENAI_MODEL`。配置第三方地址时必须填写 `LLM_API_KEY`，不会把旧 OpenAI Key 自动发送给第三方。修改本地配置后重启后端；修改 Vercel 变量后重新部署。密钥始终只放服务端。先检查 `/api/copilot/health`，再实际提问确认工具执行和回答；健康检查不会验证模型凭据。
 
 架构上，这属于决策层的 Provider Adapter：统一配置由本地服务器和 Vercel 共用，Runtime、工具、检索和 React 无需随服务商变化。取舍是先支持一种兼容协议；原生 Anthropic、Cursor Agent 等协议需要独立 Adapter。面试追问：兼容接口的工具格式差异如何处理？如何评测工具选择、控制成本、进行模型降级？当前不会静默降级到 Mock，也不会自动重试付费请求。
+
+## Cursor Composer 模式
+
+要求 Node.js 22.13+。在服务端 `.env` 配置：
+
+```dotenv
+COPILOT_MODE=cursor
+CURSOR_API_KEY=你的Cursor用户API密钥
+CURSOR_MODEL=composer-2.5
+```
+
+在 `interview-copilot` 执行 `npm run cursor:models` 查询该 Key 可访问的 Composer 模型，确认模型 ID 后重启 `npm run dev`。浏览器仍打开 Docsify 的 3000 端口。Vercel 使用相同的服务端变量；保存后重新部署。不要把 Cursor Key 填进 `LLM_API_KEY` 或任何 `VITE_` 变量。SDK 使用账户的模型权限和额度，并非免费 Mock。
+
+`CursorRuntime` 是独立的运行时适配器：Cursor SDK 执行规划和推理循环，项目负责工具参数校验、工具执行、引用及 SSE。`search_articles` 和 `read_article` 通过 SDK 的 `local.customTools` 注册到 `custom-user-tools` MCP 服务，仍然读取本仓库的真实 Markdown。UI 回答下方会明确显示 Cursor 和模型名；Mock 演示与自研 `AgentRuntime` 继续保留。
+
+每次请求创建独立 SDK Agent 和临时工作目录，只开放 MCP 工具，关闭环境配置加载和 SDK 自动重试；不开放 shell、文件写入、网络搜索或子 Agent。历史通过客户端的最近 12 条消息回放，访客之间不共享 SDK 会话。最多执行 4 次文章工具，SDK 包括发现工具在内最多观察到 16 个工具步骤；请求总超时 45 秒，可取消并清理 SDK 和临时存储。调用预算在回调执行前检查，因此不会执行第 5 次文章工具。
+
+Vercel 配置显式打包 SDK 的动态模块和 Linux 平台资源，临时存储位于系统临时目录。健康检查只验证配置和文章加载，不验证 Key、Composer 权限或网络；上线需另做真实问答验证。若 SDK 启动或模型耗时超过函数限制，应把同一个 `src/server.ts` 部署为常驻 Node 服务，Widget 通过 `VITE_COPILOT_API_URL` 连接该服务。
+
+面试时应说明取舍：此模式展示第三方 Agent 集成与 MCP 工具边界，规划循环由 Cursor 提供；自研循环的代码和测试位于 `AgentRuntime`。可能追问：为什么不把 SDK 当成 Chat Completions 模型 Adapter？如何取消迟到的启动、隔离并发会话、限制工具权限、验证文章引用？
+
+2026-10-12 已用 Composer 2.5 在本机 Node 和 Vercel 预览完成真实 React Hooks 问答，均执行 `search_articles` → `read_article` → 回答及文章引用。自动测试使用模拟 SDK，不消耗账户额度；真实模型的权限、额度和时延仍依赖部署时的账户及网络。
 
 ## API 与事件
 

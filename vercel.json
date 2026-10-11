@@ -5,12 +5,12 @@
   "outputDirectory": "docs",
   "functions": {
     "api/copilot/chat.ts": {
-      "includeFiles": "docs/md/**",
+      "includeFiles": "{docs/md/**,node_modules/@cursor/sdk/dist/esm/**,node_modules/@cursor/sdk-linux-x64/**}",
       "maxDuration": 60,
       "supportsCancellation": true
     },
     "api/copilot/health.ts": {
-      "includeFiles": "docs/md/**"
+      "includeFiles": "{docs/md/**,node_modules/@cursor/sdk/dist/esm/**,node_modules/@cursor/sdk-linux-x64/**}"
     }
   }
 }

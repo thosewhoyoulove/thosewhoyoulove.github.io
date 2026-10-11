@@ -5,11 +5,13 @@
   "scripts": {
     "dev": "node --env-file-if-exists=.env --import tsx --watch src/server.ts",
     "dev:widget": "vite --host 127.0.0.1",
+    "cursor:models": "node --env-file-if-exists=.env --import tsx src/cursorModels.ts",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
     "check": "npm run test && npm run build"
   },
   "dependencies": {
+    "@cursor/sdk": "^1.0.37",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "zod": "^4.0.0"

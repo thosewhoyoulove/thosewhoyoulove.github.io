@@ -84,6 +84,7 @@ function App() {
         </div>)}
         {events.filter((item): item is Extract<AgentEvent, { type: 'message' }> => item.type === 'message').map((item, i) => <div className="ic-sources" key={i}>
           {item.demo && <strong>演示模式 · 无真实模型推理</strong>}
+          {item.provider && <strong>{item.provider} · Cursor Agent 执行规划和工具调用</strong>}
           {item.citations.length > 0 && <div>引用：{unique(item.citations).map(citation => <a key={citation.path} href={citation.url} target="_blank" rel="noreferrer">{citation.title}</a>)}</div>}
         </div>)}
       </div>
