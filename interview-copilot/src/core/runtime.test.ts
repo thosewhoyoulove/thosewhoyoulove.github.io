@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { ArticleIndex, registerArticleTools } from './articles.js';
-import { MockModel, OpenAIModel, type ModelAdapter } from './model.js';
+import { createModel, MockModel, OpenAIModel, type ModelAdapter } from './model.js';
 import { AgentRuntime } from './runtime.js';
 import { ToolRegistry } from './tools.js';
 import type { AgentEvent } from '../shared.js';
@@ -63,10 +63,30 @@ describe('agent loop', () => {
 });
 
 describe('real model adapter', () => {
+  it('uses custom provider settings and preserves legacy configuration', async () => {
+    const mock = vi.fn(async (url: string, options: RequestInit) => {
+      expect(url).toBe('https://provider.example/api/v1/chat/completions');
+      expect(options.headers).toMatchObject({ authorization: 'Bearer provider-key' });
+      expect(options.redirect).toBe('error');
+      expect(JSON.parse(options.body as string).model).toBe('provider-model');
+      return new Response(JSON.stringify({ choices: [{ message: { content: '回答' } }] }));
+    });
+    vi.stubGlobal('fetch', mock);
+    const { model } = createModel({ COPILOT_MODE: 'openai', LLM_BASE_URL: 'https://provider.example/api/v1/', LLM_API_KEY: 'provider-key', LLM_MODEL: 'provider-model' });
+    expect(await model.decide([{ role: 'user', content: 'React' }], [], new AbortController().signal)).toEqual({ kind: 'final', text: '回答' });
+    expect(createModel({ COPILOT_MODE: 'openai', OPENAI_API_KEY: 'old-key', OPENAI_MODEL: 'old-model' }).model.demo).toBe(false);
+    expect(createModel({}).model.demo).toBe(true);
+  });
+
+  it('rejects invalid configuration and does not reuse an OpenAI key for a custom endpoint', () => {
+    expect(() => createModel({ COPILOT_MODE: 'openai', LLM_BASE_URL: 'https://provider.example/v1', OPENAI_API_KEY: 'old-key', LLM_MODEL: 'model' })).toThrow('LLM_API_KEY');
+    expect(() => createModel({ COPILOT_MODE: 'openai', LLM_API_KEY: 'crsr_example', LLM_MODEL: 'model' })).toThrow('Cursor');
+    expect(() => new OpenAIModel('key', 'model', 'file:///tmp')).toThrow('HTTP(S)');
+  });
   it('explains quota errors without exposing provider messages or credentials', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ error: { code: 'billing_not_active', type: 'insufficient_quota', message: 'private-provider-detail' } }), { status: 429 })));
     const pending = new OpenAIModel('server-secret', 'test-model').decide([{ role: 'user', content: 'React' }], [], new AbortController().signal);
-    await expect(pending).rejects.toThrow('Model API returned 429: OpenAI API 配额不足');
+    await expect(pending).rejects.toThrow('Model API returned 429: 模型 API 配额不足');
   });
 
   it('sends server-side credentials and parses model tool calls', async () => {

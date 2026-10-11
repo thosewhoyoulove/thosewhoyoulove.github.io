@@ -30,6 +30,23 @@ npm run dev
 
 Vercel 项目必须从仓库根目录部署，否则读不到根目录的 `vercel.json` 和 `api/` 函数。GitHub Pages 仍可发布静态博客，但它不能运行这里的 API。公开开放真实模型前，请在 Vercel 配置访问控制或限流，避免匿名请求消耗 API 额度。
 
+## 切换兼容模型服务
+
+本地在 `interview-copilot/.env` 配置，线上在 Vercel 的 Environment Variables 配置：
+
+```dotenv
+COPILOT_MODE=openai
+LLM_BASE_URL=https://你的服务商域名/接口前缀
+LLM_API_KEY=该服务商的API密钥
+LLM_MODEL=该服务商支持工具调用的模型名称
+```
+
+`openai` 在这里表示 OpenAI Chat Completions 兼容协议。`LLM_BASE_URL` 必须填写服务商官方文档中的 API 基址，程序自动追加 `/chat/completions`，不要填控制台网址或重复填写完整接口路径。模型需要支持 `tools`、指定函数的 `tool_choice`、`tool_calls` 和工具结果回填；只支持普通文本聊天的接口无法保证 Agent 闭环。Cursor 的 `crsr_` Key 不支持此适配器。
+
+新变量优先；未填写 `LLM_BASE_URL` 时默认连接 OpenAI，并兼容原有 `OPENAI_API_KEY`、`OPENAI_MODEL`。配置第三方地址时必须填写 `LLM_API_KEY`，不会把旧 OpenAI Key 自动发送给第三方。修改本地配置后重启后端；修改 Vercel 变量后重新部署。密钥始终只放服务端。先检查 `/api/copilot/health`，再实际提问确认工具执行和回答；健康检查不会验证模型凭据。
+
+架构上，这属于决策层的 Provider Adapter：统一配置由本地服务器和 Vercel 共用，Runtime、工具、检索和 React 无需随服务商变化。取舍是先支持一种兼容协议；原生 Anthropic、Cursor Agent 等协议需要独立 Adapter。面试追问：兼容接口的工具格式差异如何处理？如何评测工具选择、控制成本、进行模型降级？当前不会静默降级到 Mock，也不会自动重试付费请求。
+
 ## API 与事件
 
 `POST /api/copilot/chat`，Body：
