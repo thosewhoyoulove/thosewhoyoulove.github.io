@@ -64,7 +64,7 @@ describe('agent loop', () => {
 
 describe('real model adapter', () => {
   it('explains quota errors without exposing provider messages or credentials', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ error: { code: 'insufficient_quota', message: 'private-provider-detail' } }), { status: 429 })));
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ error: { code: 'billing_not_active', type: 'insufficient_quota', message: 'private-provider-detail' } }), { status: 429 })));
     const pending = new OpenAIModel('server-secret', 'test-model').decide([{ role: 'user', content: 'React' }], [], new AbortController().signal);
     await expect(pending).rejects.toThrow('Model API returned 429: OpenAI API 配额不足');
   });

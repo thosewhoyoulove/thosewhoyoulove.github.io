@@ -47,16 +47,19 @@ export class OpenAIModel implements ModelAdapter {
       tool_choice: messages.some(message => message.role === 'tool') ? 'auto' : { type: 'function', function: { name: 'search_articles' } } }),
     });
     if (!response.ok) {
-      const failure = await response.json().catch(() => null) as { error?: { code?: unknown } } | null;
+      const failure = await response.json().catch(() => null) as { error?: { code?: unknown; type?: unknown } } | null;
       const code = failure?.error?.code;
+      const type = failure?.error?.type;
       const hints: Record<string, string> = {
         insufficient_quota: 'OpenAI API 配额不足，请检查 API 账户余额和项目预算。',
         rate_limit_exceeded: 'OpenAI API 请求限流，请稍后重试。',
         invalid_api_key: 'OpenAI API Key 无效，请检查服务端环境变量。',
         model_not_found: '模型不存在或当前 API 项目没有访问权限。',
       };
-      const hint = typeof code === 'string' && Object.hasOwn(hints, code) ? hints[code] : '';
-      throw new Error(`Model API returned ${response.status}${hint ? `: ${hint}` : ''}`);
+      const hint = typeof code === 'string' && Object.hasOwn(hints, code) ? hints[code]
+        : typeof type === 'string' && Object.hasOwn(hints, type) ? hints[type] : '';
+      const safeCode = typeof code === 'string' && /^[a-z_]{1,80}$/.test(code) ? code : '';
+      throw new Error(`Model API returned ${response.status}${hint ? `: ${hint}` : ''}${safeCode ? ` (${safeCode})` : ''}`);
     }
     const data = await response.json() as { choices?: Array<{ message: { content?: string | null; tool_calls?: Array<{ id: string; function: { name: string; arguments: string } }> } }> };
     const answer = data.choices?.[0]?.message;
