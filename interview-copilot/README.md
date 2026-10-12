@@ -19,6 +19,8 @@ npm run dev
 
 本地打开 Docsify 页面时，Widget 会自动连接 `http://127.0.0.1:8787`；后端默认允许 Docsify 的 3000 端口和 Vite 的 5173 端口。若前后端分开部署，构建时设置 `VITE_COPILOT_API_URL` 为实际 API 地址，服务端设置 `COPILOT_ORIGIN` 为博客的精确 Origin。
 
+现有 `https://thosewhoyoulove.github.io` 博客可继续使用同一助手：Widget 在该域名下默认连接 `https://omen-blog.vercel.app`，Vercel API 允许该博客 Origin 的跨域请求和 POST 预检。Vercel 博客仍使用同域 API。GitHub Pages 自身不能处理聊天 POST；若更换后端域名，应同步更新 Widget API 地址并重新构建发布。自定义跨域博客可通过 `COPILOT_ORIGIN` 配置其精确 Origin。
+
 ## 部署到 Vercel（博客和 Agent 同域）
 
 仓库根目录的 `vercel.json` 会执行根目录 `npm run build`、发布 `docs/`，并把 `/api/copilot/chat` 和 `/api/copilot/health` 构建为 Vercel Functions。函数会读取随部署打包的 `docs/md/` 原始文章。原来的本地 `src/server.ts` 继续用于本地开发，线上无需启动常驻进程。

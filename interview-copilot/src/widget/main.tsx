@@ -5,7 +5,8 @@ import remarkGfm from 'remark-gfm';
 import type { AgentEvent, ChatTurn, Citation } from '../shared.js';
 import './style.css';
 
-const apiBase = import.meta.env.VITE_COPILOT_API_URL || (['localhost', '127.0.0.1'].includes(location.hostname) ? 'http://127.0.0.1:8787' : '');
+const apiBase = import.meta.env.VITE_COPILOT_API_URL || (['localhost', '127.0.0.1'].includes(location.hostname)
+  ? 'http://127.0.0.1:8787' : location.hostname === 'thosewhoyoulove.github.io' ? 'https://omen-blog.vercel.app' : '');
 const examples = ['React Hooks 为什么不能写在条件语句里？', 'React Fiber 如何支持可中断渲染？', 'Vue 3 响应式系统是如何追踪依赖的？', '浏览器从输入 URL 到页面展示经历了什么？', 'Promise 和浏览器事件循环有什么关系？', 'TypeScript 的 type 和 interface 怎么选择？', 'HTTP 缓存中的强缓存和协商缓存有什么区别？', '如何优化首屏加载速度？', 'Webpack Loader 和 Plugin 有什么区别？', 'RAG 检索增强生成的基本流程是什么？'];
 type Answer = Extract<AgentEvent, { type: 'message' }>;
 type Exchange = { id: number; question: string; events: AgentEvent[]; answer?: Answer; error?: string; status: string };
@@ -84,7 +85,7 @@ function App() {
     };
     try {
       const response = await fetch(`${apiBase}/api/copilot/chat`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: history.slice(-12) }), signal: abort.signal });
-      if (!response.ok || !response.body) throw new Error(response.status === 503 ? '助手暂不可用，请检查服务端配置后重试。' : `请求失败（${response.status}），请稍后重试。`);
+      if (!response.ok || !response.body) throw new Error(response.status === 405 ? '当前地址不接受聊天请求，请检查助手的 API 地址是否指向 Agent 后端。' : response.status === 503 ? '助手暂不可用，请检查服务端配置后重试。' : `请求失败（${response.status}），请稍后重试。`);
       update(id, { status: '正在分析问题' }); reader = response.body.getReader();
       const decoder = new TextDecoder(); let buffer = '';
       while (!finished) {
