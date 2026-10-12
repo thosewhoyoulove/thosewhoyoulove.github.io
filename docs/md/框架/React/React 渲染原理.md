@@ -55,7 +55,78 @@
 | --- | --- |
 | React Element | 这次 render 描述的 UI（不可变） |
 | Fiber | 运行时工作单元：关系、state、队列、flags、lanes |
-| DOM Node | 浏览器真实节点，主要在 Commit 修改 |
+| DOM Node | 浏览器真实节点。Host Fiber 的 `stateNode` 指向它；接到页面上主要在 Commit |
+
+#### 从 JSX 到页面：三种对象怎么交接
+
+如果面试官问的是「从 JSX 到最终 DOM」，不要从 `setState` 讲起。先讲编译产物，再讲第一次挂载时谁持有谁。
+
+React 17 起的新 JSX 转换会把 JSX 编成 `jsx()` / `jsxs()`（来自 `react/jsx-runtime`），不再要求文件里 `import React`。更早的经典转换则是 `React.createElement`。React 19 要求使用新 JSX 转换。两条路径的运行时产物一样：一个普通对象，叫 React Element。
+
+```jsx
+<button id="ok">Hi</button>
+```
+
+可以把它看成：
+
+```js
+{
+  $$typeof: /* 内部 Symbol，挡住被伪造的普通对象 */,
+  type: 'button',
+  key: null,
+  props: { id: 'ok', children: 'Hi' }
+}
+```
+
+`$$typeof` 是符号，防止把任意对象当成 React 元素。React 19 把它从 `react.element` 改成了 `react.transitional.element`；面试说清用途即可，不必背字符串。`type` 决定它是宿主节点（字符串）、函数组件还是类组件。`key` 不参与组件函数的 props，留给后面的孩子对齐。Element 每次 render 都可以新建，用完即弃，上面没有 state，也没有 DOM。
+
+`createRoot(container).render(element)` 之后，React 才进入运行时：
+
+```text
+JSX
+  → 编译成 React Element（描述，不可变）
+  → Render：按 type / key 创建或复用 Fiber
+       函数组件：执行函数，拿到下一层 Element，再协调孩子
+       Host 组件：completeWork 创建 DOM，记到 fiber.stateNode
+  → Commit：把带 Placement 的 DOM 插入容器，或按 Update 改已在页面上的节点
+  → 浏览器 paint
+```
+
+三种对象的对应关系：
+
+| | React Element | Fiber | DOM |
+| --- | --- | --- | --- |
+| 活多久 | 一次 render 的描述 | 跨渲染存在，双缓冲各一份 | 宿主节点，尽量复用 |
+| 谁创建 | `jsx` / `createElement` | reconcile 时 `createFiberFromElement` 一类逻辑 | Host Fiber 的 `completeWork` |
+| 身份 | `type`、`key`、`props` | `child` / `sibling` / `return`、state、队列、flags、lanes | 元素或文本节点 |
+| 函数组件有没有 | 有，`type` 是函数 | 有 | 没有。函数组件 Fiber 的 `stateNode` 是 `null` |
+| 类组件有没有 | 有 | 有 | `stateNode` 是类实例，不是 DOM |
+| `'div'` 这种有没有 | 有 | 有 | `stateNode` 就是那个 DOM |
+
+为了方便理解，可以先说「Render 不算 DOM，Commit 才碰 DOM」。更准确地说：Render 的 `completeWork` 可以为宿主节点创建**还没插入容器**的 DOM，甚至在内存里把子 DOM 接到父 DOM 上；用户看到的那棵树仍然是 current。Commit 的 mutation 才把 Placement 插进 `createRoot` 的容器，或修改已经在页面上的属性。所以「创建 DOM 对象」和「改已经上屏的页面」不是同一步。
+
+#### Trace：`<App />` 里的一个按钮
+
+```jsx
+function App() {
+  return <button id="ok">Hi</button>
+}
+
+createRoot(container).render(<App />)
+```
+
+| 步骤 | 输入 | 产生什么 | 页面上有没有 |
+| --- | --- | --- | --- |
+| 编译 `<App />` | JSX | Element：`type` 是 `App` | 没有 |
+| HostRoot 协调这个 Element | Element | `App` 的函数组件 Fiber，`stateNode === null` | 没有 |
+| 执行 `App` | Fiber + Hooks | 返回 `button` Element：`type === 'button'` | 没有 |
+| 协调孩子 | 新 Element，没有可复用的旧 Fiber | Host Fiber，`pendingProps` 带上 `id` 和 `children` | 没有 |
+| `completeWork` | Host Fiber | `createElement('button')` 记到 `stateNode` 并写入 id；文本是子 Fiber，在内存里挂到这个 button 上 | 没有，节点还没进 container |
+| Commit mutation | Placement | 把 button 插入 container | 有 |
+
+下一次如果 `App` 再次 render，仍返回 `type` 和 `key` 都相同的 `button`：React 复用这条 Host Fiber，`stateNode` 还是原来的 DOM。只有 `id` 这类属性变了，才打 Update，等 Commit 去改属性，而不是再 `createElement` 一个新按钮。
+
+更新从 `setState` 进入时，前面的 Element 已经由组件函数返回。下面这条链讲的是「状态怎么变成下一次 Element」，再汇合到同一套 Render / Commit。
 
 ```text
 setState / dispatch
@@ -177,9 +248,10 @@ beginWork(current, workInProgress)
 
 | Render 会做 | Render 不会做 |
 | --- | --- |
-| 跑组件 / Hooks | 改已上屏 DOM |
-| Diff 子节点 | 跑 `useEffect` |
-| 打 Placement / Update / ChildDeletion… | 跑 `useLayoutEffect` |
+| 跑组件 / Hooks，得到新 Element | 改已上屏 DOM |
+| Diff 子节点，创建或复用 Fiber | 把 Host 子树插入 `createRoot` 容器 |
+| 首次为 Host Fiber 创建 DOM，记到 `stateNode` | 跑 `useEffect` / `useLayoutEffect` |
+| 打 Placement / Update / ChildDeletion… | 把半成品变化展示给用户 |
 
 因为可能被中断或重启：
 
@@ -330,6 +402,18 @@ Render 改的是内存里的 wip；已上屏 DOM 仍由 `current` 解释。半�
 
 ---
 
+### ❌ JSX 就是 DOM，或者 Render 阶段一个 DOM 节点都不会创建
+
+### ✅ 更准确的说法
+
+JSX 的产物是 React Element。Render 里 Element 变成 Fiber；宿主 Fiber 可以在 `completeWork` 创建尚未插入容器的 DOM。已经在页面上的增删改，发生在 Commit。
+
+### 为什么？
+
+把三样东西说成一个，追问 `stateNode`、函数组件为什么没有 DOM、中断时用户为什么看不到半棵树，都会接不上。
+
+---
+
 ### ❌ `useEffect` 等同 `componentDidMount`，且在 DOM 更新前执行
 
 ### ✅ 更准确的说法
@@ -343,6 +427,14 @@ effect 在 Commit 之后；`useEffect` 通常在 paint 后。首次也会跑，�
 ---
 
 ## 高频追问
+
+### 从 JSX 到最终 DOM，中间经过什么？
+
+JSX 编译成 React Element。Render 按 `type` / `key` 创建或复用 Fiber；函数组件 Fiber 没有 DOM，Host Fiber 在 `completeWork` 把 DOM 记到 `stateNode`。Commit 再把这棵 DOM 插入容器或更新已上屏节点。Element 是一次性描述，Fiber 跨渲染留着，DOM 尽量复用。
+
+### ReactElement、Fiber、DOM 是什么关系？
+
+Element 回答「这一次 UI 长什么样」；Fiber 回答「这个组件的状态、更新和副作用记在哪」；DOM 只挂在宿主 Fiber 的 `stateNode` 上。类组件的 `stateNode` 是实例，函数组件的是 `null`。调度和 Diff 操作的是 Fiber，不是把 Element 或 DOM 当工作单元。
 
 ### React 一次更新的主链路是什么？
 
@@ -382,4 +474,5 @@ Fiber 贯穿：工作单元、双缓冲、可中断 Render。Diff 发生在 Rend
 - [SSR 与 Hydration](/md/框架/React/SSR与Hydration.md)
 - [Vue 渲染原理](/md/框架/Vue/Vue%20渲染原理.md)
 - [Vue vs React](/md/框架/Vue%20vs%20React.md)
+- [React 19 相对 18](/md/框架/React/React%2019%20变化.md)
 - [面试速记：React & Vue](/md/面试准备/技术/React%20&%20Vue.md)

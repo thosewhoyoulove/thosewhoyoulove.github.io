@@ -17,8 +17,9 @@
 | Hooks | [Hooks 原理](/md/框架/React/Hooks.md) | Hook 链表、update queue、Effect 同步模型、闭包陷阱 |
 | Fiber | [Fiber 架构](/md/框架/React/Fiber架构.md) | 工作循环、可中断 Render、Lane、双缓冲、bailout |
 | Diff | [React Diff 算法](/md/框架/React/React%20Diff算法.md) | 同层、key、lastPlacedIndex、Placement vs Commit |
-| 渲染 | [React 渲染原理](/md/框架/React/React%20渲染原理.md) | Render / Commit、Element vs Fiber、批处理 |
-| SSR | [SSR 与 Hydration](/md/框架/React/SSR与Hydration.md) | Streaming/Suspense、mismatch 治理、RSC 边界 |
+| 渲染 | [React 渲染原理](/md/框架/React/React%20渲染原理.md) | JSX → Element → Fiber → DOM、Render / Commit、批处理 |
+| 版本 | [React 19 相对 18](/md/框架/React/React%2019%20变化.md) | Actions、`use`、ref prop；RSC / Compiler 不随升级自动出现 |
+| SSR | [SSR 与 Hydration](/md/框架/React/SSR与Hydration.md) | CSR/SSG/ISR、mismatch、`"use client"` 边界、Server Action |
 | 状态 | [状态管理](/md/框架/React/状态管理.md) | 状态分类、Context、selector、外部 Store 一致性 |
 | 组件 | [组件设计能力](/md/框架/React/组件设计能力.md) | 状态建模、受控/非受控、组合、错误与 a11y |
 
@@ -33,17 +34,19 @@
 ### Hooks / useEffect
 
 - `renderWithHooks`、Hook 链表、update queue、调用顺序 → [Hooks](/md/框架/React/Hooks.md)
+- `useTransition` 包更新，`useDeferredValue` 推迟消费 → [Hooks](/md/框架/React/Hooks.md)
 - Effect 是否必要、依赖、cleanup、Strict Mode、闭包陷阱 → [Hooks](/md/框架/React/Hooks.md)
 - useMemo / useCallback / useRef / useReducer / useContext → [Hooks](/md/框架/React/Hooks.md)、[状态管理](/md/框架/React/状态管理.md)
 
 ### Fiber / Diff / 性能
 
-- Fiber 工作循环、时间切片、Lane、双缓冲、bailout → [Fiber](/md/框架/React/Fiber架构.md)
+- Fiber 工作循环、时间切片、Lane、双缓冲、bailout、并发不是多线程 → [Fiber](/md/框架/React/Fiber架构.md)
 - Diff O(n)、同层、Placement → [Diff](/md/框架/React/React%20Diff算法.md)
 - memo、列表虚拟化、避免无效渲染 → [组件设计](/md/框架/React/组件设计能力.md)、[性能速记](/md/面试准备/技术/前端性能优化.md)
 
 ## 延伸阅读
 
+- [React 19 相对 18](/md/框架/React/React%2019%20变化.md)
 - [React 进阶考点索引](/md/框架/React/React%20进阶高频考点精讲.md)
 - [高频追问清单](/md/面试准备/高频追问清单.md)
 - [复习路线](/md/面试准备/复习路线.md)

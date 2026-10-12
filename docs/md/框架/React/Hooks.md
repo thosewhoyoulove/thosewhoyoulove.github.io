@@ -10,7 +10,7 @@
 >
 > `useEffect` 也不应该理解成函数组件版本的生命周期。它的核心用途是让组件和 React 之外的系统保持同步，例如订阅、定时器、网络连接或第三方组件。Render 阶段只记录 Effect 和依赖；提交后 React 根据依赖是否变化决定是否执行。重新同步前先用旧值执行上一次 cleanup，再用新值执行 setup；卸载时也会 cleanup。开发环境 Strict Mode 还会额外执行一次 setup → cleanup → setup，检查这两部分是否对称。
 >
-> `useRef` 保存跨 Render 存活的可变盒，修改 `current` 不触发渲染；`useMemo` 和 `useCallback` 是性能优化工具，只有缓存确实有收益时才使用。`useTransition` 和 `useDeferredValue` 则借助 Lane 把非紧急工作放到可中断的并发 Render 中。整套 Hooks 心智可以概括成：**Fiber 保存 Hook，调用顺序确认身份，更新队列计算下一份状态，每次 Render 形成独立快照，Effect 负责与外部系统同步。**
+> `useRef` 保存跨 Render 存活的可变盒，修改 `current` 不触发渲染；`useMemo` 和 `useCallback` 是性能优化工具，只有缓存确实有收益时才使用。`useTransition` 是把你自己触发的某次更新降到可中断的优先级；`useDeferredValue` 是来源更新已经发生后，在消费侧先继续用旧值。两者都走并发 Render，但一个包的是更新，一个推迟的是值。整套 Hooks 心智可以概括成：**Fiber 保存 Hook，调用顺序确认身份，更新队列计算下一份状态，每次 Render 形成独立快照，Effect 负责与外部系统同步。**
 
 **一句话总结：**
 
@@ -143,6 +143,43 @@ setNumber(42)         // 最后替换为 42
 
 批处理也不等于所有更新永远合并。React 会在安全范围内批量处理更新，但不会把多个独立的用户意图事件简单合成一批。面试时用「setter 入队，React 在合适的边界统一 Render」比「setState 是异步的」更准确。
 
+#### 队列为什么是环，而不是一个数组
+
+为了方便理解，可以把更新想成按调用顺序排成的数组。更准确地说，每个 Hook 上有一块会跨渲染留下来的 `queue`，里面的更新用链表串成环：`pending` 指向**最后**一项，最后一项的 `next` 指回第一项。这样每次 `setState` 追加都是常数时间，不用再找尾巴。
+
+current Fiber 和 workInProgress Fiber 上的这个 Hook **共用同一个 `queue`**。Render 被打断、草稿树丢掉时，已经 dispatch 出去的更新还在队列上，不会跟着半成品一起消失。
+
+和「这一轮算出来的 state」有关的字段在 Hook 节点自己身上：
+
+| 字段 | 是什么 | 为什么需要 |
+| --- | --- | --- |
+| `memoizedState` | 这一轮渲染实际使用的 state | 组件函数和本次 UI 读的就是它 |
+| `baseState` | 从哪一份 state 开始重放还没完成的更新 | 中间如果跳过了低优先级更新，不能把「跳过之后的结果」当成下次的起点 |
+| `baseQueue` | 上次没能全部提交进 `baseState` 的更新 | 下一轮要把跳过的更新按原顺序再算一遍 |
+| `queue.pending` | 上次处理之后新 dispatch 的更新 | Render 开始时接到 `baseQueue` 后面，然后清空 |
+
+Render 处理这条 Hook 时，先把 `pending` 接到 `baseQueue` 上，再从 `baseState` 出发逐个看更新。更新自己带着 Lane。本轮 `renderLanes` 包含它，就执行：传入的是值就替换，传入的是函数就把上一步的 state 交给它。本轮不包含它，就把它留在新的 `baseQueue` 里，并且 `baseState` 停在**第一个被跳过的更新之前**。
+
+被跳过之后、但优先级又够本轮的更新，这一轮仍会算进 `memoizedState`，同时也会留在 `baseQueue` 里，留给以后从 `baseState` 重放。否则低优先级那一步会丢，或者把后面的更新算在错误的起点上。
+
+#### Trace：紧急更新插进一条 transition 前面
+
+当前 `baseState` 是 `0`。先有一条 transition 更新 `T`：`n => n + 1`。随后一条紧急更新 `U`：`n => n + 100`。这一轮只渲染紧急 lane。
+
+| 更新 | 本轮是否包含它的 Lane | 处理 | 之后的状态 |
+| --- | --- | --- | --- |
+| 起点 |  |  | `baseState = 0`，`memoizedState` 从 0 开始算 |
+| `T` | 否 | 留在 `baseQueue`，`baseState` 保持 0 | 本轮画面还不能算进这 +1 |
+| `U` | 是 | 应用到本轮结果：`0 + 100 = 100`；同时接到 `baseQueue` 后面，标记成下次重放时一定要算 | `memoizedState = 100` |
+
+这次 Commit 用户可以先看到 `100`。`baseState` 仍是 `0`，`baseQueue` 里按顺序还有 `T` 和 `U`。
+
+下一轮把 `T` 的 lane 纳入，从 `baseState` 重放：`T` 得到 `1`，再执行 `U` 得到 `101`。终态是 `101`，不是把紧急那次的 `100` 当成最终结果。函数式更新必须能按入队顺序重放，所以跳过的前缀不能直接扔掉。
+
+还有一个短路：这条 Fiber 和它的 alternate 都没有待处理 Lane 时，setter 会先用上次渲染的 state 算一次。`Object.is` 相同就入队、不调度渲染。已经有 Lane 等着这一轮时不做这个短路，因为上次渲染的 state 还不是队列里后续更新算完的结果。
+
+组件函数执行过程中再次 `setState`，会进当前这轮的 render phase 队列，React 重跑该组件来消化，而不是再排一次独立渲染。这是边界路径。正常的更新放在事件里。
+
 ---
 
 ### 5. 闭包陷阱（stale closure）
@@ -265,15 +302,68 @@ useEffect(() => {
 
 **自定义 Hook vs 普通函数**：前者内部可调 Hook，状态落在调用方组件链表；普通函数不能破例调 Hook。命名 `use*` 是为了 lint 能检查规则。
 
-**useTransition / useDeferredValue**：把更新或值的消费标成非紧急，让输入等高优先完成。它们建立在 Fiber + Lane 上，不是替代 `useState` 的新状态模型。详见 [Fiber 架构](/md/框架/React/Fiber架构.md)。
+**useTransition / useDeferredValue** 都建立在 Fiber + Lane 上，不是另一套 state。差别在「你能不能包住那次 `setState`」。详见下一节，调度底座见 [Fiber 架构](/md/框架/React/Fiber架构.md)。
 
 ---
 
-### 10. 设计取舍
+### 10. `useTransition` 和 `useDeferredValue` 各解决什么
+
+两者都是把非紧急渲染放进可中断的 transition lane，让输入先完成。它们不是同一个入口。
+
+| | `useTransition` | `useDeferredValue` |
+| --- | --- | --- |
+| 你控制的是 | 哪一次 `setState` 降优先级 | 一个已经到来的值，何时被昂贵子树消费 |
+| 返回 | `isPending` 和 `startTransition` | 滞后的那份值 |
+| 典型场景 | 输入用紧急 state，列表用另一份放进 transition 的 state | 值从 props 来，父组件已经紧急提交了 |
+| 怎么看还在滞后 | `isPending` | `value !== deferredValue` |
+
+#### 你能包住更新：`useTransition`
+
+```jsx
+const [text, setText] = useState('')
+const [query, setQuery] = useState('')
+const [isPending, startTransition] = useTransition()
+
+function onChange(e) {
+  const next = e.target.value
+  setText(next)
+  startTransition(() => setQuery(next))
+}
+```
+
+`setText` 是紧急更新，输入框跟着这一次 Commit。`setQuery` 发生在 `startTransition` 里，Lane 是 transition，大列表可以暂停、被下一次按键打断。`isPending` 在这次 transition 还没 Commit 时为真，用来显示「结果还在算」，而不是把输入框本身设成 loading。
+
+React 18 里这个回调应按同步来写：`await` 之后的 `setState` 不一定还算在同一次 transition 的 pending 里。React 19 的 async Action 会把 pending 保持到 Promise 结束，见 [React 19 相对 18](/md/框架/React/React%2019%20变化.md)。
+
+#### 更新已经发生：`useDeferredValue`
+
+```jsx
+function SearchResults({ query }) {
+  const deferredQuery = useDeferredValue(query)
+  const items = useMemo(() => heavyFilter(deferredQuery), [deferredQuery])
+  return <List items={items} />
+}
+```
+
+父组件已经用紧急更新提交了新的 `query`，子组件改不了那次 `setState`。`useDeferredValue` 在这次紧急渲染里先返回**上一次的值**，昂贵计算仍基于旧关键字；然后再安排一次 transition 渲染，改用新值。首次挂载时返回的就是当前值，没有「上一次」。React 19 可以传第二个参数作为首次渲染的初始值，第一次先用初始值，再在后台换上真正的 `query`。
+
+`Object.is` 认为值没变时，不会多排这一轮。
+
+#### 怎么选
+
+输入和重活都在自己的事件里：拆成两个 state，用 `useTransition` 包住重的那次更新，这样输入的 Commit 里根本可以不带上新列表。值是 props，重活在子树：用 `useDeferredValue`，让子树这一轮先吃旧值。
+
+两者都不替代 `useState`，也都不把计算搬到 Worker。没有 `createRoot` 的旧入口没有这套可中断渲染。若昂贵计算直接读了紧急值，推迟就没有落点。
+
+---
+
+### 11. 设计取舍
 
 | 选择 | 得到 | 代价 |
 | --- | --- | --- |
 | 顺序链表存 Hook | 实现简单、无「Hook 名」注册表 | 禁止条件调用 |
+| 跳过的更新留在 `baseQueue`，从 `baseState` 重放 | 低优先级不会丢，函数式更新仍按入队顺序 | 中间一次 Commit 可能暂时看不到被跳过的更新 |
+| transition 和 deferred 分成两个入口 | 能包住更新时，紧急 Commit 可以不带上重活 | 包不住那次 `setState` 时，只能推迟消费 |
 | 每轮 render 快照 | 易推理 UI = f(state) | stale closure 要显式处理 |
 | effect 与 Render 分离 | 默认不阻塞 paint（useEffect） | 与类生命周期不能机械对应 |
 
@@ -353,6 +443,30 @@ Effect 用来同步外部系统。能在 Render 中推导的数据直接计算�
 
 ---
 
+### ❌ `useState` 的更新队列就是数组，跳过的更新可以直接丢掉
+
+### ✅ 更准确的说法
+
+更新挂在 Hook 的 `queue` 上，链表成环，`pending` 指向最后一项。低优先级更新被本轮跳过时留在 `baseQueue`，`baseState` 停在它之前；后面已经算进画面的更新还要能从这份 `baseState` 重放。
+
+### 为什么？
+
+说成「数组里删掉低优先级」，紧急渲染先看到的结果就会变成终态，函数式更新的顺序就错了。
+
+---
+
+### ❌ `useTransition` 和 `useDeferredValue` 是同一个东西
+
+### ✅ 更准确的说法
+
+`useTransition` 包住你发起的 `setState`，并给出 `isPending`。`useDeferredValue` 不改变来源更新，只让消费侧在紧急渲染里先用旧值，再以 transition 渲染新值。
+
+### 为什么？
+
+值来自 props 时你包不住那次 `setState`；更新在自己的事件里时，推迟消费不如直接把重的更新降优先级。
+
+---
+
 ## 高频追问
 
 ### 为什么 Hook 不能条件调用？
@@ -363,9 +477,9 @@ Effect 用来同步外部系统。能在 Render 中推导的数据直接计算�
 
 状态不保存在函数局部变量中，而在函数组件 Fiber 的 Hook 链表里。首次 Render 按调用顺序创建节点；更新 Render 按同一顺序读取 current Hook，并为 workInProgress 构造本轮 Hook 节点。
 
-### useState 连续更新是怎么计算的？
+### useState 连续更新是怎么计算的？队列怎么设计？
 
-setter 把值或 updater function 加入队列。下一次 Render 按顺序处理：值更新替换当前结果，函数更新接收队列上一步的结果。依赖前值连续计算时使用函数式更新。
+setter 把值或函数追加到 Hook 的环状 `queue.pending`。下一次 Render 从 `baseState` 按顺序处理：值更新替换当前结果，函数更新接收上一步的结果。本轮 Lane 盖不住的更新留在 `baseQueue`，下次连同后面的更新从跳过之前的 `baseState` 重放。current 和 workInProgress 共用这个 `queue`，草稿丢掉也不会丢更新。
 
 ### 什么是 stale closure？怎么解？
 
@@ -387,9 +501,9 @@ deps 变化导致 effect 重跑之前，以及卸载时。用于取消订阅、�
 
 缓存值 vs 缓存函数。配合昂贵计算、`memo` 子组件或稳定 deps 时用，不默认全包。
 
-### useTransition 解决什么问题？
+### `useTransition` 和 `useDeferredValue` 有什么区别？
 
-把非紧急更新降优先级，避免大渲染堵住输入等高优交互；依赖并发调度，不是新的状态容器。
+`useTransition` 把回调里的 `setState` 降成 transition，并用 `isPending` 表示这次还没提交。`useDeferredValue` 在紧急渲染里先返回旧值，再安排一次 transition 去用新值，适合值已经从 props 进来、昂贵计算在子树的情况。两者都不是新的状态容器。
 
 ### 自定义 Hook 和 HOC 怎么选？
 
@@ -404,4 +518,5 @@ deps 变化导致 effect 重跑之前，以及卸载时。用于取消订阅、�
 - [React 状态管理](/md/框架/React/状态管理.md)
 - [React 组件设计能力](/md/框架/React/组件设计能力.md)
 - [Vue vs React](/md/框架/Vue%20vs%20React.md)
+- [React 19 相对 18](/md/框架/React/React%2019%20变化.md)
 - [面试速记：React & Vue](/md/面试准备/技术/React%20&%20Vue.md)

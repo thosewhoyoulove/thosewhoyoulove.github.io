@@ -19,8 +19,9 @@ React 和 Vue 的框架题重点不是“API 会不会用”，而是能不能�
 | Hooks 原理 | 调用顺序对齐 Hook 链表 → 快照 + effect cleanup → memo/transition 按需 | [React Hooks](/md/框架/React/Hooks.md) |
 | Fiber 架构 | Fiber 管拆分与现场，Scheduler 管何时，Lane 管优先级；Render 可中断 / Commit 同步 | [Fiber 架构](/md/框架/React/Fiber架构.md) |
 | Diff 算法 | 同层比较；下标试探再 Map；lastPlacedIndex 贪心；Render 打标 / Commit 改 DOM | [React Diff 算法](/md/框架/React/React%20Diff算法.md) |
-| 渲染原理 | setState→调度→Render 打 flags→Commit 改 DOM→layout/passive effect | [React 渲染原理](/md/框架/React/React%20渲染原理.md) |
-| SSR / Hydration | 服务端出 HTML → hydrate 复用 DOM；RSC ≠ 传统 SSR | [SSR 与 Hydration](/md/框架/React/SSR与Hydration.md) |
+| 渲染原理 | JSX → Element → Fiber.stateNode → Commit 上屏；更新走 Lane | [React 渲染原理](/md/框架/React/React%20渲染原理.md) |
+| React 19 | Actions 管 async 提交；`use` 可条件读；Compiler / RSC 不随升级自动出现 | [React 19 相对 18](/md/框架/React/React%2019%20变化.md) |
+| SSR / Hydration | CSR 等 JS → SSR 按请求出 HTML → SSG/ISR 复用缓存；`"use client"` 是打包边界；Server Action 是应用内 POST | [SSR 与 Hydration](/md/框架/React/SSR与Hydration.md) |
 | 状态管理 | 按作用域选型；Context 低频；高频用 store+selector | [React 状态管理](/md/框架/React/状态管理.md) |
 | 组件设计 | 职责与状态归属 → API 可组合 → 边界完整 → 测量后再 memo | [组件设计能力](/md/框架/React/组件设计能力.md) |
 
@@ -54,7 +55,11 @@ Hooks 依赖调用顺序保存状态：首次 `mountWorkInProgressHook` 建链�
 
 ### Fiber 解决了什么问题？
 
-Fiber 把难中断的同步递归协调拆成可保存进度的工作单元：Render 可暂停/丢弃 wip，Commit 同步改 DOM。Scheduler 管何时做，Lane 管先做谁；更新仍在队列，lane 过期防饿死。详见 [Fiber 架构](/md/框架/React/Fiber架构.md)。
+Fiber 把难中断的同步递归协调拆成可保存进度的工作单元：Render 可暂停/丢弃 wip，Commit 同步改 DOM。Scheduler 管何时做，Lane 管先做谁；更新仍在队列，lane 过期防饿死。并发渲染是主线程让出，不是多线程。详见 [Fiber 架构](/md/框架/React/Fiber架构.md)。
+
+### React 19 相对 18 先讲什么？
+
+18 已经有 `createRoot`、自动批处理和 transition。19 把 async transition 做成 Action：`useActionState`、`useOptimistic`、`useFormStatus`。`use` 可以条件读 Promise 或 Context，普通 Hook 仍然不行。RSC 和 React Compiler 不会因为装了 `react@19` 就自动生效。详见 [React 19 相对 18](/md/框架/React/React%2019%20变化.md)。
 
 ### Vue 和 React 更新模型差在哪？
 
@@ -74,7 +79,7 @@ Vue：依赖追踪 + 模板编译优化，默认组件级更新、少手动 memo
 
 ### SSR 和 CSR 核心差别是什么？Hydration / RSC 怎么答？
 
-CSR 靠客户端 JS 生成首屏 DOM；SSR 服务端先出带内容的 HTML。Hydration 是客户端复用这段 DOM 并绑定事件，不是拆掉重画。RSC 关注「哪些组件代码留在服务端、少下发 JS」，和「首屏谁出 HTML」的传统 SSR 不是同一层问题。详见 [SSR 与 Hydration](/md/框架/React/SSR与Hydration.md)。
+CSR 等浏览器执行 JS。SSR 每次请求出 HTML。SSG 构建时生成，ISR 先用缓存再按过期或按需重新生成。Hydration 复用 DOM，两端第一次输出必须一致。Server Component 没有客户端实例，不能 `useState`；`"use client"` 只是把模块放进客户端包，首次 HTML 仍可来自服务端。应用内写入用 Server Action，公开接口仍用 REST。详见 [SSR 与 Hydration](/md/框架/React/SSR与Hydration.md)。
 
 ## 相关链接
 

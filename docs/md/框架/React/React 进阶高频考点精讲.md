@@ -8,8 +8,9 @@
 | --- | --- | --- |
 | 状态管理 | [状态管理](/md/框架/React/状态管理.md) | 状态分类、Context、selector、Redux/Zustand 取舍 |
 | 组件设计 | [组件设计能力](/md/框架/React/组件设计能力.md) | 状态建模、受控/非受控、组合、Error Boundary |
-| 渲染与并发 | [渲染原理](/md/框架/React/React%20渲染原理.md)、[Fiber](/md/框架/React/Fiber架构.md) | update/Lane、工作循环、自动批处理、bailout |
-| SSR | [SSR 与 Hydration](/md/框架/React/SSR与Hydration.md) | Streaming/Suspense、Hydration mismatch、RSC |
+| 渲染与并发 | [渲染原理](/md/框架/React/React%20渲染原理.md)、[Fiber](/md/框架/React/Fiber架构.md) | JSX 到 DOM、update/Lane、工作循环、bailout |
+| 版本 | [React 19 相对 18](/md/框架/React/React%2019%20变化.md) | Actions、破坏性变更、和 RSC / Compiler 的边界 |
+| SSR | [SSR 与 Hydration](/md/框架/React/SSR与Hydration.md) | CSR/SSG/ISR、mismatch、RSC 边界、Server Action |
 
 ## 题单 → 深文
 
@@ -31,7 +32,8 @@
 - Hash vs History、权限路由、懒加载 → 结合项目口述 + [组件设计](/md/框架/React/组件设计能力.md)（工程侧可链 [打包优化](/md/工程化/体系与实践/打包优化面试专题.md)）
 - Error Boundary 能捕/不能捕 → [组件设计能力](/md/框架/React/组件设计能力.md)
 - Concurrent、自动批处理、startTransition、工作循环、Suspense → [Fiber](/md/框架/React/Fiber架构.md)、[渲染原理](/md/框架/React/React%20渲染原理.md)
-- Streaming SSR、选择性 Hydration、mismatch 监控 → [SSR 与 Hydration](/md/框架/React/SSR与Hydration.md)
+- React 19 Actions、`use`、ref prop、哪些能力不随升级出现 → [React 19 相对 18](/md/框架/React/React%2019%20变化.md)
+- CSR / SSR / SSG / ISR、mismatch、Server Component 边界、Server Action → [SSR 与 Hydration](/md/框架/React/SSR与Hydration.md)
 
 ### 项目实践
 
@@ -40,5 +42,6 @@
 ## 延伸阅读
 
 - [React 考点索引](/md/框架/React/React%20高频考点精讲.md)
+- [React 19 相对 18](/md/框架/React/React%2019%20变化.md)
 - [面试速记：React & Vue](/md/面试准备/技术/React%20&%20Vue.md)
 - [高频追问清单](/md/面试准备/高频追问清单.md)

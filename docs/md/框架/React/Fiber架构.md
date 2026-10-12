@@ -10,7 +10,7 @@
 >
 > Fiber 还通过双缓冲保证中断安全：`current` Tree 对应当前已提交的页面，`workInProgress` Tree 是正在计算的下一版。Render 在 workInProgress 上进行，可以暂停、继续、重做或丢弃；用户仍然看到 current 对应的完整界面。Render 完成后得到 `finishedWork`，Commit 再把变更同步到宿主视图，并将 `root.current` 切换到新树。因此可中断的是计算过程，不是已经开始的用户可见提交。
 >
-> 这里还要分清三者的职责：Fiber 决定「工作怎么拆、现场存在哪」，Lane 决定「哪些更新更优先、哪些进入本轮」，Scheduler 决定「任务何时获得执行机会、时间片用完是否让出」。Fiber 配合 Lane 和 Scheduler，才为时间切片、`startTransition` 和并发更新提供基础；但同步更新、`flushSync` 或过期工作仍可能一次完成，并不是有了 Fiber，所有更新就都会异步或被切片。
+> 这里还要分清三者的职责：Fiber 决定「工作怎么拆、现场存在哪」，Lane 决定「哪些更新更优先、哪些进入本轮」，Scheduler 决定「任务何时获得执行机会、时间片用完是否让出」。Fiber 配合 Lane 和 Scheduler，才为时间切片、`startTransition` 和并发更新提供基础；但同步更新、`flushSync` 或过期工作仍可能一次完成，并不是有了 Fiber，所有更新就都会异步或被切片。并发渲染也不等于多线程：这些工作单元仍然在主线程上轮流执行，时间片用完就让出，没有把组件函数丢到另一条线程。
 
 **一句话总结：**
 
@@ -223,22 +223,69 @@ React 18 用 lane 位掩码表达优先级集合。交互更新通常更「急�
 
 （React 16/17 用 `expirationTime` 表达同类问题；具体超时阈值以源码为准，面试说「交互更短、transition 更长，过期会强制纳入」即可。）
 
+#### 并发渲染不是多线程
+
+并发在这里的意思是：多段渲染工作在**同一条主线程**上交替推进，用户看起来更新可以重叠、可以让路。多线程或并行是另一回事：同一时刻有多条线程真的同时在算。
+
+React 的 Render 和浏览器的点击、样式、布局抢的是渲染进程里的那条主线程。Scheduler 只在 Fiber 工作单元之间看时间片是否用完（`shouldYield` 一类判断），用完就把剩余工作排到后面的任务里，常见实现是 `MessageChannel`，避免 `setTimeout` 的 4ms 下限。细节见 [浏览器的事件循环](/md/浏览器/浏览器的事件循环.md)。
+
+所以：
+
+- 高优先级输入能在低优先级 Render 的间隙插进来，是因为主线程被让出来了。
+- 一次 Render 不会因此用上多核，大树本身也不会算得比「一口气算完」更少 CPU。
+- 不能把 Fiber 丢给 Web Worker 去改 DOM。Worker 没有页面的 DOM；就算把纯计算放出去，Commit 仍要回到主线程。
+
+`createRoot` 才具备这条可中断路径。同步更新、`flushSync`、已经过期的 lane，仍可能不让出，直到这一轮做完。
+
 ---
 
 ### 7. Bailout：有 Fiber 不等于每次遍历整棵树
 
-React 开始一轮 Render，不代表一定无条件执行所有后代组件。若一个 Fiber 的 props、state、context 没有需要处理的变化，并且它和子树的 Lane 不属于本轮工作，React 可以 bailout，复用已有结果并跳过不相关部分。
+bailout 可以先理解成：React 发现这个 Fiber 没有必要重新执行，于是复用已有结果，能跳过的子树就跳过。它发生在 Render 的 `beginWork`，跳过的是组件函数和它下面不相关的协调，不是把已经进队列的 update 删掉。
 
-这里 `lanes` 和 `childLanes` 的作用不同：
+首次挂载没有 current Fiber，不能 bailout。更新时要同时看三件事：
 
-| 字段 | 表示什么 |
+| 条件 | 不满足时会怎样 |
 | --- | --- |
-| `lanes` | 当前 Fiber 自己还有哪些优先级的更新 |
-| `childLanes` | 后代子树中还有哪些优先级的更新 |
+| props 允许复用 | 普通函数组件比的是 props **对象引用**（`oldProps === newProps`），不是逐字段浅比较。父组件重新执行写出的 `<Child />` 是新对象，子组件会再跑 |
+| 本 Fiber 的 `lanes` 与本轮 `renderLanes` 不相交 | 相交说明自己有 `setState`，或 Context 变化被标进了 lanes，必须进去处理更新队列 |
+| 子树 `childLanes` 与本轮也不相交 | 节点自己可以不执行，但子树还有本轮工作，就要克隆孩子并继续向下 |
 
-即使当前组件自身可以复用，只要 `childLanes` 命中本轮 Lane，React 仍需要继续进入对应子树。反过来，如果当前节点和子树都没有本轮工作，就可以更大范围地跳过。
+`React.memo`（以及类组件的 `PureComponent`）改变的是第一行：默认浅比较每个 prop，相等就当成 props 没变，即使父组件传下来的是新对象。自定义 `compare` 返回 `true` 表示「相等，可以跳过」。这和类组件 `shouldComponentUpdate` 相反：后者返回 `true` 表示「要更新」。
 
-需要注意，bailout 是否成立还会受 props 引用、Context、组件类型、`memo` 等因素影响；不能简化成「有 Fiber 就自动只更新一个节点」。
+`lanes` 和 `childLanes` 因此不是重复字段：
+
+| 字段 | 表示什么 | 命中本轮时 |
+| --- | --- | --- |
+| `lanes` | 当前 Fiber 自己还有哪些优先级的更新 | 重新执行这个组件 |
+| `childLanes` | 后代子树里还有哪些优先级的更新 | 自己可以跳过，仍要走进对应子树 |
+
+都没有命中，并且 props、context 也允许复用时，才整棵跳过。源码里这段提前退出常叫 `bailoutOnAlreadyFinishedWork`：先把 Hook 链表从 current 拷到 workInProgress，再决定返回 `null`（子树也不走）还是返回 child（只继续有工作的后代）。
+
+#### Trace：父组件点击，子组件打不打日志
+
+```jsx
+function Parent() {
+  const [n, setN] = useState(0)
+  return (
+    <>
+      <button onClick={() => setN(n + 1)}>{n}</button>
+      <Child />
+    </>
+  )
+}
+
+function Child() {
+  console.log('child')
+  return <p>child</p>
+}
+```
+
+点击后 `Parent` 重新执行，`<Child />` 是一次新的 Element，props 虽是空对象但是**新引用**。`Child` 没有自己的 update，仍会因为 `oldProps !== newProps` 再执行，控制台有 `child`。
+
+把 `Child` 包进 `memo` 之后，浅比较发现没有 prop 变化，`Child` 的 `lanes` 和 `childLanes` 都不在本轮里，于是 bailout，不再打印。
+
+再往下拆一层：`memo(Child)` 里面还有一个自己 `setState` 的孙子。`Child` 的 props 仍然可以复用，所以 `Child` 的函数可以不执行；但孙子的更新标在 `Child.childLanes` 上，React 还是要走进那棵子树。bailout 的是「这个组件函数」，不是「这个组件以下全部当没发生」。
 
 ---
 
@@ -321,6 +368,30 @@ Render / Commit 混淆是 Fiber 题最常见翻车点。
 
 ---
 
+### ❌ 并发渲染就是多线程，所以大组件会并行算完
+
+### ✅ 更准确的说法
+
+并发渲染是主线程上的可中断调度：时间片用完就让出，高优先级输入可以先处理。组件函数不会被分到多条线程同时执行。
+
+### 为什么？
+
+说成多线程，就解释不了 Worker 不能碰 DOM、`flushSync` 为什么仍然会卡住点击，以及为什么大树的总计算量并没有变少。
+
+---
+
+### ❌ 父组件 render 了，子组件默认会 bailout
+
+### ✅ 更准确的说法
+
+默认相反：父组件重新执行会创建新的 Element，子组件 props 引用变了，子函数会再跑。要跳过，需要 props 引用相同，或 `memo` / `PureComponent` 判定 props 相等，并且本节点和子树都没有本轮 Lane。
+
+### 为什么？
+
+把 bailout 理解成「React 自动只更新一个节点」，追问「那为什么还要 memo」时会自相矛盾。
+
+---
+
 ### ❌ Lane 就是 Scheduler，flags 就是立刻操作 DOM
 
 ### ✅ 更准确的说法
@@ -347,9 +418,13 @@ Lane 描述更新优先级集合；Scheduler 管任务时机；flags 是 Render 
 
 工作循环反复调用 `performUnitOfWork`。`beginWork` 处理当前 Fiber 并优先返回 child；没有 child 时进入 `completeUnitOfWork`，调用 `completeWork` 向上归并。如果存在 sibling 就转向 sibling，否则继续沿 `return` 回到父节点。并发循环可以在单元之间通过 `shouldYield` 一类判断让出执行权。
 
-### Fiber、Scheduler、Lane 分别做什么？
+### Fiber、Scheduler、Lane 分别做什么？时间切片算哪一个？
 
-Fiber：拆分工作、保存现场、挂 state / flags。Scheduler：何时跑、是否让出。Lane：哪些更新优先、是否过期。三者一起才构成「可调度的更新」。
+Fiber：拆分工作、保存现场、挂 state / flags。Lane：哪些更新进入本轮、谁更优先、谁过期。Scheduler：现在有没有时间片、用完是否让出主线程。时间切片是 Scheduler 在 Fiber 工作单元之间让出的策略，不是 Lane 的另一个名字，也不是多线程。
+
+### 并发渲染等于多线程吗？
+
+不等于。Render 仍在主线程，和输入、布局互相让时间。让出靠工作单元边界上的 `shouldYield`，剩余工作通常用 `MessageChannel` 排到后续任务。Worker 不能代替 Commit。
 
 ### 什么是双缓冲？中断时为什么能丢 wip？
 
@@ -357,7 +432,7 @@ Fiber：拆分工作、保存现场、挂 state / flags。Scheduler：何时跑�
 
 ### React 有 Fiber 后，每次更新还会遍历整棵树吗？
 
-不一定。若当前 Fiber 没有本轮 Lane 对应的更新，props、state、context 等也允许复用，并且 `childLanes` 表明子树没有本轮工作，React 可以 bailout。若当前节点自身能复用但 `childLanes` 命中，仍要继续进入相关子树。
+不一定，但也不会自动只跑一个节点。普通函数组件要 props 引用不变、自身 `lanes` 不在本轮、子树 `childLanes` 也不在本轮，才会整段跳过。父组件重新写出的 `<Child />` 是新 props 对象，子组件仍会执行；`memo` 才改成浅比较。自己能跳过但 `childLanes` 命中时，还是要走进子树。
 
 ### 为什么 Render 可中断、Commit 不行？
 
@@ -383,5 +458,6 @@ Element 是一次 render 产出的不可变描述；Fiber 是长期存在的运�
 - [React Diff 算法](/md/框架/React/React%20Diff算法.md)
 - [React Hooks](/md/框架/React/Hooks.md)
 - [Vue vs React](/md/框架/Vue%20vs%20React.md)
+- [React 19 相对 18](/md/框架/React/React%2019%20变化.md)
 - [面试速记：React & Vue](/md/面试准备/技术/React%20&%20Vue.md)
 - [高频追问清单](/md/面试准备/高频追问清单.md)

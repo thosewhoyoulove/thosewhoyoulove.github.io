@@ -124,12 +124,11 @@ TypeScript 的核心价值是静态类型检查和更清晰的接口约束。
 
 常见高频点：
 
-- `any` 是放弃类型检查。
-- `unknown` 是安全的未知类型，使用前必须收窄。
-- `never` 表示不可能出现的值，适合穷尽检查。
-- 泛型保留输入和输出之间的类型关系。
+- `any` 双向放行并传染；`unknown` 先收窄再用；`never` 做穷尽检查。见 [any、unknown、never](/md/TypeScript/any%20unknown%20never.md)。
+- 泛型保留输入和输出之间的类型关系。通用组件的类型参数写在函数上，见 [项目里的类型设计](/md/TypeScript/项目实践.md)。
 - 类型守卫用于把宽泛类型收窄成具体类型。
 - 工具类型可以基于已有类型生成新类型。
+- 生成的 API 类型停在请求边界，组件用领域类型；异步状态用判别联合。
 
 项目里 TypeScript 最适合用于接口响应、组件 props、业务状态、工具函数、第三方库类型补充。
 
@@ -173,9 +172,7 @@ TypeScript 是 JavaScript 的超集，增加了类型系统和编译期检查。
 
 ### any 和 unknown 有什么区别？
 
-`any` 是放弃类型检查，`unknown` 是安全的未知类型。
-
-`unknown` 使用前必须先判断类型，更适合接口返回、外部输入、第三方数据这类不确定来源。
+`any` 对 `string` 这类普通类型双向放行，返回值还会传染。`unknown` 只能先收进来，收窄之后才能用。`never` 用来卡住漏掉的分支；`any` 不能赋给 `never`，`as never` 才会把穷尽检查跳过。见 [any、unknown、never](/md/TypeScript/any%20unknown%20never.md)。
 
 ### async/await 和 Promise.then 在事件循环里一样吗？
 
@@ -198,9 +195,11 @@ TypeScript 是 JavaScript 的超集，增加了类型系统和编译期检查。
 - [Promise](/md/基础/ES6/Promise.md)
 - [浏览器事件循环](/md/浏览器/浏览器的事件循环.md)
 - [type 和 interface](/md/TypeScript/type%20和%20interface.md)
+- [any、unknown、never](/md/TypeScript/any%20unknown%20never.md)
 - [泛型](/md/TypeScript/泛型.md)
 - [工具类型](/md/TypeScript/工具类型.md)
 - [类型守卫与收窄](/md/TypeScript/类型守卫与类型收窄.md)
+- [项目里的类型设计](/md/TypeScript/项目实践.md)
 
 加分（答稳 P0 后再看，侧栏已不挂）：
 
