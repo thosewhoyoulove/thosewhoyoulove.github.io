@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { getCopilot } from '../../interview-copilot/src/core/vercelRuntime.js';
-import type { AgentEvent } from '../../interview-copilot/src/shared.js';
 import { cors } from '../../interview-copilot/src/core/cors.js';
+import { createEventStream } from '../../interview-copilot/src/core/eventStream.js';
 
 const requestSchema = z.object({
   messages: z.array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().min(1).max(4000) })).min(1).max(12),
@@ -26,9 +26,9 @@ export async function POST(request: Request): Promise<Response> {
   const encoder = new TextEncoder();
   const body = new ReadableStream<Uint8Array>({
     start(controller) {
-      const emit = (event: AgentEvent) => {
-        if (!abort.signal.aborted) controller.enqueue(encoder.encode(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`));
-      };
+      const emit = createEventStream(frame => {
+        if (!abort.signal.aborted) controller.enqueue(encoder.encode(frame));
+      });
       void runtime.run(parsed.data.messages, emit, abort.signal).finally(() => {
         request.signal.removeEventListener('abort', cancel);
         if (!abort.signal.aborted) controller.close();

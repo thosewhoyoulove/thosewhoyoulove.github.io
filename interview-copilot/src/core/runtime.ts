@@ -22,6 +22,8 @@ export class AgentRuntime {
     const citations = new Map<string, Citation>();
     let callCount = 0;
     try {
+      controller.signal.throwIfAborted();
+      emit({ type: 'stream_start', textDeltas: false, demo: this.model.demo });
       while (true) {
         controller.signal.throwIfAborted();
         const decision = await this.model.decide(messages, this.registry.list(), controller.signal);
@@ -40,13 +42,13 @@ export class AgentRuntime {
         for (const call of decision.calls) {
           controller.signal.throwIfAborted();
           callCount++;
-          emit({ type: 'tool_start', name: call.name, arguments: call.arguments });
+          emit({ type: 'tool_start', name: call.name, arguments: call.arguments, callId: call.id });
           let result: unknown;
           try { result = await this.registry.execute(call.name, call.arguments, { signal: controller.signal }); }
           catch (error) { result = { error: error instanceof Error ? error.message : String(error) }; }
           controller.signal.throwIfAborted();
           if (call.name === 'read_article') addCitation(result);
-          emit({ type: 'tool_result', name: call.name, result });
+          emit({ type: 'tool_result', name: call.name, result, callId: call.id });
           messages.push({ role: 'tool', name: call.name, callId: call.id, content: JSON.stringify(result) });
         }
       }

@@ -37,6 +37,7 @@ export class AgentStreamParser {
 
 const citation = z.object({ title: z.string(), path: z.string(), url: z.string(), heading: z.optional(z.string()) });
 const protocol = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('stream_start'), textDeltas: z.boolean(), demo: z.boolean(), provider: z.optional(z.string()) }),
   z.object({ type: z.literal('message'), text: z.string(), demo: z.boolean(), provider: z.optional(z.string()), citations: z.array(citation) }),
   z.object({ type: z.literal('message_delta'), text: z.string() }),
   z.object({ type: z.literal('tool_start'), name: z.string(), arguments: z.unknown() }),
@@ -47,20 +48,21 @@ const protocol = z.discriminatedUnion('type', [
 export type UIEvent = z.infer<typeof protocol> & { eventId?: string; requestId?: string; callId?: string };
 export class AgentEventAdapter {
   private seen = new Set<string>();
-  constructor(private readonly requestId?: string) {}
+  constructor(private requestId?: string) {}
   adapt(frame: Frame): UIEvent | undefined {
     const value = JSON.parse(frame.data) as Record<string, unknown>;
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('收到无效的 Agent 事件');
     const parsed = protocol.safeParse(value);
     // Unknown extension events (including private reasoning) are never displayed.
     if (!parsed.success) {
-      if (typeof value.type === 'string' && !['message', 'message_delta', 'tool_start', 'tool_result', 'error', 'done'].includes(value.type)) return;
+      if (typeof value.type === 'string' && !['stream_start', 'message', 'message_delta', 'tool_start', 'tool_result', 'error', 'done'].includes(value.type)) return;
       throw new Error('收到无效的 Agent 事件');
     }
     if (frame.event !== 'message' && frame.event !== parsed.data.type) throw new Error('SSE 事件名与数据类型不一致');
     const string = (...fields: unknown[]) => fields.find(field => typeof field === 'string' && field.length) as string | undefined;
     const requestId = string(value.request_id, value.requestId);
     if (this.requestId && requestId && requestId !== this.requestId) return;
+    if (!this.requestId && requestId) this.requestId = requestId;
     const eventId = string(frame.id, value.event_id, value.eventId);
     if (eventId) {
       const key = `${requestId || ''}:${eventId}`;

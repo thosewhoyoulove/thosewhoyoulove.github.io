@@ -18,6 +18,7 @@ export function reduceAgent(state: AgentState, event: UIEvent, now = Date.now())
   if (state.terminal) return state;
   if (state.error && event.type !== 'done') return state;
   const next = { ...state, version: state.version + 1 };
+  if (event.type === 'stream_start') return { ...next, streaming: event.textDeltas, demo: event.demo, provider: event.provider, phase: 'thinking' };
   if (event.type === 'message_delta') return { ...next, text: state.text + event.text, streaming: true, phase: state.steps.some(step => step.status === 'running') ? state.phase : 'composing' };
   if (event.type === 'message') return { ...next, text: event.text, demo: event.demo, provider: event.provider, citations: event.citations.filter(c => safeUrl(c.url)), phase: 'composing' };
   if (event.type === 'error') return { ...next, phase: 'failed', error: bounded(event.message, 500) };

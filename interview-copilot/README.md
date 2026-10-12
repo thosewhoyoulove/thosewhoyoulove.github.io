@@ -77,7 +77,11 @@ Vercel 配置显式打包 SDK 的动态模块和 Linux 平台资源，临时存�
 
 网络与渲染拆分在 `src/widget/agent/`：`stream.ts` 分帧并用 Zod Mini 校验事件；`state.ts` 是每轮独立的状态机和可订阅 store；`useAgentStream.ts` 管理请求世代、超时、取消、重试及清理；`ThinkingPanel`、`AgentTimeline`、`ToolCallCard` 只展示公开执行轨迹，`StreamingAnswer` 独立渲染 Markdown。
 
-现有后端仍是 `message / tool_start / tool_result / error / done`，**没有内部 reasoning，也没有正文增量事件或工具调用 ID**。真实问答使用工具事件驱动状态，完整正文到达后显示；不会用打字动画伪造流式推理。适配器额外支持 `message_delta { text }` 和可选 `event_id / request_id / call_id`，用于隔离演示及未来经过验证的协议扩展，并不假设线上已发送这些字段。有 ID 时支持乱序、并发和去重；无 ID 时同名工具采用 FIFO 关联，并明确展示限制。最终 `message` 是权威正文快照。
+协议保留原有 `message / tool_start / tool_result / error / done`，新增 `stream_start { textDeltas, demo, provider? }` 和 `message_delta { text }`。Cursor 模式已把 SDK 公开的 `assistant` 文本增量实时输出到 SSE；SDK 私有 `thinking` 和工具内部 payload 不转发。已核对并固定 SDK 1.0.37 的 `text-delta → assistant` 映射。最终 `message` 是权威正文快照，会替换累计文本以避免重复。OpenAI 兼容适配器和规则 Mock 目前仍整段返回，通过 `textDeltas: false` 明确声明降级；不会用打字动画伪造流式推理。
+
+工具事件携带 `callId`：优先使用 SDK 的 `toolCallId`，缺失时由宿主生成同一对开始/结果共用的 UUID；自研循环使用模型 Function Calling 的调用 ID。两个 HTTP 后端统一添加每请求唯一 `requestId`、请求内唯一 `eventId`，同时写入 SSE `id:`。前端按真实标识去重并支持乱序/并发；旧服务没有 ID 时仍使用 FIFO 降级。这些标识用于当前连接的关联，不代表支持断线续传；网络中断仍需用户主动重试，避免自动创建重复付费运行。
+
+本机真实 Composer 验证收到 228 个正文增量，首段在最终快照之前到达，且工具 ID 配对、最终原文引用、前端状态校正均通过。模型的推理和工具耗时仍会影响首段正文等待时间；界面保持真实工具状态，不编造新的步骤。新版后端必须重新部署后，线上才具备这些能力。
 
 开始生成公开正文时自动收起过程；用户手动展开后保持展开。工具参数采用白名单摘要，响应只显示文章标题、数量和有限片段，不展示原始响应及凭据。Markdown 不解析原始 HTML，来源 URL 只允许安全协议或博客路由。会话仍在内存中，不做持久化。
 

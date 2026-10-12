@@ -11,7 +11,7 @@
     "check": "npm run test && npm run build"
   },
   "dependencies": {
-    "@cursor/sdk": "^1.0.37",
+    "@cursor/sdk": "1.0.37",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { ArticleIndex, registerArticleTools } from './core/articles.js';
 import { createRuntime } from './core/runtimeFactory.js';
 import { ToolRegistry } from './core/tools.js';
-import type { AgentEvent } from './shared.js';
+import { createEventStream } from './core/eventStream.js';
 
 const requestSchema = z.object({
   messages: z.array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().min(1).max(4000) })).min(1).max(12),
@@ -26,7 +26,8 @@ createServer(async (req, res) => {
   }
   if (req.url === '/api/copilot/health' && req.method === 'GET') {
     res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({ ok: true, mode, articles: index.count() }));
+    res.end(JSON.stringify({ ok: true, mode, articles: index.count(), protocol: 2,
+      capabilities: { textDeltas: mode === 'cursor', callIds: true, eventIds: true } }));
     return;
   }
   if (req.url !== '/api/copilot/chat' || (req.method !== 'POST' && req.method !== 'OPTIONS')) {
@@ -49,7 +50,7 @@ createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
     const controller = new AbortController();
     res.on('close', () => controller.abort());
-    const emit = (event: AgentEvent) => { if (!res.destroyed) res.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`); };
+    const emit = createEventStream(frame => { if (!res.destroyed) res.write(frame); });
     await runtime.run(parsed.data.messages, emit, controller.signal);
     res.end();
   } catch {

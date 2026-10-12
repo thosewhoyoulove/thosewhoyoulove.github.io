@@ -1,17 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { AgentOptions, RunResult } from '@cursor/sdk';
+import type { AgentOptions, RunResult, SDKMessage } from '@cursor/sdk';
 import { ArticleIndex, registerArticleTools } from './articles.js';
 import { CursorRuntime, type CursorSdk } from './cursorRuntime.js';
 import { createRuntime } from './runtimeFactory.js';
 import { ToolRegistry } from './tools.js';
 import type { AgentEvent } from '../shared.js';
 
-function fakeSdk(work: (options: AgentOptions) => Promise<RunResult>, createDelay = 0) {
+function fakeSdk(work: (options: AgentOptions) => Promise<RunResult>, createDelay = 0, messages: SDKMessage[] = []) {
   const dispose = vi.fn(async () => {});
   const cancel = vi.fn(async () => {});
   const send = vi.fn(async (_prompt: string) => ({
     wait: () => work(create.mock.calls[0][0]),
-    async *stream() {}, supports: () => true, cancel,
+    async *stream() { for (const message of messages) yield message; }, supports: () => true, cancel,
   }));
   const create = vi.fn(async (_options: AgentOptions) => {
     if (createDelay) await new Promise(resolve => setTimeout(resolve, createDelay));
@@ -22,6 +22,26 @@ function fakeSdk(work: (options: AgentOptions) => Promise<RunResult>, createDela
 }
 
 describe('Cursor runtime (mock SDK, no paid inference)', () => {
+  it('streams only public assistant text and binds tool start/result to the actual SDK call ID', async () => {
+    const index = new ArticleIndex(); await index.load();
+    const registry = new ToolRegistry(); registerArticleTools(registry, index);
+    const ids = { agent_id: 'agent-test', run_id: 'run-test' };
+    const fake = fakeSdk(async options => {
+      await options.local!.customTools!.search_articles.execute({ query: 'React' }, { toolCallId: 'sdk-call-1' });
+      return { id: 'run-test', status: 'finished', result: '权威最终答案' };
+    }, 0, [
+      { ...ids, type: 'thinking', text: 'PRIVATE_THOUGHT' },
+      { ...ids, type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: '真实' }, { type: 'tool_use', id: 'internal', name: 'internal', input: 'PRIVATE_PAYLOAD' }] } },
+      { ...ids, type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: '流式' }] } },
+    ]);
+    const events: AgentEvent[] = [];
+    await new CursorRuntime('key', 'model', registry, {}, async () => fake.sdk).run([{ role: 'user', content: 'React' }], event => events.push(event));
+    expect(events.filter(event => event.type === 'message_delta').map(event => event.text)).toEqual(['真实', '流式']);
+    expect(events.find(event => event.type === 'stream_start')).toMatchObject({ textDeltas: true, demo: false });
+    expect(events.find(event => event.type === 'message')).toMatchObject({ text: '权威最终答案' });
+    expect(events.filter(event => event.type === 'tool_start' || event.type === 'tool_result').map(event => event.callId)).toEqual(['sdk-call-1', 'sdk-call-1']);
+    expect(JSON.stringify(events)).not.toContain('PRIVATE_');
+  });
   it('routes real article tools through MCP callbacks, preserves history/citations and disposes', async () => {
     const index = new ArticleIndex(); await index.load();
     const registry = new ToolRegistry(); registerArticleTools(registry, index);
