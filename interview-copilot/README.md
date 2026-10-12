@@ -73,6 +73,25 @@ Vercel 配置显式打包 SDK 的动态模块和 Linux 平台资源，临时存�
 
 ## API 与事件
 
+### 执行过程与回答 UI
+
+网络与渲染拆分在 `src/widget/agent/`：`stream.ts` 分帧并用 Zod Mini 校验事件；`state.ts` 是每轮独立的状态机和可订阅 store；`useAgentStream.ts` 管理请求世代、超时、取消、重试及清理；`ThinkingPanel`、`AgentTimeline`、`ToolCallCard` 只展示公开执行轨迹，`StreamingAnswer` 独立渲染 Markdown。
+
+现有后端仍是 `message / tool_start / tool_result / error / done`，**没有内部 reasoning，也没有正文增量事件或工具调用 ID**。真实问答使用工具事件驱动状态，完整正文到达后显示；不会用打字动画伪造流式推理。适配器额外支持 `message_delta { text }` 和可选 `event_id / request_id / call_id`，用于隔离演示及未来经过验证的协议扩展，并不假设线上已发送这些字段。有 ID 时支持乱序、并发和去重；无 ID 时同名工具采用 FIFO 关联，并明确展示限制。最终 `message` 是权威正文快照。
+
+开始生成公开正文时自动收起过程；用户手动展开后保持展开。工具参数采用白名单摘要，响应只显示文章标题、数量和有限片段，不展示原始响应及凭据。Markdown 不解析原始 HTML，来源 URL 只允许安全协议或博客路由。会话仍在内存中，不做持久化。
+
+高频正文通过 `requestAnimationFrame` 合并，历史回答使用独立 store 和 memo 隔离；稳定 Markdown 块复用解析，仅尾块更新，终止后完整解析一次。代码围栏内的空行不会分块；未闭合围栏由 CommonMark 正常降级。ResizeObserver 只观察回答高度用于跟随滚动，不在每个 token 上测量整棵树；用户向上阅读时停止跟随。动画优先 transform/opacity，折叠高度仅在用户切换或首次正文到达时过渡；支持 reduced motion。
+
+本地复现 UI 演示：
+
+```bash
+npm run dev:widget --workspace interview-copilot -- --port 5175
+# 打开 http://127.0.0.1:5175/?agentDemo
+```
+
+场景选择支持正常、多步检索、同名工具并发、快速/慢速正文、工具失败及网络中断；点击停止、开始新对话、重新生成测试取消/重试。演示带醒目标识，所有数据都是模拟，不请求付费模型 API；生产构建不会启用该入口。自动测试覆盖跨 chunk/字节 SSE、CRLF、多行 data、去重、乱序、终止冻结、rAF 清理、自动折叠及 Markdown 围栏。面试追问：为何按响应隔离 store？为何不按工具名字去重？如何避免旧请求污染、怎样逐步扩展真实增量协议？
+
 `POST /api/copilot/chat`，Body：
 
 ```json

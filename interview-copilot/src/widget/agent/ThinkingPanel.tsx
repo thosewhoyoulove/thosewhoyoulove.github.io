@@ -1,0 +1,17 @@
+import { memo, useId, useState } from 'react';
+import type { AgentState, TimelineStep } from './state.js';
+
+const titles = { idle: '等待开始', thinking: '正在理解问题', searching: '正在检索相关内容', executing: '正在读取或执行工具', composing: '正在整理回答', completed: '已完成分析与检索', failed: '执行未完成', cancelled: '已停止执行' };
+export function shouldExpand(manual: boolean | undefined, answering: boolean, active: boolean) { return manual ?? (active && !answering); }
+export const ToolCallCard = memo(function ToolCallCard({ step }: { step: TimelineStep }) {
+  const [more, setMore] = useState(false);
+  const links = step.metadata.links || [];
+  return <li className={`ic-step ic-step-${step.status}`}><span className="ic-step-dot" aria-hidden="true">{step.status === 'completed' ? '✓' : step.status === 'failed' ? '!' : step.status === 'cancelled' ? '−' : ''}</span><div className="ic-tool-card"><div className="ic-tool-title"><strong>{step.title}</strong><span>{step.status === 'running' ? '进行中' : step.status === 'failed' ? '失败' : step.status === 'cancelled' ? '已取消' : step.status === 'pending' ? '等待中' : '已完成'}{step.duration !== undefined && ` · ${(step.duration / 1000).toFixed(1)}s`}</span></div><p>{step.description}</p>{links.slice(0, more ? 8 : 3).map(link => <a key={link.url} href={link.url} target="_blank" rel="noreferrer">↗ {link.title}{more && link.snippet && <small>{link.snippet}</small>}</a>)}{links.length > 3 || links.some(link => link.snippet) ? <button type="button" onClick={() => setMore(value => !value)}>{more ? '收起摘要' : '查看更多摘要'}</button> : null}</div></li>;
+});
+export const AgentTimeline = memo(function AgentTimeline({ steps }: { steps: TimelineStep[] }) { return <ol className="ic-timeline">{steps.map(step => <ToolCallCard key={step.id} step={step} />)}</ol>; });
+export const ThinkingPanel = memo(function ThinkingPanel({ phase, steps, startedAt, completedAt, answering }: Pick<AgentState, 'phase' | 'steps' | 'startedAt' | 'completedAt'> & { answering: boolean }) {
+  const id = useId(), [manual, setManual] = useState<boolean | undefined>(undefined);
+  const active = !['completed', 'failed', 'cancelled'].includes(phase);
+  const expanded = shouldExpand(manual, answering, active);
+  return <div className={`ic-thinking ic-thinking-${phase}`}><button className="ic-thinking-toggle" aria-expanded={expanded} aria-controls={id} onClick={() => setManual(!expanded)}><span className={`ic-thinking-indicator ${active ? 'ic-active' : ''}`} aria-hidden="true">{phase === 'completed' ? '✓' : phase === 'failed' ? '!' : phase === 'cancelled' ? '−' : '◌'}</span><span className="ic-thinking-heading"><span key={phase} className="ic-title-transition" role="status">{titles[phase]}</span><small>{completedAt ? `${steps.filter(step => step.status === 'completed').length} 项工具完成 · ${((completedAt - startedAt) / 1000).toFixed(1)} 秒` : steps.length ? `${steps.length} 项工具 · 公开执行记录` : '等待服务返回执行事件'}</small></span><span className={`ic-chevron ${expanded ? 'ic-chevron-open' : ''}`} aria-hidden="true">⌄</span></button><div id={id} className={`ic-collapse ${expanded ? 'ic-collapse-open' : ''}`} inert={!expanded}><div className="ic-collapse-inner"><div className="ic-trace-note">执行轨迹，不是模型内部思维链。时长为客户端观测值。</div>{steps.length ? <AgentTimeline steps={steps} /> : <div className="ic-awaiting">尚未收到工具事件，保持等待。</div>}{steps.some(step => !step.metadata.correlated) && <div className="ic-trace-note">当前服务未提供调用 ID，同名工具按事件顺序关联。</div>}</div></div></div>;
+});
