@@ -2,7 +2,7 @@
 
 个人前端面试知识库，基于 [Docsify](https://docsify.js.org/) 搭建，部署在 GitHub Pages。
 
-面向约 **3 年 Vue / React 前端** 候选人：按「方向速记 → 一篇专题深文 → 项目口述」复习，不要从侧栏刷到最后一页。
+面向约 **3 年 Vue / React 前端** 候选人：按「一篇专题 → 项目口述」复习，不要从侧栏刷到最后一页。
 
 ## 怎么开始
 
@@ -17,12 +17,12 @@
 
 | 方向 | 说明 |
 | --- | --- |
-| [JavaScript & TS 速记](/md/面试准备/技术/JavaScript%20&%20TypeScript%20基础.md) | 闭包、this、原型与面向对象、Promise、事件循环、TS 建模（组件 props 日常） |
-| [浏览器与性能速记](/md/面试准备/技术/浏览器面试速记.md) | 进程模型、渲染、缓存、[LCP/INP/CLS 与虚拟列表](/md/浏览器/性能监控与体验.md) |
-| [网络与安全速记](/md/面试准备/技术/网络与安全.md) | HTTP/HTTPS/跨域/XSS/CSRF |
-| [框架：Vue / React](/md/面试准备/技术/React%20&%20Vue.md) | Hooks/Fiber/Diff/SSR、Vue 响应式/Diff；[React 考点索引](/md/框架/React/React%20高频考点精讲.md) |
-| [AI Agent](/md/面试准备/技术/AI%20Agent.md) | 加分项：LLM、Agent/MCP、对话与 SSE |
-| [工程化与性能](/md/面试准备/技术/前端工程化.md) | Webpack/Vite、[大厂口述 10 题](/md/面试准备/技术/工程化大厂高频口述.md)、[架构与设计系统](/md/工程化/体系与实践/前端架构与设计系统.md)、[性能](/md/面试准备/技术/前端性能优化.md) |
+| [JavaScript](/md/基础/JavaScript/闭包的理解.md) | 闭包、this、原型与面向对象、Promise、事件循环、TS 建模 |
+| [浏览器与性能](/md/浏览器/浏览器的进程模型.md) | 进程模型、渲染、缓存、[LCP/INP/CLS 与虚拟列表](/md/浏览器/性能监控与体验.md) |
+| [网络与安全](/md/网络/HTTP.md) | HTTP/HTTPS/跨域/XSS/CSRF |
+| [框架：Vue / React](/md/框架/React/Hooks.md) | Hooks/Fiber/Diff/SSR、Vue 响应式/Diff；[React 考点索引](/md/框架/React/React%20高频考点精讲.md) |
+| [AI Agent](/md/Agent/LLM与PromptEngineering.md) | 加分项：LLM、Agent/MCP、对话与 SSE |
+| [工程化与性能](/md/工程化/体系与实践/工程化体系.md) | Webpack/Vite、[大厂口述 10 题](/md/面试准备/技术/工程化大厂高频口述.md)、[架构与设计系统](/md/工程化/体系与实践/前端架构与设计系统.md)、[性能监控](/md/浏览器/性能监控与体验.md) |
 | [项目与架构](/md/面试准备/项目与架构/你的项目经历（重点）.md) | 项目表达 + 重点项目口述 |
 | [协作](/md/面试准备/综合/团队协作与主导能力.md) | 协作主导、Git 主链 |
 

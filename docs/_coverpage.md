@@ -10,4 +10,4 @@
 > 前端面试知识库 · 高频基础 / 框架原理 / 工程化 / 项目表达
 
 [GitHub](<https://github.com/thosewhoyoulove>)
-[开始阅读](README.md)
+[开始阅读](/md/面试准备/面试总览.md)

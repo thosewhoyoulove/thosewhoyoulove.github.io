@@ -1,6 +1,4 @@
   - JavaScript 与浏览器
-    - [速记：JS & TS](/md/面试准备/技术/JavaScript%20&%20TypeScript%20基础.md)
-    - [速记：浏览器与性能](/md/面试准备/技术/浏览器面试速记.md)
     - JavaScript 运行时
       - [闭包](/md/基础/JavaScript/闭包的理解.md)
       - [面向对象与原型](/md/基础/JavaScript/面向对象与原型.md)
@@ -27,7 +25,6 @@
       - [DOM 事件机制](/md/浏览器/DOM事件机制.md)
       - [本地存储与 Cookie](/md/浏览器/本地存储与Cookie.md)
   - 网络与安全
-    - [速记：网络与安全](/md/面试准备/技术/网络与安全.md)
     - 请求全链路
       - [从输入 URL 到页面展示](/md/网络/URL解析流程.md)
       - [DNS 与 CDN](/md/网络/DNS与CDN.md)
@@ -49,7 +46,6 @@
       - [TCP 四次挥手](/md/网络/TCP四次挥手.md)
       - [XSS](/md/安全/XSS的理解.md)
   - 框架：Vue / React
-    - [面试速记：React & Vue](/md/面试准备/技术/React%20&%20Vue.md)
     - 框架对比
       - [Vue vs React](/md/框架/Vue%20vs%20React.md)
     - React 专题
@@ -73,7 +69,6 @@
     - 开放性题目
       - [响应式 vs 不可变](/md/框架/框架开放性面试题.md)
   - AI Agent
-    - [面试速记：AI Agent](/md/面试准备/技术/AI%20Agent.md)
     - [LLM 与 Prompt Engineering](/md/Agent/LLM与PromptEngineering.md)
     - [Agent 与 Skill 体系](/md/Agent/Agent与Skill体系.md)
     - [MCP 与工具调用概念](/md/Agent/MCP与工具调用概念.md)
@@ -82,11 +77,8 @@
     - [工具调用与结果展示](/md/Agent/工具调用与结果展示.md)
     - [平时工作怎么使用 AI](/md/面试准备/综合/平时工作怎么使用AI.md)
   - 工程化与性能
-    - 面试速记
-      - [前端工程化速记](/md/面试准备/技术/前端工程化.md)
-      - [工程化大厂高频口述](/md/面试准备/技术/工程化大厂高频口述.md)
-      - [前端性能优化速记](/md/面试准备/技术/前端性能优化.md)
     - 工程化主线
+      - [工程化大厂高频口述](/md/面试准备/技术/工程化大厂高频口述.md)
       - [工程化体系](/md/工程化/体系与实践/工程化体系.md)
       - [打包优化面试专题](/md/工程化/体系与实践/打包优化面试专题.md)
       - [CI/CD](/md/工程化/体系与实践/CI&CD.md)

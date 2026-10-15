@@ -4,14 +4,13 @@ const path = require("path");
 /**
  * 面试导向侧边栏（目标：约 3 年 Vue / React 前端）。
  *
- * 默背：速记 → 专题深文。手写 Promise、V8 高阶、call/apply 专文等移出默认导航（文件保留）。
+ * 侧栏只放专题。速记页移出默认导航（文件保留）。
+ * 手写 Promise、V8 高阶、call/apply 专文等同样不进默认导航。
  */
 const SIDEBAR = [
     {
         title: "JavaScript 与浏览器",
         children: [
-            ["速记：JS & TS", "/md/面试准备/技术/JavaScript%20&%20TypeScript%20基础.md"],
-            ["速记：浏览器与性能", "/md/面试准备/技术/浏览器面试速记.md"],
             {
                 title: "JavaScript 运行时",
                 children: [
@@ -58,7 +57,6 @@ const SIDEBAR = [
     {
         title: "网络与安全",
         children: [
-            ["速记：网络与安全", "/md/面试准备/技术/网络与安全.md"],
             {
                 title: "请求全链路",
                 children: [
@@ -104,7 +102,6 @@ const SIDEBAR = [
     {
         title: "框架：Vue / React",
         children: [
-            ["面试速记：React & Vue", "/md/面试准备/技术/React%20&%20Vue.md"],
             {
                 title: "框架对比",
                 children: [
@@ -148,7 +145,6 @@ const SIDEBAR = [
     {
         title: "AI Agent",
         children: [
-            ["面试速记：AI Agent", "/md/面试准备/技术/AI%20Agent.md"],
             ["LLM 与 Prompt Engineering", "/md/Agent/LLM与PromptEngineering.md"],
             ["Agent 与 Skill 体系", "/md/Agent/Agent与Skill体系.md"],
             ["MCP 与工具调用概念", "/md/Agent/MCP与工具调用概念.md"],
@@ -162,16 +158,9 @@ const SIDEBAR = [
         title: "工程化与性能",
         children: [
             {
-                title: "面试速记",
-                children: [
-                    ["前端工程化速记", "/md/面试准备/技术/前端工程化.md"],
-                    ["工程化大厂高频口述", "/md/面试准备/技术/工程化大厂高频口述.md"],
-                    ["前端性能优化速记", "/md/面试准备/技术/前端性能优化.md"],
-                ],
-            },
-            {
                 title: "工程化主线",
                 children: [
+                    ["工程化大厂高频口述", "/md/面试准备/技术/工程化大厂高频口述.md"],
                     ["工程化体系", "/md/工程化/体系与实践/工程化体系.md"],
                     ["打包优化面试专题", "/md/工程化/体系与实践/打包优化面试专题.md"],
                     ["CI/CD", "/md/工程化/体系与实践/CI&CD.md"],
