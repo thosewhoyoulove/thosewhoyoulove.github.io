@@ -695,6 +695,7 @@ createApp(window.__APP_CONFIG__.apiBase);
 
 ## 延伸阅读
 
+- [面向对象与原型](/md/基础/JavaScript/面向对象与原型.md)
 - [TypeScript 基础类型](/md/TypeScript/基础类型.md)
 - [泛型](/md/TypeScript/泛型.md)
 - [工具类型](/md/TypeScript/工具类型.md)

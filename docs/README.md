@@ -17,7 +17,7 @@
 
 | 方向 | 说明 |
 | --- | --- |
-| [JavaScript & TS 速记](/md/面试准备/技术/JavaScript%20&%20TypeScript%20基础.md) | 闭包、this、Promise、事件循环、TS 建模（组件 props 日常） |
+| [JavaScript & TS 速记](/md/面试准备/技术/JavaScript%20&%20TypeScript%20基础.md) | 闭包、this、原型与面向对象、Promise、事件循环、TS 建模（组件 props 日常） |
 | [浏览器与性能速记](/md/面试准备/技术/浏览器面试速记.md) | 进程模型、渲染、缓存、[LCP/INP/CLS 与虚拟列表](/md/浏览器/性能监控与体验.md) |
 | [网络与安全速记](/md/面试准备/技术/网络与安全.md) | HTTP/HTTPS/跨域/XSS/CSRF |
 | [框架：Vue / React](/md/面试准备/技术/React%20&%20Vue.md) | Hooks/Fiber/Diff/SSR、Vue 响应式/Diff；[React 考点索引](/md/框架/React/React%20高频考点精讲.md) |

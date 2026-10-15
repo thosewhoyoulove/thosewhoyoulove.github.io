@@ -15,6 +15,7 @@
 | P0 | 防抖节流、原型链基础 | 社招手写/场景题高频 |
 | P0 | TS：type vs interface、泛型、工具类型 | 业务代码和组件 props 设计日常在用 |
 | P1 | 深浅拷贝、类型判断、隐式转换 | 状态不可变、接口数据处理 |
+| P1 | 原型链、`new`、class 与组合 | 追问面向对象时要能落到原型，而不是背 Java 三大特性 |
 | P1 | unknown / never / 类型守卫 | 外部输入与穷尽检查 |
 | P2 | 手写 Promise、V8 细节 | 答稳 P0 后再准备 |
 
@@ -91,6 +92,16 @@ console.log(a.user.name); // Jerry
 风险是如果闭包长期持有大对象引用，可能导致这些对象无法被垃圾回收。
 
 面试里不要只说“函数套函数”，要说清楚闭包保存的是词法作用域引用。
+
+## 面向对象与原型
+
+JavaScript 是基于原型的面向对象语言，同时是多范式语言。`class` 大部分是原型的语法糖，但必须用 `new` 调用，类体是严格模式。
+
+属性读取沿 `[[Prototype]]` 向上，直到 `null`。给实例赋数据属性，会在实例上新建自身属性，不会改写原型上的值。
+
+TypeScript 的 `extends` 有运行时原型链，`implements` 和 `private` / `protected` 主要是编译期检查。真正的运行时私有字段是 `#field`。复用优先组合，只在稳定的「是一个」关系上继承。
+
+深文：[面向对象与原型](/md/基础/JavaScript/面向对象与原型.md)。
 
 ## this
 
@@ -192,6 +203,7 @@ TypeScript 是 JavaScript 的超集，增加了类型系统和编译期检查。
 - [数据类型与拷贝](/md/基础/JavaScript/数据类型.md)
 - [原型链与继承](/md/基础/JavaScript/原型链与继承.md)
 - [防抖与节流](/md/基础/JavaScript/防抖与节流.md)
+- [面向对象与原型](/md/基础/JavaScript/面向对象与原型.md)
 - [Promise](/md/基础/ES6/Promise.md)
 - [浏览器事件循环](/md/浏览器/浏览器的事件循环.md)
 - [type 和 interface](/md/TypeScript/type%20和%20interface.md)

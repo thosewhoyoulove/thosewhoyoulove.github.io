@@ -3,6 +3,7 @@
     - [速记：浏览器与性能](/md/面试准备/技术/浏览器面试速记.md)
     - JavaScript 运行时
       - [闭包](/md/基础/JavaScript/闭包的理解.md)
+      - [面向对象与原型](/md/基础/JavaScript/面向对象与原型.md)
       - [This](/md/基础/JavaScript/This的理解.md)
       - [数据类型与拷贝](/md/基础/JavaScript/数据类型.md)
       - [原型链与继承](/md/基础/JavaScript/原型链与继承.md)

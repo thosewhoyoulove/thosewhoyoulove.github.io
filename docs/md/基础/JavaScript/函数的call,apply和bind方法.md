@@ -123,18 +123,30 @@ Function.prototype.myApply = function (context, args) {
 
 ```javascript
 Function.prototype.myBind = function (context, ...presetArgs) {
-    const fn = this;
-
-    function boundFn(...laterArgs) {
-        const isNew = this instanceof boundFn;
-        const thisArg = isNew ? this : context;
-        return fn.apply(thisArg, [...presetArgs, ...laterArgs]);
+    if (typeof this !== "function") {
+        throw new TypeError("myBind must be called on a function");
     }
 
-    boundFn.prototype = Object.create(fn.prototype);
+    const target = this;
+
+    function boundFn(...laterArgs) {
+        const args = [...presetArgs, ...laterArgs];
+
+        if (new.target) {
+            const newTarget = new.target === boundFn ? target : new.target;
+            return Reflect.construct(target, args, newTarget);
+        }
+
+        return target.apply(context, args);
+    }
+
     return boundFn;
 };
 ```
+
+`new.target === boundFn` 时要把构造目标换回原函数，实例的原型才会仍是原函数的 `prototype`。不要用 `this instanceof boundFn` 判断是不是 `new`：调用方如果把一个已经在这条原型链上的对象传进来，会误判成构造调用。
+
+这段 `myBind` 是教学实现，覆盖参数预置、普通调用和直接构造调用；它没有复刻原生绑定函数的 `name`、`length`、`prototype` 与 `instanceof` 等全部语义，不能直接作为生产 polyfill。
 
 ## 面试回答
 
@@ -159,4 +171,5 @@ Function.prototype.myBind = function (context, ...presetArgs) {
 ## 相关链接
 
 - [This 的理解](/md/基础/JavaScript/This的理解.md)
+- [面向对象与原型](/md/基础/JavaScript/面向对象与原型.md)
 - [闭包的理解](/md/基础/JavaScript/闭包的理解.md)

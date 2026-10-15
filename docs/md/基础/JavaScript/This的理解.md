@@ -146,4 +146,5 @@ setTimeout(obj.say.bind(obj), 0); // 显式绑定
 ## 相关链接
 
 - [函数的 call、apply 和 bind 方法](/md/基础/JavaScript/函数的call,apply和bind方法.md)
+- [面向对象与原型](/md/基础/JavaScript/面向对象与原型.md)
 - [闭包的理解](/md/基础/JavaScript/闭包的理解.md)
