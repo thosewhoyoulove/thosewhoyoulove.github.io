@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
     <head>
         <meta charset="UTF-8" />
         <title>omen's interview notes</title>
@@ -10,16 +10,9 @@
         <meta property="og:url" content="https://thosewhoyoulove.github.io/" />
         <meta property="og:type" content="website" />
         <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/inter@5.2.8/wght.css" />
         <link rel="stylesheet" href="/assets/css/vue.css" />
-        <style>
-            /* 当前激活菜单项高亮 */
-            .sidebar-nav li a.active-link {
-                color: #42b983 !important;
-                font-weight: 600 !important;
-                border-right: 3px solid #42b983;
-                padding-right: 8px;
-            }
-        </style>
+        <link rel="stylesheet" href="/assets/css/site.css?v=4" />
         <script>
             var _hmt = _hmt || [];
             (function () {
@@ -36,6 +29,7 @@
         <script>
             window.$docsify = {
                 name: "omen's interview notes", //网站名称
+                themeColor: "#10a37f", //ChatGPT 青绿
                 repo: "https://github.com/thosewhoyoulove", //GitHub 仓库链接
                 homepage: "md/面试准备/面试总览.md", //个人复习入口，不展示 README
                 auto2top: true, //切换页面后自动跳转到页面顶部
@@ -81,6 +75,7 @@
             };
         </script>
 
+        <script src="/assets/js/faq.js?v=2"></script>
         <script src="/assets/js/docsify.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/plugins/search.js"></script>
         <script src="/assets/js/docsify-pagination.min.js"></script>

@@ -1,0 +1,225 @@
+:root {
+    --theme-color: #10a37f;
+    --gpt-ink: #0d0d0d;
+    --gpt-muted: #6e6e80;
+    --gpt-line: #ececf1;
+    --gpt-surface: #f7f7f8;
+    --gpt-green-soft: #e7f6f1;
+    --font-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Noto Sans SC", sans-serif;
+    --font-mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Consolas, "PingFang SC", "Microsoft YaHei UI", monospace;
+}
+
+body {
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.75;
+    color: var(--gpt-ink);
+    background: #fff;
+}
+
+.sidebar,
+.app-name,
+.app-name-link,
+section.cover,
+section.cover h1,
+.sidebar-nav,
+.search input {
+    font-family: inherit;
+}
+
+.sidebar {
+    background: var(--gpt-surface);
+    border-right: 1px solid var(--gpt-line);
+    color: var(--gpt-ink);
+}
+
+.sidebar > h1 {
+    font-weight: 600;
+    font-size: 1.15rem;
+    letter-spacing: 0;
+}
+
+.sidebar ul li a {
+    color: var(--gpt-ink);
+    border-radius: 8px;
+    padding: 2px 8px;
+}
+
+.sidebar ul li a:hover {
+    text-decoration: none;
+    background: #ececec;
+}
+
+.sidebar ul li.active > a,
+.sidebar-nav li a.active-link {
+    color: var(--theme-color) !important;
+    font-weight: 600 !important;
+    background: var(--gpt-green-soft);
+    border-right: none !important;
+    border-radius: 8px;
+    padding-right: 8px;
+}
+
+.markdown-section {
+    font-size: 16px;
+    line-height: 1.75;
+    color: var(--gpt-ink);
+}
+
+.markdown-section h1,
+.markdown-section h2,
+.markdown-section h3,
+.markdown-section h4,
+.markdown-section h5,
+.markdown-section strong {
+    font-family: inherit;
+    color: var(--gpt-ink);
+    font-weight: 600;
+    letter-spacing: 0;
+}
+
+.markdown-section h1 {
+    font-size: 1.7rem;
+}
+
+.markdown-section h2 {
+    font-size: 1.28rem;
+    margin: 2.1rem 0 0.7rem;
+}
+
+.markdown-section h3 {
+    font-size: 1.05rem;
+    margin: 1.45rem 0 0.4rem;
+}
+
+.markdown-section p,
+.markdown-section li {
+    line-height: 1.75;
+}
+
+.markdown-section a {
+    color: var(--theme-color);
+    font-weight: 500;
+}
+
+.markdown-section blockquote {
+    border-left: 3px solid var(--theme-color);
+    background: var(--gpt-surface);
+    color: var(--gpt-ink);
+    border-radius: 0 12px 12px 0;
+    margin: 1.4em 0;
+    padding: 4px 16px 4px 18px;
+}
+
+.markdown-section blockquote p {
+    font-weight: 400;
+    color: var(--gpt-ink);
+}
+
+.markdown-section code,
+.markdown-section pre,
+.markdown-section pre code {
+    font-family: var(--font-mono);
+}
+
+.markdown-section code {
+    color: var(--gpt-ink);
+    background: var(--gpt-surface);
+    border-radius: 6px;
+}
+
+.markdown-section pre {
+    background: var(--gpt-surface);
+    border-radius: 12px;
+    border: 1px solid var(--gpt-line);
+}
+
+.markdown-section pre code {
+    color: var(--gpt-ink);
+    background: transparent;
+}
+
+.faq-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 12px 0 28px;
+}
+
+.faq-item {
+    border: 1px solid var(--gpt-line);
+    border-radius: 12px;
+    background: #fff;
+    overflow: hidden;
+}
+
+.faq-item summary {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 15px 16px;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+
+.faq-item summary::-webkit-details-marker {
+    display: none;
+}
+
+.faq-item summary:hover {
+    background: var(--gpt-surface);
+}
+
+.faq-item summary:focus-visible {
+    outline: 2px solid var(--theme-color);
+    outline-offset: -2px;
+}
+
+.faq-num {
+    flex: none;
+    width: 1.8em;
+    color: #8e8ea0;
+    font-size: 14px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.faq-q {
+    flex: 1;
+    color: var(--gpt-ink);
+    font-size: 15.5px;
+    font-weight: 600;
+    line-height: 1.55;
+}
+
+.faq-chev {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    color: #8e8ea0;
+    transition: transform 0.18s ease;
+}
+
+.faq-item[open] .faq-chev {
+    transform: rotate(180deg);
+}
+
+.faq-item[open] {
+    border-color: #d9d9e3;
+}
+
+.faq-a {
+    padding: 0 18px 16px 48px;
+    color: #3c3c43;
+    font-size: 15px;
+    line-height: 1.75;
+}
+
+.faq-a > :first-child {
+    margin-top: 0;
+}
+
+.faq-a > :last-child {
+    margin-bottom: 0;
+}
