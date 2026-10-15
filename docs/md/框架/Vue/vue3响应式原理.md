@@ -4,7 +4,7 @@
 
 > Vue 3 响应式的核心可以压成一句：用 Proxy 拦住读写，读的时候把「当前正在跑的 effect」记到依赖图里，写的时候把订阅了这个 key 的 effect 找出来重新调度。组件渲染本身就是一个 effect，所以模板里读到的字段一变，对应组件会进入更新队列，而不是数据直接改 DOM。
 >
-> 依赖图是三层：`WeakMap<target, Map<key, Set<effect>>>`。`get` 里 `track`，`set` / `delete` 里 `trigger`；嵌套对象是惰性再包一层 Proxy，大对象初始化更友好。原始值没法被 Proxy 代理，所以用 `ref` 包一层，靠 `.value` 的访问器做同样的收集和触发。`computed` 是带 dirty 位的惰性 effect：依赖变了先标脏、通知订阅者，下次读才重算。
+> 依赖关系可以先按“原始对象 → 属性 → 订阅者”三层理解。`get` 里 `track`，`set` / `delete` 里 `trigger`；嵌套对象是惰性再包一层 Proxy，大对象初始化更友好。原始值没法被 Proxy 代理，所以用 `ref` 包一层，靠 `.value` 的访问器做同样的收集和触发。computed 缓存派生结果，依赖变化后使缓存需要重新检查，读取时再按依赖状态决定是否重算。
 >
 > 真正刷 DOM 前还有 scheduler：渲染 effect 不立刻同步重跑，而是 `queueJob` 进微任务队列，同一轮里多次改同一组件只渲染一次。这就是为什么改完数据要 `nextTick` 才能读到新 DOM。和 Vue 2 比，Proxy 能拦新增删除、`in`、`keys`、数组下标和 `length`，少了很多 `$set` 心智；边界是第三方实例要 `markRaw` / `shallowRef`，别被深代理搅乱。
 >
@@ -20,7 +20,7 @@
 
 ### 1. 为什么需要响应式
 
-没有依赖追踪，框架只能「整页重算」或让你手动订阅。Vue 选的是：在跑副作用时自动记住读过哪些字段，字段变了只通知相关副作用。
+模板读取 state.count 时，我们没有手写订阅，之后修改 count 却能更新界面。Vue 在渲染期间记录这次读取，把渲染副作用和属性关联起来；写入时先通知订阅者，再由调度器安排重新渲染。依赖追踪决定通知谁，调度器决定何时执行，两者分开才能合并连续修改。
 
 组件更新单元通常是**组件的 render effect**（不是 Solid 那种逐 DOM 绑定）。说「细粒度」时，更准确是指依赖按 key 收集，触发精确到订阅了该 key 的 effect。
 
@@ -50,17 +50,19 @@ reactive / ref 创建代理
 
 ### 3. 依赖图：`targetMap → depsMap → dep`
 
+下图是教学模型，不是所有 Vue 3 版本的字段定义。以 Vue 3.5.13 为例，源码通过 Dep 和 Link 维护依赖与订阅者的双向连接，并使用版本信息减少重复工作。读模型时抓住对象、属性、订阅关系，对照源码时再核对具体结构。
+
 ```text
-WeakMap<target, Map<key, Set<ReactiveEffect>>>
+WeakMap<target, Map<key, Set<effect>>>
 ```
 
 | 层 | 含义 |
 | --- | --- |
-| target | **原始对象**（不用 proxy 当 key，避免环） |
+| target | **原始对象**，用作依赖索引的身份 |
 | key | 属性名；数组还有 `length`；迭代用 `ITERATE_KEY` 等 |
 | dep | 订阅了这个 `(target, key)` 的 effect 集合 |
 
-`WeakMap`：target 可被 GC 时依赖条目一起消失。
+WeakMap 的键不会单独阻止 target 被回收；组件或闭包仍引用的数据不会因此自动释放。
 
 ---
 
@@ -88,7 +90,7 @@ state.count++
 | effect.run | `activeEffect =` 当前 effect |
 | 读 `count` | track：把 effect 放进 `dep(count)`，effect.deps 反向记下 |
 | `count++` | set → trigger → 取出 dep → scheduler 或 run |
-| 再 run | 先清旧依赖再收集，避免条件分支残留订阅 |
+| 再 run | 更新本轮实际使用的依赖，移除失效订阅 |
 
 `Map`/`Set` 等集合有专用 handler：方法在原型上，不能只靠普通 get/set。
 
@@ -97,15 +99,18 @@ state.count++
 ### 5. effect：活跃栈、双向 deps、清理
 
 - `track` 只认当前 `activeEffect`（嵌套时用栈恢复外层）。
-- effect 上有 `deps[]`，方便 `stop` 和**每次 run 前清旧依赖**。
+- effect 需要反向维护依赖，支持停止和移除失效订阅；deps 数组是教学模型，Vue 3.5.13 使用链表连接及版本标记，不应概括成每次先全部清空。
 - 组件渲染 effect 通常带 `scheduler`：把 job 推进更新队列，而不是同步 `run`。
 
 #### 为什么依赖必须动态更新
 
 ```js
+const state = reactive({ ok: true, text: 'hello' })
 effect(() => {
-  console.log(ok ? text : 'hidden')
+  console.log(state.ok ? state.text : 'hidden')
 })
+state.ok = false
+state.text = 'updated' // 已不再订阅 text，不应因此重新打印
 ```
 
 第一次 `ok === true` 时会读取 `ok` 和 `text`；之后 `ok === false`，本轮只应依赖 `ok`。如果旧的 `text` 订阅不被清理，继续修改 `text` 仍会触发无意义执行。因此依赖关系不是初始化时固定下来，而要随着每次 effect 实际访问的分支更新。
@@ -118,7 +123,7 @@ effect(() => {
 
 **ref**：Proxy 代理不了 `0`/`'x'`，用 `{ value }` 访问器做 track/trigger。对象型 ref 内部常再挂 `reactive`；模板顶层会解包 `.value`。
 
-**computed**：依赖变 → 标 `_dirty` 并 trigger 自己的订阅者 → **下次读 `.value` 才重算**。getter 应保持纯。
+computed 缓存 getter 的结果。依赖变化后缓存需要检查，后续读取时再按依赖状态决定是否重算。Vue 3.5.13 使用标志和版本信息协作维护缓存，不宜把所有版本都概括成同一个 `_dirty` 字段。getter 应保持纯。
 
 | API | 心智 |
 | --- | --- |
@@ -169,53 +174,11 @@ Proxy 和原对象身份也不同：`proxy !== raw`。业务代码应尽量统�
 
 ## 常见误区
 
-### ❌ Vue 3 是逐属性直接改 DOM 的极细粒度更新
-
-### ✅ 更准确的说法
-
-依赖按 key 收集；常见结果是组件 render effect 重跑再 patch。
-
-### 为什么？
-
-和 Solid 模型不同，追问更新单元时容易露馅。
-
----
-
-### ❌ 有了 Proxy 就一定比 Vue 2 全方位更快
-
-### ✅ 更准确的说法
-
-少了初始化递归劫持和 `$set` 坑；性能还取决于组件切分、列表、编译优化。
-
-### 为什么？
-
-面试要听边界，不听口号。
-
----
-
-### ❌ `ref` 只是语法糖，和 `reactive` 完全一样
-
-### ✅ 更准确的说法
-
-`ref` 解决原始值与整体替换；`reactive` 适合稳定对象结构。解包规则也不同。
-
----
-
-### ❌ 改完响应式数据，下一行一定能读到新 DOM
-
-### ✅ 更准确的说法
-
-更新常进微任务队列；要新 DOM 用 `nextTick` 或 flush 之后的时机。
-
----
-
-### ❌ `computed` 依赖一变就立刻重算
-
-### ✅ 更准确的说法
-
-先标脏；下次读取才算。有人订阅时会通知，但不等于同步重跑 getter。
-
----
+- **依赖按属性收集，所以修改属性就直接改 DOM**：依赖追踪确定订阅者，组件通常重新渲染并 patch；通知粒度和 DOM 更新方式不是一回事。
+- **Proxy 全方位比 Vue 2 更快**：它能拦截更多操作，也支持惰性深代理，但实际耗时还取决于组件拆分、列表规模和编译优化。
+- **ref 和 reactive 只是写法不同**：ref 能承载原始值并整体替换内容，reactive 返回对象代理；它们的身份、解构与解包规则不同。
+- **修改数据后马上就能读到新 DOM**：状态先变，组件 DOM 更新通常被调度合并。需要等待已安排的 DOM 更新时使用 nextTick，它不保证浏览器已经绘制。
+- **computed 依赖一变就同步执行 getter**：它先使缓存需要检查，读取时再按依赖状态决定是否重算；教学里的 dirty 不应理解成所有版本都使用同一字段。
 
 ## 高频追问
 
@@ -229,7 +192,7 @@ Proxy 拦截读写，track/trigger 维系 effect 依赖图，组件渲染是 eff
 
 ### 依赖存在哪？为什么用 WeakMap？
 
-`target → key → Set<effect>`；WeakMap 让 target 可被回收。
+按 target → key → 订阅者理解；Set 是教学模型。Vue 3.5.13 由 Dep/Link 维护具体关系，WeakMap 不会单独阻止 target 回收。
 
 ### reactive 和 ref 怎么选？
 
@@ -261,3 +224,5 @@ Proxy 拦截读写，track/trigger 维系 effect 依赖图，组件渲染是 eff
 - [Vue 2 和 Vue 3 区别](/md/框架/Vue/vue2和3的区别.md)
 - [Vue vs React](/md/框架/Vue%20vs%20React.md)
 - [面试速记：React & Vue](/md/面试准备/技术/React%20&%20Vue.md)
+
+核查参考：[Vue 响应式深入](https://vuejs.org/guide/extras/reactivity-in-depth)、[Vue 3.5.13 dep.ts](https://github.com/vuejs/core/blob/v3.5.13/packages/reactivity/src/dep.ts)。

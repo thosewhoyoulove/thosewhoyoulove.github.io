@@ -1,10 +1,18 @@
 # JavaScript 中的 this 理解
 
-## 面试定位
+## 面试回答
 
-`this` 是 JavaScript 高频基础题，常和箭头函数、事件回调、类、`call` / `apply` / `bind` 一起考。回答重点不是背“指向谁”，而是讲清楚：`this` 在普通函数里由调用方式决定，箭头函数没有自己的 `this`。
+> 普通函数的 `this` 是调用时绑定的，不是定义时绑定的。判断时我会看调用方式：如果是 `new`，`this` 指向新实例；如果用了 `call`、`apply`、`bind`，指向显式传入的对象；如果是 `obj.fn()`，指向点号前面的对象；如果是独立调用，非严格模式指向全局对象，严格模式是 `undefined`。箭头函数比较特殊，它没有自己的 `this`，会捕获定义时外层作用域的 `this`，所以不能用 `bind` 改变，也不适合做对象方法或构造函数。
+
+**一句话总结：**
+
+> 先看函数种类，再看调用方式：普通函数由调用绑定 this，箭头函数沿外层词法环境读取 this。
+
+---
 
 ## 核心原理
+
+同一个方法写成 user.sayName() 能拿到名字，赋给 fn 再调用却不行。函数体没有变，变化的是调用表达式；先追踪这个差别，比记住“this 指向谁”更可靠。
 
 普通函数的 `this` 不是在定义时决定的，而是在调用时决定的。可以按优先级记：
 
@@ -15,19 +23,19 @@
 
 箭头函数没有自己的 `this`，它会捕获定义时外层作用域的 `this`，所以不能被 `call`、`apply`、`bind` 改变。
 
-## 调用规则
+### 1. 从调用表达式判断普通函数
 
-### 默认绑定
+#### 默认绑定
 
 ```javascript
 function show() {
     console.log(this);
 }
 
-show(); // 非严格模式：window；严格模式：undefined
+show(); // 浏览器普通脚本的非严格函数：window；严格函数：undefined
 ```
 
-### 隐式绑定
+#### 隐式绑定
 
 ```javascript
 const user = {
@@ -44,10 +52,10 @@ user.sayName(); // "omen"
 
 ```javascript
 const fn = user.sayName;
-fn(); // this 丢失，非严格模式下 this 指向 window
+fn(); // 浏览器非严格普通脚本中读取全局 name；严格模式中访问 this.name 会抛错
 ```
 
-### 显式绑定
+#### 显式绑定
 
 ```javascript
 function sayName() {
@@ -61,7 +69,7 @@ const bound = sayName.bind({ name: "bind" });
 bound(); // "bind"
 ```
 
-### new 绑定
+#### new 绑定
 
 ```javascript
 function Person(name) {
@@ -72,14 +80,9 @@ const person = new Person("omen");
 console.log(person.name); // "omen"
 ```
 
-`new` 调用大致做了四件事：
+普通构造函数通过 new 调用时，函数体里的 this 是正在初始化的实例。构造函数若显式返回对象，最终表达式的结果可能是另一个对象。完整创建流程见 [原型链与继承](/md/基础/JavaScript/原型链与继承.md)。
 
-1. 创建一个新对象。
-2. 将新对象的原型指向构造函数的 `prototype`。
-3. 用新对象作为 `this` 执行构造函数。
-4. 如果构造函数没有返回对象，则返回这个新对象。
-
-## 箭头函数
+### 2. 箭头函数为什么不接受重新绑定
 
 箭头函数的 `this` 取自定义时的外层作用域。
 
@@ -105,16 +108,16 @@ const user = {
     },
 };
 
-user.sayName(); // 通常不是 "omen"
+user.sayName(); // 不会因为 user. 而绑定到 user；模块顶层 this 为 undefined 时会抛错
 ```
 
-因为对象字面量不会形成自己的 `this` 作用域，箭头函数捕获的是外层作用域。
+对象字面量没有建立 this 绑定。前一个例子的箭头函数创建在 normal 方法里，继承那次 user.normal() 的 this；这里直接创建在外层，因此读取哪个 this 取决于外层环境。浏览器普通脚本顶层和 ES 模块顶层的结果不同。
 
-## 面试回答
+## 常见误区
 
-可以这样答：
-
-> 普通函数的 `this` 是调用时绑定的，不是定义时绑定的。判断时我会看调用方式：如果是 `new`，`this` 指向新实例；如果用了 `call`、`apply`、`bind`，指向显式传入的对象；如果是 `obj.fn()`，指向点号前面的对象；如果是独立调用，非严格模式指向全局对象，严格模式是 `undefined`。箭头函数比较特殊，它没有自己的 `this`，会捕获定义时外层作用域的 `this`，所以不能用 `bind` 改变，也不适合做对象方法或构造函数。
+- **方法定义在哪个对象上，this 就永远是谁**：普通函数的 this 看调用表达式；把方法取出后，原对象关系不会自动跟过去。
+- **箭头函数的 this 指向最近的对象**：对象字面量不建立 this 绑定，它读取的是外层函数或模块环境的 this。
+- **bind 后 new 仍使用绑定对象**：可构造的绑定目标被 new 调用时使用新实例；箭头函数即使 bind 后也不能构造。
 
 ## 高频追问
 
@@ -135,7 +138,7 @@ setTimeout(() => obj.say(), 0); // 保留调用关系
 setTimeout(obj.say.bind(obj), 0); // 显式绑定
 ```
 
-### 箭头函数能不能作为构造函数？
+#### 2. 箭头函数为什么不接受重新绑定能不能作为构造函数？
 
 不能。箭头函数没有自己的 `this`，也没有 `prototype`，不能被 `new` 调用。
 
@@ -143,7 +146,7 @@ setTimeout(obj.say.bind(obj), 0); // 显式绑定
 
 普通调用不能再改变。`bind` 返回的新函数已经固定了 `this`。不过如果把绑定函数作为构造函数 `new` 调用，`new` 的实例绑定优先。
 
-## 相关链接
+## 延伸阅读
 
 - [函数的 call、apply 和 bind 方法](/md/基础/JavaScript/函数的call,apply和bind方法.md)
 - [面向对象与原型](/md/基础/JavaScript/面向对象与原型.md)

@@ -2,15 +2,13 @@
 
 ## 面试回答
 
-> Hooks 让函数组件能够使用状态、引用和副作用，但状态并不保存在函数的局部变量里，而是由 React 保存在函数组件对应的 Fiber 上。对大多数有状态 Hook，可以把它们理解成一条挂在 `fiber.memoizedState` 上的 Hook 链表。
+> 我理解 Hooks 的关键，是组件函数每次都会重新执行，但状态由 React 保存在组件对应的数据结构里。useState、useEffect 这些普通 Hook 按调用顺序和上一次渲染对齐，所以不能放进条件或循环。自定义 Hook 复用的是逻辑，每次调用的状态仍属于各自组件。
 >
-> 函数组件进入 `renderWithHooks` 后，React 会设置当前正在渲染的 Fiber。首次渲染走 mount dispatcher：每调用一次 Hook，就创建一个 Hook 节点；更新时走 update dispatcher：按照相同的调用顺序，从 current Fiber 的 Hook 链表中找到对应节点，再为 workInProgress 构造本轮节点。因此普通 Hook 不能写在条件、循环或提前 return 之后——一旦某次少调用一个，后面的 Hook 就会与上一次错位。新版 React 的 `use` 是特殊例外，但 `useState`、`useEffect` 等普通 Hook 仍必须遵守调用顺序。
+> setter 不会改掉当前函数已经拿到的 state，而是为后续渲染登记更新。同一事件里两次 setCount(count + 1)，用的是同一轮的 count；两次 setCount(c => c + 1) 则会在处理队列时依次累加。这个区别也解释了旧闭包：定时器保留的是创建它那次渲染中的值，需要根据用途补依赖、用函数式更新，或用 ref 保存不驱动渲染的可变信息。
 >
-> `useState` 的 setter 会创建 update，加入这个 Hook 的更新队列并触发调度。下一次 Render 时，React 才会按顺序处理队列，算出新的 `memoizedState`。当前事件处理函数仍然闭合在创建它的那次 Render 上，所以读取到的是那次 Render 的 state 快照；需要连续基于前值计算时，应传 updater function，而不是反复使用同一个闭包里的旧值。
+> Effect 用来连接外部系统，比如订阅、定时器和网络连接。依赖改变后，React 先清理旧连接，再按新值建立连接；卸载时也要清理。它不保证一定在浏览器绘制后执行，必须在绘制前完成的布局测量才考虑 useLayoutEffect。能直接算出的派生值，通常不用 Effect 再写回 state。
 >
-> `useEffect` 也不应该理解成函数组件版本的生命周期。它的核心用途是让组件和 React 之外的系统保持同步，例如订阅、定时器、网络连接或第三方组件。Render 阶段只记录 Effect 和依赖；提交后 React 根据依赖是否变化决定是否执行。重新同步前先用旧值执行上一次 cleanup，再用新值执行 setup；卸载时也会 cleanup。开发环境 Strict Mode 还会额外执行一次 setup → cleanup → setup，检查这两部分是否对称。
->
-> `useRef` 保存跨 Render 存活的可变盒，修改 `current` 不触发渲染；`useMemo` 和 `useCallback` 是性能优化工具，只有缓存确实有收益时才使用。`useTransition` 是把你自己触发的某次更新降到可中断的优先级；`useDeferredValue` 是来源更新已经发生后，在消费侧先继续用旧值。两者都走并发 Render，但一个包的是更新，一个推迟的是值。整套 Hooks 心智可以概括成：**Fiber 保存 Hook，调用顺序确认身份，更新队列计算下一份状态，每次 Render 形成独立快照，Effect 负责与外部系统同步。**
+> 性能优化上，我会先确认昂贵计算或引用变化是否造成了实际问题，再考虑 useMemo 和 useCallback。需要让紧急输入先响应时，再区分 useTransition 标记更新与 useDeferredValue 延后消费值。理解这些行为后，源码可以继续沿 Hook 链表、更新队列和 Effect 队列追踪。
 
 **一句话总结：**
 
@@ -24,7 +22,7 @@
 
 类组件用 `this.state` 和生命周期集中管理，但逻辑复用常靠 HOC / render props，层层包裹、props 来源不清。Hooks 的目标是：在**不增加组件树层级**的前提下，把状态和副作用按关注点拆成函数。
 
-代价是：函数组件每次 render 都是新闭包，状态不能靠「实例字段」自然存活，必须由 React 在 Fiber 上按规则替你保存。
+组件函数每次执行都会创建新的局部变量，为什么 count 没有回到初始值？因为 useState 从 React 保存的数据中读取本轮状态，局部变量只是接过这个值。接下来先解释 React 如何认领同一位置的 Hook，再解释队列如何算出下一份状态。
 
 ---
 
@@ -127,7 +125,7 @@ setCount(c => c + 1)
 setCount(c => c + 1) // 队列依次基于上一次计算值
 ```
 
-React 18 扩大了自动批处理范围，Promise、定时器和原生事件等场景中的多个更新也通常可以合并。需要强制同步刷新时可以使用 `flushSync`，但它会打断批处理并可能影响性能。
+React 18 使用 createRoot 的根扩大了自动批处理范围，Promise、定时器和原生事件等场景中的多个更新也通常可以合并。需要强制同步刷新时可以使用 `flushSync`，但它会打断批处理并可能影响性能。
 
 #### update queue 如何计算下一份 state
 
@@ -233,10 +231,7 @@ Render 记录 effect
   → useEffect（setup）
 ```
 
-cleanup 两个典型时机：
-
-1. **下次同位置 effect 再跑之前**（deps 变了）；
-2. **组件卸载时**。
+依赖 id 从 A 变成 B 时，旧订阅不会自动切换。React 先执行上一次的 cleanup 撤销 A，再用 B 执行新的 setup；卸载时撤销最后保留的订阅。把建立和撤销写在一起，可以直接检查两者是否配对。
 
 ```jsx
 useEffect(() => {
@@ -520,3 +515,5 @@ deps 变化导致 effect 重跑之前，以及卸载时。用于取消订阅、�
 - [Vue vs React](/md/框架/Vue%20vs%20React.md)
 - [React 19 相对 18](/md/框架/React/React%2019%20变化.md)
 - [面试速记：React & Vue](/md/面试准备/技术/React%20&%20Vue.md)
+
+行为核查参考：[React useEffect](https://react.dev/reference/react/useEffect)。源码字段属于实现说明，阅读时需核对相应版本。
