@@ -98,8 +98,22 @@ section.cover h1,
 }
 
 .markdown-section a {
-    color: var(--theme-color);
-    font-weight: 500;
+    color: #0b6b52;
+    font-weight: 600;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.18em;
+}
+
+.markdown-section .anchor,
+.markdown-section .anchor span {
+    color: var(--gpt-ink);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.markdown-section .anchor:hover,
+.markdown-section .anchor:hover span {
+    color: #0b6b52;
 }
 
 .markdown-section blockquote {

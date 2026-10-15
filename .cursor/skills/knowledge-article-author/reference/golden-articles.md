@@ -8,7 +8,8 @@
 
 | 主题 | 路径 | 学什么 |
 | --- | --- | --- |
-| React Diff | `docs/md/框架/React/React Diff算法.md` | 2～3 分钟口述、一句话箭头总结、列表 Trace、`lastPlacedIndex`、与 Vue 取舍 |
+| React Fiber | `docs/md/框架/React/Fiber架构.md` | 面试回答怎么说：先报层面，首先 / 第二 / 第三展开，机制名旁边写职责，结尾写不等于什么 |
+| React Diff | `docs/md/框架/React/React Diff算法.md` | 一句话箭头总结、列表 Trace、`lastPlacedIndex`、与 Vue 取舍 |
 | React 渲染 | `docs/md/框架/React/React 渲染原理.md` | 更新主链路、Element/Fiber 区分、Render vs Commit |
 | Vue 渲染 | `docs/md/框架/Vue/Vue 渲染原理.md` | 与 React 篇对称，便于写对比文 |
 | Promise | `docs/md/基础/ES6/Promise.md` | 基础概念 + 手写题衔接 |
