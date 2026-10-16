@@ -59,6 +59,8 @@
 
 #### 从 JSX 到页面：三种对象怎么交接
 
+JSX 用接近标签的结构表达组件树，并允许在花括号里使用 JavaScript 表达式。把结构、数据和交互放在组件内，方便组合与重构；相比手写层层嵌套的创建函数，树的关系也更容易看清。它是开发时的表达方式，不是浏览器内置的 HTML 解析规则，也不是 React 必须使用的语法。构建时由支持 JSX 的编译工具先转成普通 JavaScript，浏览器再执行产物。语法转换过程见 [Babel 原理与兼容策略](/md/工程化/体系与实践/Babel原理与兼容策略.md)。
+
 如果面试官问的是「从 JSX 到最终 DOM」，不要从 `setState` 讲起。先讲编译产物，再讲第一次挂载时谁持有谁。
 
 React 17 起的新 JSX 转换会把 JSX 编成 `jsx()` / `jsxs()`（来自 `react/jsx-runtime`），不再要求文件里 `import React`。更早的经典转换则是 `React.createElement`。React 19 要求使用新 JSX 转换。两条路径的运行时产物一样：一个普通对象，叫 React Element。

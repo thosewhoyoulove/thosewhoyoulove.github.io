@@ -9,6 +9,12 @@ const path = require("path");
  */
 const SIDEBAR = [
     {
+        title: "面试题单",
+        children: [
+            ["百度前端 25 题分类解答", "/md/面试准备/百度前端25题分类解答.md"],
+        ],
+    },
+    {
         title: "JavaScript 与浏览器",
         children: [
             {
@@ -147,6 +153,10 @@ const SIDEBAR = [
         children: [
             ["LLM 与 Prompt Engineering", "/md/Agent/LLM与PromptEngineering.md"],
             ["Agent 与 Skill 体系", "/md/Agent/Agent与Skill体系.md"],
+            ["Skills、MCP 与 A2A", "/md/Agent/Skills与MCP及A2A的区别.md"],
+            ["上下文与 Token", "/md/Agent/上下文与Token体验.md"],
+            ["RAG 索引与多路召回", "/md/Agent/RAG索引与多路召回.md"],
+            ["RAG 与证据体验", "/md/Agent/RAG与检索增强体验.md"],
             ["MCP 与工具调用概念", "/md/Agent/MCP与工具调用概念.md"],
             ["对话界面架构", "/md/Agent/对话界面架构.md"],
             ["流式渲染与 SSE", "/md/Agent/流式渲染与SSE.md"],
@@ -162,6 +172,7 @@ const SIDEBAR = [
                 children: [
                     ["工程化大厂高频口述", "/md/面试准备/技术/工程化大厂高频口述.md"],
                     ["工程化体系", "/md/工程化/体系与实践/工程化体系.md"],
+                    ["Babel 原理与兼容策略", "/md/工程化/体系与实践/Babel原理与兼容策略.md"],
                     ["打包优化面试专题", "/md/工程化/体系与实践/打包优化面试专题.md"],
                     ["CI/CD", "/md/工程化/体系与实践/CI&CD.md"],
                     ["Monorepo", "/md/工程化/体系与实践/Monorepo.md"],
@@ -192,6 +203,19 @@ const SIDEBAR = [
                     ["分包策略", "/md/工程化/构建优化/分包策略.md"],
                 ],
             },
+        ],
+    },
+    {
+        title: "移动端与跨端",
+        children: [
+            ["WebView、JSBridge 与跨端", "/md/框架/移动端/WebView与JSBridge及跨端原理.md"],
+        ],
+    },
+    {
+        title: "算法与数据结构",
+        children: [
+            ["二叉树遍历与 DFS、BFS", "/md/算法/二叉树遍历与DFS及BFS.md"],
+            ["Trie 前缀树", "/md/算法/trie.md"],
         ],
     },
     {
